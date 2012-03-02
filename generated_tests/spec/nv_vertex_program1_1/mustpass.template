@@ -1,0 +1,33 @@
+[require]
+GL_NV_vertex_program1_1
+
+[vertex program]
+!!VP1.1
+${program}
+	# Remap results on the range [0, 1] to [0.25, 0.75].  This makes it
+	# possible for pixel probe instructions to detect invalid values < 0
+	# or > 1.
+	MAD	R0, R0, c[3].xxxx, c[3].yyyy;
+
+	MOV	o[COL0], R0;
+	MOV	o[HPOS], v[OPOS];
+	END
+
+[test]
+clear color 0.5 0.5 0.5 0.5
+clear
+
+parameter env_vp 3 (0.5, 0.25, 0.0, 0.0)
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+
+% for i in range(len(env)):
+parameter env_vp ${i} (${env[i][0]}, ${env[i][1]}, ${env[i][2]}, ${env[i][3]})
+% endfor
+parameter env_vp 2 (${not_expected}, 0, 1, 0)
+draw rect ${x} ${y} ${w} ${h}
+# Will expect ${expected[0] * .5 + .25} ${expected[1] * .5 + .25} ${expected[2] * .5 + .25} ${expected[3] * .5 + .25}
+% endfor
+
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+relative probe rgba (${.5 * (x + w * .5) + .5}, ${.5 * (y + h * .5) + .5}) (${expected[0] * .5 + .25}, ${expected[1] * .5 + .25}, ${expected[2] * .5 + .25}, ${expected[3] * .5 + .25})
+% endfor

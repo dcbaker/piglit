@@ -1,0 +1,32 @@
+[require]
+GL_ARB_fragment_program
+
+[fragment program]
+!!ARBfp1.0
+	TEMP	R0;
+
+${program}
+	# Remap results on the range [0, 1] to [0.25, 0.75].  This makes it
+	# possible for pixel probe instructions to detect invalid values < 0
+	# or > 1.
+	MAD	R0, R0, {0.5}.xxxx, {0.25}.xxxx;
+
+	MOV	result.color, R0;
+	END
+
+[test]
+clear color 0.5 0.5 0.5 0.5
+clear
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+
+% for i in range(len(env)):
+parameter env_fp ${i} (${env[i][0]}, ${env[i][1]}, ${env[i][2]}, ${env[i][3]})
+% endfor
+parameter env_fp 2 (${not_expected}, 0, 1, 0)
+draw rect ${x} ${y} ${w} ${h}
+# Will expect ${expected[0] * .5 + .25} ${expected[1] * .5 + .25} ${expected[2] * .5 + .25} ${expected[3] * .5 + .25}
+% endfor
+
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+relative probe rgba (${.5 * (x + w * .5) + .5}, ${.5 * (y + h * .5) + .5}) (${expected[0] * .5 + .25}, ${expected[1] * .5 + .25}, ${expected[2] * .5 + .25}, ${expected[3] * .5 + .25})
+% endfor
