@@ -1,3 +1,4 @@
 spec/glsl-*
+spec/*_*_program*/*.shader_test
 asmparsertest
 *.list
