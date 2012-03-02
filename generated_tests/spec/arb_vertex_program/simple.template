@@ -1,0 +1,30 @@
+[require]
+GL_ARB_vertex_program
+
+[vertex program]
+!!ARBvp1.0
+	TEMP	R0;
+
+${program}
+	# Assume that the instruction generates a set of values on the range
+	# [0,1] that can be directly written as colors.
+	MOV	result.color, R0;
+	MOV	result.position, vertex.position;
+	END
+
+[test]
+clear color 0.1 0.1 0.1 1.0
+clear
+
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+% for i in range(len(env)):
+parameter env_vp ${i} (${env[i][0]}, ${env[i][1]}, ${env[i][2]}, ${env[i][3]})
+% endfor
+parameter env_vp 2 (${not_expected}, 0, 1, 0)
+draw rect ${x} ${y} ${w} ${h}
+# Will expect ${expected[0]} ${expected[1]} ${expected[2]} ${expected[3]}
+
+% endfor
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+relative probe rgba (${.5 * (x + w * .5) + .5}, ${.5 * (y + h * .5) + .5}) (${expected[0]}, ${expected[1]}, ${expected[2]}, ${expected[3]})
+% endfor
