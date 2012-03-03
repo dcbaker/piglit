@@ -21,6 +21,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import itertools
+from mako.template import Template
 import math
 import numpy as np
 import random
@@ -1152,6 +1154,7 @@ def emit_test(path_base, template, name, nv, program, test_vectors):
 
         m.env[0:len(data)] = data
         m.env[len(data)] = np.array([0., 0., 1., 0.])
+
         m.execute_program(program)
 
         r0 = m.getOperand("R0")

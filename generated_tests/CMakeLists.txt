@@ -20,6 +20,10 @@ endfunction(piglit_make_generated_tests custom_target generator_script)
 
 # Generators for OpenGL tests
 piglit_make_generated_tests(
+	asm_opcode_mustpass.list
+	gen_asm_mustpass.py)
+
+piglit_make_generated_tests(
 	builtin_packing_tests.list
 	gen_builtin_packing_tests.py
 	templates/gen_builtin_packing_tests/vs_unpack.shader_test.mako
@@ -247,6 +251,7 @@ add_custom_target(gen-gl-tests
 			vp-tex.list
 			variable_index_write_tests.list
 			vs_in_fp64.list
+			asm_opcode_mustpass.list
 )
 
 # Create a custom target for generating OpenCL tests
