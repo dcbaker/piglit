@@ -1,0 +1,46 @@
+[require]
+GL_ARB_fragment_program
+
+[fragment program]
+!!ARBfp1.0
+	TEMP	R0, R1;
+
+${program}
+	# If the value in R0 is not within the tolerance of the expected
+	# result (program.env[3]) set the red component to 1.0.
+% if "SCS" in program:
+	SUB	R1, R0, program.env[3];
+% else:
+	SUB	R1, R0, program.env[3].xyxy;
+% endif
+	ABS	R1, R1;
+	SLT	R1, R1, {1e-4}.x;		# Abs diff less than tolerance?
+	MUL	R1.xy, R1.xzxz, R1.ywyw;	# R1.xy = ((R1.x && R1.y),
+						#          (R1.z && R1.w))
+	MUL	R1.x, R1.x, R1.y;		# R1.x = (R1.x && R1.y
+						#         && R1.z && R1.w)
+	SUB	R1.y, {1.0}.x, R1.x;		# Logical not
+
+	MUL	result.color.x, R1.y, {1.0}.x;
+
+	# Store the X and Y components of R0 in the green and blue components
+	# of the output.  Compress the range of the values from [-1,1] to
+	# [0,1].  Also, force W to be 1.
+	MAD	result.color.yzw, R0.xxyy, {0.0, 0.5, 0.5, 0.0}, {0.0, 0.5, 0.5, 1.0};
+	END
+
+[test]
+clear color 0.1 0.1 0.1 1.0
+clear
+
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+parameter env_fp 0 (${env[0][0]}, 0, 0, 0)
+parameter env_fp 1 (${not_expected}, 0, 1, 0)
+parameter env_fp 3 (${expected[0]}, ${expected[1]}, 0, 0)
+draw rect ${x} ${y} ${w} ${h}
+# Will expect 0, ${expected[0]*.5+.5}, ${expected[1]*.5+.5}
+
+% endfor
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+relative probe rgb (${.5 * (x + w * .5) + .5}, ${.5 * (y + h * .5) + .5}) (0, ${expected[0]*.5+.5}, ${expected[1]*.5+.5})
+% endfor
