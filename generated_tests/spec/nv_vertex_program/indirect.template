@@ -1,0 +1,82 @@
+<%!
+def tolerance(expected):
+    """Generate the tolerance values for a set of expected values.
+
+    Calculated values should have a relative error on the order of 1e-5.  This
+    method calculates the proper relative error tolerances for the set of the
+    expected values.
+    """
+
+    t = []
+    for v in expected:
+        v = max(1e-5, 1e-6 * v)
+        t.append(str(v))
+
+    return ', '.join(t)
+%>
+[require]
+GL_NV_vertex_program1_1
+
+[vertex program]
+!!VP1.0
+	# R11 it the boolean "fail" variable.  This is stored in a high
+	# register index so that code to test any possible instruction will
+	# not stomp on it.
+
+	# c[0] is {base index, 1, 0, 0}
+	# c[1..4] are the operands for the instructions
+	# c[5..${5 + len(programs) - 1}] are the expected values
+	# c[${5 + len(programs)}..${5 + 2 * len(programs) - 1}] are the tolerance values
+	# c[${5 + 2 * len(programs)}] is { never expected value, 0, 1, 0 }
+	ARL	A0.x, c[0].x;
+
+% for i in range(len(programs)):
+	# Combination ${i}
+${programs[i]}
+% if i == 0:
+	# fail = any(greaterThanEqual(abs(value - expect), tolerance));
+% elif i == 1:
+	# fail = fail || any(greaterThanEqual(abs(value - expect), tolerance));
+% endif
+	ADD	R0, R0, -c[${5+i}];
+	MAX	R0, R0, -R0;
+	SGE	R0, R0, c[${6+len(programs)+i}];
+% if i == 0:
+	DP4	R11.x, R0, R0;
+% else:
+	DP4	R0.x, R0, R0;
+	ADD	R11.x, R11.x, R0.x;
+% endif
+
+% endfor
+	MIN	R11.x, R11.x, c[0].y;		# Clamp to [0,1]
+	ADD	R11.y, c[0].y, -R11.x;		# Logical not
+	MUL	R1, R1.y, c[0].zyzy;		# Select green on !fail or...
+	MAD	o[COL0], R11.x, c[0].yzzy, R11;	# ...red on fail.
+	MOV	o[HPOS], v[OPOS];
+	END
+
+[test]
+clear color 0.5 0.5 0.5 0.5
+clear
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+
+% for i in range(len(env)):
+parameter env_vp ${i} (${env[i][0]}, ${env[i][1]}, ${env[i][2]}, ${env[i][3]})
+% endfor
+# Expected values
+% for i in range(len(expected)):
+parameter env_vp ${i + 5} (${expected[i][0]}, ${expected[i][1]}, ${expected[i][2]}, ${expected[i][3]})
+% endfor
+# Tolerance values
+% for i in range(len(expected)):
+parameter env_vp ${i + 6 + len(expected)} (${tolerance(expected[i])})
+% endfor
+# "Not expected" value
+parameter env_vp ${5 + 2 * len(expected)} (${not_expected}, 0, 1, 0)
+draw rect ${x} ${y} ${w} ${h}
+% endfor
+
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+relative probe rgb (${.5 * (x + w * .5) + .5}, ${.5 * (y + h * .5) + .5}) (0, 1, 0)
+% endfor
