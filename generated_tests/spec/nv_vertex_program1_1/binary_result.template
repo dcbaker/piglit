@@ -1,0 +1,63 @@
+[require]
+GL_NV_vertex_program1_1
+
+[vertex program]
+!!VP1.1
+	# R11 it the boolean "fail" variable.  This is stored in a high
+	# register index so that code to test any possible instruction will
+	# not stomp on it.
+
+	# c[0..2] are the operands for the instructions
+	# c[3..${3 + len(programs) - 1}] are the expected values
+	# c[${3 + len(programs)}..${3 + 2 * len(programs) - 1}] are the tolerance values
+	# c[${3 + 2 * len(programs)}] is { never expected value, 0, 1, 0 }
+% for i in range(len(programs)):
+	# Combination ${i}
+${programs[i]}
+% if i == 0:
+	# fail = any(greaterThanEqual(abs(value - expect), tolerance));
+% elif i == 1:
+	# fail = fail || any(greaterThanEqual(abs(value - expect), tolerance));
+% endif
+	SUB	R0, R0, c[${3+i}];
+	ABS	R0, R0;
+	SGE	R0, R0, c[${3+len(programs)+i}];
+% if i == 0:
+	DP4	R11.x, R0, R0;
+% else:
+	DP4	R0.x, R0, R0;
+	ADD	R11.x, R11.x, R0.x;
+% endif
+
+% endfor
+	MIN	R11.x, R11.x, c[${3 + 2 * len(programs)}].z;		# Clamp to [0,1]
+	SUB	R11.y, c[${3 + 2 * len(programs)}].z, R11.x;		# Logical not
+	MUL	R1, R1.y, c[${3 + 2 * len(programs)}].yzyz;		# Select green on !fail or...
+	MAD	o[COL0], R11.x, c[${3 + 2 * len(programs)}].zyyz, R11;	# ...red on fail.
+	MOV	o[HPOS], v[OPOS];
+	END
+
+[test]
+clear color 0.5 0.5 0.5 0.5
+clear
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+
+% for i in range(len(env)):
+parameter env_vp ${i} (${env[i][0]}, ${env[i][1]}, ${env[i][2]}, ${env[i][3]})
+% endfor
+# Expected values
+% for i in range(len(expected)):
+parameter env_vp ${i + 3} (${expected[i][0]}, ${expected[i][1]}, ${expected[i][2]}, ${expected[i][3]})
+% endfor
+# Tolerance values
+% for i in range(len(expected)):
+parameter env_vp ${i + 3 + len(expected)} (${max(1e-5, 1e-6 * expected[i][0])}, ${max(1e-5, 1e-6 * expected[i][1])}, ${max(1e-5, 1e-6 * expected[i][2])}, ${max(1e-5, 1e-6 * expected[i][3])})
+% endfor
+# "Not expected" value
+parameter env_vp ${3 + 2 * len(expected)} (${not_expected}, 0, 1, 0)
+draw rect ${x} ${y} ${w} ${h}
+% endfor
+
+% for [env, expected, not_expected, x, y, w, h] in test_vectors:
+relative probe rgb (${.5 * (x + w * .5) + .5}, ${.5 * (y + h * .5) + .5}) (0, 1, 0)
+% endfor
