@@ -22,6 +22,9 @@ endfunction(piglit_make_generated_tests custom_target generator_script)
 piglit_make_generated_tests(
 	asm_opcode_mustpass.list
 	gen_asm_mustpass.py)
+piglit_make_generated_tests(
+	asm_opcode_coverage.list
+	gen_asm_coverage.py)
 
 piglit_make_generated_tests(
 	builtin_packing_tests.list
@@ -252,6 +255,7 @@ add_custom_target(gen-gl-tests
 			variable_index_write_tests.list
 			vs_in_fp64.list
 			asm_opcode_mustpass.list
+			asm_opcode_coverage.list
 )
 
 # Create a custom target for generating OpenCL tests
