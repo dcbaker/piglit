@@ -21,6 +21,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import copy
 import itertools
 from mako.template import Template
 import math
@@ -1174,6 +1175,81 @@ def emit_test(path_base, template, name, nv, program, test_vectors):
 
     f = open(filename, "w")
     f.write(Template(template).render(program = get_program_text(program),
+                                      test_vectors = test_vectors_with_results))
+    f.close()
+    return
+
+
+def emit_test_from_multiple_programs(path_base, template, name, nv, programs,
+                                     test_vectors):
+    """Generate a complete test from a set of programs, set of inputs, and a template
+
+    Position data for a square tile for each value in 'test_vectors' is
+    generated.
+
+    Each program in 'programs' is used to generate the expected output for
+    each input in 'test_vectors'.
+
+    All of this data, along with the programs, is passed to the Mako template.
+    The resulting test is stored in path_base/name.shader_test."""
+
+    filename =  "{0}/{1}.shader_test".format(path_base, name)
+
+    print(filename)
+
+    m = machine(nv)
+
+    tiles_per_row = int(np.ceil(np.sqrt(len(test_vectors))))
+    if tiles_per_row < 16:
+        tiles_per_row = 16
+
+    w = 2. / tiles_per_row
+    h = w
+
+    x = np.linspace(-1, 1, 1 + tiles_per_row)
+    locations = list(itertools.product(x[:tiles_per_row], repeat = 2))
+
+    # Run the program for each set of inputs.  Record the value in R0 at the
+    # end of program execution.  This will be the "expected" value for the
+    # test template.
+    test_vectors_with_results = []
+    for i in range(len(test_vectors)):
+        data = copy.deepcopy(test_vectors[i])
+
+        m.reset(nv)
+        m.address[0] = [True, np.array([int(data[0][0]), 0, 0, 0],
+                                       dtype = np.int32)]
+        m.env[0:len(data)] = data
+
+        results = []
+        for p in programs:
+            m.execute_program(p)
+
+            r0 = m.getOperand("R0")
+            results.append(r0)
+
+        # Calculate a value that does not appear in any of the expected
+        # results.  This is used by (some) templates to preinitialize result
+        # registers with impossible values to detect bad write mask handling.
+        not_expected = 0.0
+        for v in results:
+            for x in v:
+                if x == 0.0:
+                    not_expected += 11.
+                else:
+                    not_expected += abs(x)
+
+        [y, x] = locations[i]
+        test_vectors_with_results.append([data, results,
+                                          not_expected,
+                                          x, y, w, h])
+
+    program_text = []
+    for p in programs:
+        program_text.append(get_program_text(p))
+
+    f = open(filename, "w")
+    f.write(Template(template).render(programs = program_text,
                                       test_vectors = test_vectors_with_results))
     f.close()
     return
