@@ -25,6 +25,9 @@ piglit_make_generated_tests(
 piglit_make_generated_tests(
 	asm_opcode_coverage.list
 	gen_asm_coverage.py)
+piglit_make_generated_tests(
+	asm_opcode_indirect.list
+	gen_asm_indirect.py)
 
 piglit_make_generated_tests(
 	builtin_packing_tests.list
@@ -256,6 +259,7 @@ add_custom_target(gen-gl-tests
 			vs_in_fp64.list
 			asm_opcode_mustpass.list
 			asm_opcode_coverage.list
+			asm_opcode_indirect.list
 )
 
 # Create a custom target for generating OpenCL tests
