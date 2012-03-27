@@ -64,6 +64,9 @@
  *   6.0 7.0 8.0		9.0 10.0 11.0
  *   \endverbatim
  *
+ * ATTRNAME may also be an integer value.  This can be used with
+ * ARB_vertex_program tests to supply data to the generic attributes.
+ *
  * The data follows the column headers in space-separated form.  "#"
  * can be used for comments, as in shell scripts.
  *
@@ -408,10 +411,16 @@ vertex_attrib_description::vertex_attrib_description(GLuint prog,
 		this->matrix_index = 0;
 	}
 
-	GLint attrib_location = glGetAttribLocation(prog, name.c_str());
-	if (attrib_location == -1) {
-		printf("Unexpected vbo column name.  Got: %s\n", name.c_str());
-		piglit_report_result(PIGLIT_FAIL);
+	GLint attrib_location;
+	if (isdigit(name[0])) {
+		attrib_location = atoi(name.c_str());
+	} else {
+		attrib_location = glGetAttribLocation(prog, name.c_str());
+		if (attrib_location == -1) {
+			printf("Unexpected vbo column name.  Got: %s\n",
+			       name.c_str());
+			piglit_report_result(PIGLIT_FAIL);
+		}
 	}
 	this->index = attrib_location;
 	/* If the type is integral, verify that integer vertex
