@@ -121,7 +121,8 @@ def emit_indirect_addressing_tests(path_base, suffix, template, sources,
 
         arb.emit_test_from_multiple_programs(path_base, template,
                                              inst.op_string.lower() + suffix,
-                                             nv, programs, test_vectors)
+                                             nv, programs, test_vectors,
+                                             False, False)
     return
 
 

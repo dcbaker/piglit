@@ -76,7 +76,8 @@ def emit_common_tests(path_base, template, base_test_vectors,
 
         arb.emit_test_from_multiple_programs(path_base, template,
                                              inst.op_string.lower(),
-                                             nv, programs, test_vectors)
+                                             nv, programs, test_vectors,
+                                             fragment_program, False)
     return
 
 
@@ -147,7 +148,8 @@ def emit_exp_and_log_tests(path_base, template, base_test_vectors,
 
         arb.emit_test_from_multiple_programs(path_base, template,
                                              inst.op_string.lower(),
-                                             nv, programs, test_vectors)
+                                             nv, programs, test_vectors,
+                                             fragment_program, False)
     return
 
 

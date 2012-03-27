@@ -76,6 +76,10 @@ class machine:
         for i in range(96):
             self.local.append(np.array([0., 0., 0., 0.]))
 
+        self.attrib = []
+        for i in range(16):
+            self.attrib.append(np.array([0., 0., 0., 1.]))
+
         return
 
 
@@ -213,6 +217,19 @@ class machine:
                 raise Exception("Invalid environment parameter index {0}".format(operand))
 
             value = self.env[index]
+
+            if m.group(3) != None:
+                return scale * self.swizzleResult(value, m.group(3)[1:])
+
+            return scale * value
+        elif operand[0:13] == "vertex.attrib" or operand[0] == 'v' or operand[0:17] == "fragment.texcoord":
+            m = re.match("(vertex\.attrib|v|fragment\.texcoord)[[]([0-9]+)](\.[xyzw]+)?", operand)
+
+            index = self.calculateAddress(m.group(2))
+            if index >= len(self.attrib):
+                raise Exception("Invalid attribute index {0}".format(m.group(2)))
+
+            value = self.attrib[index]
 
             if m.group(3) != None:
                 return scale * self.swizzleResult(value, m.group(3)[1:])
@@ -1181,7 +1198,7 @@ def emit_test(path_base, template, name, nv, program, test_vectors):
 
 
 def emit_test_from_multiple_programs(path_base, template, name, nv, programs,
-                                     test_vectors):
+                                     test_vectors, fragment, use_attrib):
     """Generate a complete test from a set of programs, set of inputs, and a template
 
     Position data for a square tile for each value in 'test_vectors' is
@@ -1219,6 +1236,14 @@ def emit_test_from_multiple_programs(path_base, template, name, nv, programs,
         m.reset(nv)
         m.address[0] = [True, np.array([int(data[0][0]), 0, 0, 0],
                                        dtype = np.int32)]
+
+        if use_attrib:
+            if fragment:
+                m.attrib[0:len(data)] = data
+            else:
+                # attrib[0] is the vertex position, and it isn't used
+                m.attrib[1:1+len(data)] = data
+
         m.env[0:len(data)] = data
 
         results = []
@@ -1332,6 +1357,7 @@ def get_program_for_instruction(inst, dest, sources, garbage, fragment_program,
         num_constants = 0
         seen_constants = {}
         for i in range(inst.numSources):
+            sources[i] = re.sub("vertex\.attrib", "v", sources[i])
             src = re.sub("program\.env", "c", sources[i])
             m = re.match("(-)?c[[]([^]]+)](\.[xyzw]+)?", src)
             if m:
