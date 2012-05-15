@@ -108,6 +108,15 @@ def emit_dp4_tests(path_base, template, base_test_vectors,
                                               garbage,
                                               fragment_program, nv)
 
+    if not saturate:
+        p = arb.get_program_for_instruction(arb.MIN_opcode(False),
+                                            "R0",
+                                            ["R0", "{1.0}.xxxx"],
+                                            garbage,
+                                            fragment_program,
+                                            nv)
+        program.append(p[1])
+
     test_vectors = []
     for i in range(len(base_test_vectors)):
         env = [np.array(base_test_vectors[i])]
