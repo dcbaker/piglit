@@ -37,6 +37,8 @@ import textwrap
 
 from six.moves import range
 
+from modules.utils import safe_makedirs
+
 
 class TcsTest(object):
     """Test passing variables from the vertex shader to the tessellation
@@ -283,8 +285,7 @@ class TcsTest(object):
 
         filename = self.filename()
         dirname = os.path.dirname(filename)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        safe_makedirs(dirname)
         with open(filename, 'w') as f:
             f.write(test)
 
@@ -561,8 +562,7 @@ class TesTest(object):
 
         filename = self.filename()
         dirname = os.path.dirname(filename)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        safe_makedirs(dirname)
         with open(filename, 'w') as f:
             f.write(test)
 
