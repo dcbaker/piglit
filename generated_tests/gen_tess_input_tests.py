@@ -568,6 +568,7 @@ class TesTest(object):
 
 
 def all_tests():
+    """Generator yield test instances."""
     for type_name in ['float', 'vec2', 'vec3', 'vec4',
                       'mat2', 'mat3', 'mat4',
                       'mat2x3', 'mat2x4', 'mat3x2',
