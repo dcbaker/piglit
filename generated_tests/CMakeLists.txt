@@ -44,7 +44,10 @@ piglit_make_generated_tests(
 	)
 piglit_make_generated_tests(
 	tess_input_tests.list
-	gen_tess_input_tests.py)
+	gen_tess_input_tests.py
+	templates/gen_tess_input_tests/tcs.shader_test.mako
+	templates/gen_tess_input_tests/tes.shader_test.mako
+    )
 piglit_make_generated_tests(
 	interpolation_tests.list
 	gen_interpolation_tests.py
