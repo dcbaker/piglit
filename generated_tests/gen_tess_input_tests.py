@@ -36,7 +36,7 @@ import random
 
 from six.moves import range
 
-from modules.utils import safe_makedirs
+from modules.utils import safe_makedirs, lazy_property
 from templates import template_dir
 
 
@@ -107,26 +107,6 @@ class TcsTest(object):
     def tcs_var_ref(self):
         return '.' + self.var_name if self.interface_tcs_instance else self.var_name
 
-    @property
-    def uniform_string(self):
-        """Returns string for loading uniform data by the shader_runner."""
-        data = self.test_data()
-        uniforms = ''
-        if self.var_array:
-            for i in range(12):
-                for j in range(self.var_array):
-                    uniforms += 'uniform {0} reference[{1}].v[{2}] {3}\n'.format(
-                        self.var_type, i, j, data[i*j])
-        else:
-            for i in range(12):
-                uniforms += 'uniform {0} reference[{1}].v {2}\n'.format(
-                    self.var_type,
-                    i,
-                    data[i])
-
-        #strip last newline
-        return uniforms[:-1]
-
     def components(self):
         """Returns the number of scalar components of the used data type."""
         n = 1
@@ -143,6 +123,7 @@ class TcsTest(object):
 
         return n
 
+    @lazy_property
     def test_data(self):
         """Returns random but deterministic data as a list of strings.
 
@@ -288,26 +269,6 @@ class TesTest(object):
     def reference_size(self):
         return 4 if self.patch_in else 12
 
-    @property
-    def uniform_string(self):
-        """Returns string for loading uniform data by the shader_runner."""
-        data = self.test_data()
-        uniforms = ''
-        if self.var_array:
-            for i in range(self.reference_size):
-                for j in range(self.var_array):
-                    uniforms += 'uniform {0} reference[{1}].v[{2}] {3}\n'.format(
-                        self.var_type, i, j, data[i*j])
-        else:
-            for i in range(self.reference_size):
-                uniforms += 'uniform {0} reference[{1}].v {2}\n'.format(
-                    self.var_type,
-                    i,
-                    data[i])
-
-        #strip last newline
-        return uniforms[:-1]
-
     def components(self):
         """Returns the number of scalar components of the used data type."""
         n = 1
@@ -324,6 +285,7 @@ class TesTest(object):
 
         return n
 
+    @lazy_property
     def test_data(self):
         """Returns random but deterministic data as a list of strings.
 
