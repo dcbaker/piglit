@@ -32,9 +32,9 @@ Currently test for VS -> TCS and TCS -> TES are generated.
 from __future__ import print_function, absolute_import, division
 import os
 import sys
-import random
 
-from six.moves import range
+from six.moves import range  # pylint: disable=redefined-builtin
+import numpy as np
 
 from modules.utils import safe_makedirs, lazy_property
 from templates import template_dir
@@ -131,7 +131,7 @@ class TcsTest(object):
         Where n is the number of vertices times the array length and
         c is the number of components in the tested scalar data type.
         """
-        random.seed(17)
+        np.random.seed(17)
 
         if self.var_array:
             n = self.var_array * 12
@@ -139,13 +139,14 @@ class TcsTest(object):
             n = 12
 
         if self.var_type.startswith('i'):
-            rand = lambda: random.randint(-0x80000000, 0x7fffffff)
+            rand = lambda: np.random.randint(-0x80000000, 0x7fffffff)
         elif self.var_type.startswith('u'):
-            rand = lambda: random.randint(0, 0xffffffff)
+            rand = lambda: np.random.randint(0, 0xffffffff)
         else:
-            rand = lambda: ((-1 + 2 * random.randint(0, 1)) *
-                            random.randint(0, 2**23-1) *
-                            2.0**(random.randint(-126, 127)))
+            rand = lambda: ((np.int_(-1) + np.int_(2) *
+                             np.random.randint(0, 1)) *
+                            np.random.randint(0, 2**23-1) *
+                            np.float_(2.0)**(np.random.randint(-126, 127)))
 
         c = self.components()
 
@@ -293,7 +294,7 @@ class TesTest(object):
         Where n is the number of vertices times the array length and
         c is the number of components in the tested scalar data type.
         """
-        random.seed(17)
+        np.random.seed(17)
 
         if self.var_array:
             n = self.var_array * self.reference_size
@@ -301,13 +302,14 @@ class TesTest(object):
             n = self.reference_size
 
         if self.var_type.startswith('i'):
-            rand = lambda: random.randint(-0x80000000, 0x7fffffff)
+            rand = lambda: np.random.randint(-0x80000000, 0x7fffffff)
         elif self.var_type.startswith('u'):
-            rand = lambda: random.randint(0, 0xffffffff)
+            rand = lambda: np.random.randint(0, 0xffffffff)
         else:
-            rand = lambda: ((-1 + 2 * random.randint(0, 1)) *
-                            random.randint(0, 2**23-1) *
-                            2.0**(random.randint(-126, 127)))
+            rand = lambda: ((np.int_(-1) + np.int_(2) *
+                             np.random.randint(0, 1)) *
+                            np.random.randint(0, 2**23-1) *
+                            np.float_(2.0)**(np.random.randint(-126, 127)))
 
         c = self.components()
 
