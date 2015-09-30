@@ -95,6 +95,8 @@ class TcsTest(object):
         else:
             self.var_type_full = self.var_type
 
+        self.reference_size = 12
+
     @property
     def built_in(self):
         return self.var_name.startswith('gl_')
@@ -134,9 +136,9 @@ class TcsTest(object):
         np.random.seed(17)
 
         if self.var_array:
-            n = self.var_array * 12
+            n = self.var_array * self.reference_size
         else:
-            n = 12
+            n = self.reference_size
 
         if self.var_type.startswith('i'):
             rand = lambda: np.random.randint(-0x80000000, 0x7fffffff)
