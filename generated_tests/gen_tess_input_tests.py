@@ -43,7 +43,70 @@ from templates import template_dir
 _TEMPLATES = template_dir(os.path.basename(os.path.splitext(__file__)[0]))
 
 
-class TcsTest(object):
+class _DataMixin(object):
+    """Mixin class that provides data methods to tests."""
+    def components(self):
+        """Returns the number of scalar components of the used data type."""
+        n = 1
+
+        if self.var_type.startswith('mat'):
+            if 'x' in self.var_type:
+                n *= int(self.var_type[-1])
+                n *= int(self.var_type[-3])
+            else:
+                n *= int(self.var_type[-1])
+                n *= int(self.var_type[-1])
+        elif 'vec' in self.var_type:
+            n *= int(self.var_type[-1])
+
+        return n
+
+    @lazy_property
+    def test_data(self):
+        """Returns random but deterministic data as a list of strings.
+
+        n strings are returned containing c random values, each.
+        Where n is the number of vertices times the array length and
+        c is the number of components in the tested scalar data type.
+
+        """
+        np.random.seed(17)
+
+        if self.var_array:
+            n = self.var_array * self.reference_size
+        else:
+            n = self.reference_size
+
+        if self.var_type.startswith('i'):
+            rand = lambda: np.random.randint(-0x80000000, 0x7fffffff)
+        elif self.var_type.startswith('u'):
+            rand = lambda: np.random.randint(0, 0xffffffff)
+        else:
+            rand = lambda: (np.int_(np.random.choice((-1, 1))) *
+                            np.random.randint(0, 2**23-1) *
+                            np.float_(2.0)**(np.random.randint(-126, 127)))
+
+        c = self.components()
+
+        ret = []
+        for _ in range(n):
+            ret.append(" ".join(str(rand()) for _ in range(c)))
+
+        return ret
+
+
+class _GenerateMixin(object):  # pylint: disable=too-few-public-methods
+    """Mixin class that provides a generate method."""
+    def generate(self):
+        """Generates and writes the test to disc."""
+        dirname = os.path.dirname(self.filename)
+        safe_makedirs(dirname)
+        with open(self.filename, 'w') as f:
+            f.write(self.TEMPLATE.render_unicode(
+                params=self, generator_command=" ".join(sys.argv)))
+
+
+class TcsTest(_DataMixin, _GenerateMixin):
     """Test passing variables from the vertex shader to the tessellation
     control shader.
 
@@ -109,54 +172,7 @@ class TcsTest(object):
     def tcs_var_ref(self):
         return '.' + self.var_name if self.interface_tcs_instance else self.var_name
 
-    def components(self):
-        """Returns the number of scalar components of the used data type."""
-        n = 1
-
-        if self.var_type.startswith('mat'):
-            if 'x' in self.var_type:
-                n *= int(self.var_type[-1])
-                n *= int(self.var_type[-3])
-            else:
-                n *= int(self.var_type[-1])
-                n *= int(self.var_type[-1])
-        elif 'vec' in self.var_type:
-            n *= int(self.var_type[-1])
-
-        return n
-
     @lazy_property
-    def test_data(self):
-        """Returns random but deterministic data as a list of strings.
-
-        n strings are returned containing c random values, each.
-        Where n is the number of vertices times the array length and
-        c is the number of components in the tested scalar data type.
-        """
-        np.random.seed(17)
-
-        if self.var_array:
-            n = self.var_array * self.reference_size
-        else:
-            n = self.reference_size
-
-        if self.var_type.startswith('i'):
-            rand = lambda: np.random.randint(-0x80000000, 0x7fffffff)
-        elif self.var_type.startswith('u'):
-            rand = lambda: np.random.randint(0, 0xffffffff)
-        else:
-            rand = lambda: (np.int_(np.random.choice((-1, 1))) *
-                            np.random.randint(0, 2**23-1) *
-                            np.float_(2.0)**(np.random.randint(-126, 127)))
-
-        c = self.components()
-
-        ret = []
-        for _ in range(n):
-            ret.append(" ".join(str(rand()) for _ in range(c)))
-
-        return ret
-
     def filename(self):
         """Returns the file name (including path) for the test."""
         if self.built_in:
@@ -171,17 +187,8 @@ class TcsTest(object):
                             'tcs-input',
                             'tcs-input-{0}.shader_test'.format(name))
 
-    def generate(self):
-        """Generates and writes the test to disc."""
-        filename = self.filename()
-        dirname = os.path.dirname(filename)
-        safe_makedirs(dirname)
-        with open(filename, 'w') as f:
-            f.write(self.TEMPLATE.render_unicode(
-                params=self, generator_command=" ".join(sys.argv)))
 
-
-class TesTest(object):
+class TesTest(_DataMixin, _GenerateMixin):
     """Test passing variables from the tessellation control shader to the
     tessellation evaluation shader.
 
@@ -271,54 +278,7 @@ class TesTest(object):
     def reference_size(self):
         return 4 if self.patch_in else 12
 
-    def components(self):
-        """Returns the number of scalar components of the used data type."""
-        n = 1
-
-        if self.var_type.startswith('mat'):
-            if 'x' in self.var_type:
-                n *= int(self.var_type[-1])
-                n *= int(self.var_type[-3])
-            else:
-                n *= int(self.var_type[-1])
-                n *= int(self.var_type[-1])
-        elif 'vec' in self.var_type:
-            n *= int(self.var_type[-1])
-
-        return n
-
     @lazy_property
-    def test_data(self):
-        """Returns random but deterministic data as a list of strings.
-
-        n strings are returned containing c random values, each.
-        Where n is the number of vertices times the array length and
-        c is the number of components in the tested scalar data type.
-        """
-        np.random.seed(17)
-
-        if self.var_array:
-            n = self.var_array * self.reference_size
-        else:
-            n = self.reference_size
-
-        if self.var_type.startswith('i'):
-            rand = lambda: np.random.randint(-0x80000000, 0x7fffffff)
-        elif self.var_type.startswith('u'):
-            rand = lambda: np.random.randint(0, 0xffffffff)
-        else:
-            rand = lambda: (np.int_(np.random.choice((-1, 1))) *
-                            np.random.randint(0, 2**23-1) *
-                            np.float_(2.0)**(np.random.randint(-126, 127)))
-
-        c = self.components()
-
-        ret = []
-        for _ in range(n):
-            ret.append(" ".join(str(rand()) for _ in range(c)))
-
-        return ret
-
     def filename(self):
         """Returns the file name (including path) for the test."""
         if self.built_in:
@@ -334,15 +294,6 @@ class TesTest(object):
                             'execution',
                             'tes-input',
                             'tes-input-{0}.shader_test'.format(name))
-
-    def generate(self):
-        """Generates and writes the test to disc."""
-        filename = self.filename()
-        dirname = os.path.dirname(filename)
-        safe_makedirs(dirname)
-        with open(filename, 'w') as f:
-            f.write(self.TEMPLATE.render_unicode(
-                params=self, generator_command=" ".join(sys.argv)))
 
 
 def all_tests():
@@ -365,7 +316,7 @@ def all_tests():
 def main():
     for test in all_tests():
         test.generate()
-        print(test.filename())
+        print(test.filename)
 
 
 if __name__ == '__main__':
