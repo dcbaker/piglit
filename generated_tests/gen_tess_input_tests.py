@@ -143,8 +143,7 @@ class TcsTest(object):
         elif self.var_type.startswith('u'):
             rand = lambda: np.random.randint(0, 0xffffffff)
         else:
-            rand = lambda: ((np.int_(-1) + np.int_(2) *
-                             np.random.randint(0, 1)) *
+            rand = lambda: (np.int_(np.random.choice((-1, 1))) *
                             np.random.randint(0, 2**23-1) *
                             np.float_(2.0)**(np.random.randint(-126, 127)))
 
@@ -306,8 +305,7 @@ class TesTest(object):
         elif self.var_type.startswith('u'):
             rand = lambda: np.random.randint(0, 0xffffffff)
         else:
-            rand = lambda: ((np.int_(-1) + np.int_(2) *
-                             np.random.randint(0, 1)) *
+            rand = lambda: (np.int_(np.random.choice((-1, 1))) *
                             np.random.randint(0, 2**23-1) *
                             np.float_(2.0)**(np.random.randint(-126, 127)))
 
