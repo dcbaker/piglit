@@ -159,43 +159,39 @@ def main():
         print("Usage: {} input output".format(sys.argv[0]))
         sys.exit(1)
 
-    file_in = open(sys.argv[1], "r", 0)
-    file_out = open(sys.argv[2], "w", 0)
-
     glsl_version = None
     extensions = None
     packing = None
     blocks = []
 
-    for line in file_in:
-        if line[0] != '#':
-            continue
+    with open(sys.argv[1], 'r') as f:
+        for line in f.readlines():
+            if line[0] != '#':
+                continue
 
-        if line.startswith("# GLSL"):
-            glsl_version = int(line.split(" ")[2])
-        elif line.startswith("# EXTENSIONS"):
-            extensions = ast.literal_eval(line[12:].strip())
-        elif line.startswith("# PACKING"):
-            packing_str = line.split(" ")[2].strip()
+            if line.startswith("# GLSL"):
+                glsl_version = int(line.split(" ")[2])
+            elif line.startswith("# EXTENSIONS"):
+                extensions = ast.literal_eval(line[12:].strip())
+            elif line.startswith("# PACKING"):
+                packing_str = line.split(" ")[2].strip()
 
-            if packing_str == "shared":
-                packing = random_ubo.SharedPackingRules()
-            elif packing_str == "std140":
-                packing = random_ubo.Std140PackingRules()
+                if packing_str == "shared":
+                    packing = random_ubo.SharedPackingRules()
+                elif packing_str == "std140":
+                    packing = random_ubo.Std140PackingRules()
+                else:
+                    print("Invalid packing string '{}'.".format(packing_str))
+                    sys.exit(1)
+            elif line.startswith("# STRUCT"):
+                struct_name, struct_fields = ast.literal_eval(line[8:].strip())
+                struct_types[struct_name] = struct_fields
+            elif line.startswith("# UBO"):
+                blocks.append(ast.literal_eval(line[5:].strip()))
+            elif line.startswith("# DATA END"):
+                break
             else:
-                print("Invalid packing string '{}'.".format(packing_str))
-                sys.exit(1)
-        elif line.startswith("# STRUCT"):
-            (struct_name, struct_fields) = ast.literal_eval(line[8:].strip())
-            struct_types[struct_name] = struct_fields
-        elif line.startswith("# UBO"):
-            blocks.append(ast.literal_eval(line[5:].strip()))
-        elif line.startswith("# DATA END"):
-            break
-        else:
-            pass
-
-    file_in.close()
+                pass
 
     if not remove_random_field(blocks):
         sys.exit(1)
@@ -203,13 +199,13 @@ def main():
     if len(blocks) == 0:
         sys.exit(1)
 
-    file_out.write(random_ubo.emit_shader_test(
-        blocks,
-        packing,
-        glsl_version,
-        extensions))
-    file_out.write("\n")
-    file_out.close()
+    with open(sys.argv[2], 'w') as f:
+        f.write(random_ubo.emit_shader_test(
+            blocks,
+            packing,
+            glsl_version,
+            extensions))
+        f.write("\n")
 
 
 if __name__ == '__main__':
