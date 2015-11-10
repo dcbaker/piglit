@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from __future__ import absolute_import, division, print_function
+import argparse
 import random
 import abc
 import collections
@@ -1609,42 +1610,45 @@ def generate_file_name(requirements, packing):
 
 
 def main():
-    if len(sys.argv) > 1:
-        max_glsl_version = int(sys.argv[1])
-    else:
-        max_glsl_version = 130
-
-    if len(sys.argv) > 2:
-        extensions = sys.argv[2:]
-    else:
-        extensions = []
+    parser = argparse.ArgumentParser()
+    parser.add_argument('glsl_version',
+                        type=int,
+                        default=130,
+                        help='The maxiumum glsl version to support.')
+    parser.add_argument('extensions',
+                        action='append',
+                        nargs='*',
+                        help='OpenGL Extensions to support.')
+    args = parser.parse_args()
 
     available_versions = [v for v in [130, 140, 150, 400, 430]
-                          if v <= max_glsl_version]
+                          if v <= args.glsl_version]
 
     # Pick a random GLSL version from the available set of possible versions.
     glsl_version = random.choice(available_versions)
 
     # Use the GLSL version filter out some extensions that are redundant.
-    if glsl_version >= 140 and "GL_ARB_uniform_buffer_object" in extensions:
-        extensions.remove("GL_ARB_uniform_buffer_object")
+    if glsl_version >= 140 and "GL_ARB_uniform_buffer_object" in args.extensions:
+        args.extensions.remove("GL_ARB_uniform_buffer_object")
 
-    if glsl_version >= 400 and "GL_ARB_gpu_shader_fp64" in extensions:
-        extensions.remove("GL_ARB_gpu_shader_fp64")
+    if glsl_version >= 400 and "GL_ARB_gpu_shader_fp64" in args.extensions:
+        args.extensions.remove("GL_ARB_gpu_shader_fp64")
 
-    if glsl_version >= 430 and "GL_ARB_arrays_of_arrays" in extensions:
-        extensions.remove("GL_ARB_arrays_of_arrays")
+    if glsl_version >= 430 and "GL_ARB_arrays_of_arrays" in args.extensions:
+        args.extensions.remove("GL_ARB_arrays_of_arrays")
 
     # Pick a random subset of the remaining extensions.
-    num_ext = len(extensions)
+    num_ext = len(args.extensions)
     if num_ext > 0:
-        random.shuffle(extensions)
+        random.shuffle(args.extensions)
         r = random.randint(0, num_ext)
-        extensions = extensions[:r]
+        extensions = args.extensions[:r]
+    else:
+        extensions = []
 
     # Based on the GLSL version and the set of extensions, pick the set of
     # possible data types.
-    if glsl_version < 400:
+    if args.glsl_version < 400:
         types = all130_types
     else:
         types = all400_types
