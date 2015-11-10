@@ -182,9 +182,9 @@ for line in file_in:
         packing_str = line.split(" ")[2].strip()
 
         if packing_str == "shared":
-            packing = random_ubo.shared_packing_rules()
+            packing = random_ubo.SharedPackingRules()
         elif packing_str == "std140":
-            packing = random_ubo.std140_packing_rules()
+            packing = random_ubo.Std140PackingRules()
         else:
             print "Invalid packing string '{}'.".format(packing_str)
             sys.exit(1)

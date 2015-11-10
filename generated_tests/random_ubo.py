@@ -30,6 +30,8 @@ from textwrap import dedent
 
 from mako.template import Template
 
+# pylint: disable=missing-docstring
+
 struct_types = dict()
 
 # pylint: disable=bad-whitespace
