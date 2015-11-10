@@ -20,9 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
+from __future__ import absolute_import, division, print_function
 import errno
-import random_ubo
+import os
+
+from . import random_ubo
+
 
 def do_test(requirements, packing):
     path = os.path.join("spec", "arb_uniform_buffer_object", "execution")
@@ -59,7 +62,7 @@ def do_test(requirements, packing):
         fields,
         layouts)
 
-    print basename
+    print(basename)
     file.write(random_ubo.emit_shader_test(
         blocks,
         packing,
