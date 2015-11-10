@@ -113,8 +113,10 @@ type_enum = {
     'dmat4x4': "GL_DOUBLE_MAT4",
 }
 
+
 def align(offset, alignment):
     return ((offset + alignment - 1) / alignment) * alignment
+
 
 def array_elements(type):
     if "[" not in type:
@@ -123,6 +125,7 @@ def array_elements(type):
     # Is there a better way to do this?
     return int(type.split("[")[1].split("]")[0])
 
+
 def matrix_dimensions(type):
     if "x" in type:
         s = type[-3:].split("x")
@@ -130,6 +133,7 @@ def matrix_dimensions(type):
     else:
         d = int(type[-1:])
         return (d, d)
+
 
 class packing_rules:
     __metaclass__ = abc.ABCMeta
@@ -223,6 +227,7 @@ def isvector(type):
                      "uvec2", "uvec3", "uvec4",
                      "bvec2", "bvec3", "bvec4",
                      "dvec2", "dvec3", "dvec4" ]
+
 
 def ismatrix(type):
     return type in [ "mat2",    "mat3",    "mat4",
@@ -523,13 +528,16 @@ class unique_name_dict:
 
         return "{}{}".format(base, count)
 
+
 def select_basic_type(types, names):
     t = random.choice(types)
     return (t, names.get_name(t))
 
+
 def generate_struct_of_basic_types(types, names):
     return [select_basic_type(types, names)
             for i in xrange(0, random.randint(1,12))]
+
 
 def generate_member_from_description(description, builtin_types, names):
     global struct_types
@@ -656,6 +664,7 @@ def generate_layouts(fields, required_layouts, allow_row_major_structure):
             layouts.append("")
     return layouts
 
+
 def layout_invert_default(l):
     if l == "row_major":
         return "#row_major"
@@ -665,6 +674,7 @@ def layout_invert_default(l):
         return ""
     else:
         raise BaseException("Invalid layout {}".format(l))
+
 
 def generate_layouts_for_default_row_major(layouts):
     """Generate a new list of layouts that should be the same but assumes the
@@ -803,6 +813,7 @@ def iterate_all_struct_fields(type,
 
         a = packing.base_alignment(field_type, row_major)
         offset = align(offset, a) + packing.size(field_type, row_major)
+
 
 class block_member:
     def __init__(self,
