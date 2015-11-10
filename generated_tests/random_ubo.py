@@ -203,7 +203,6 @@ class packing_rules:
             else:
                 return r * self.matrix_stride(type_, row_major)
 
-        global struct_types
         if type_ not in struct_types:
             raise BaseException("Unknown type_ {}".format(type_))
 
@@ -344,7 +343,6 @@ class std140_packing_rules(packing_rules):
         elif ismatrix(type_):
             return self.matrix_stride(type_, row_major)
 
-        global struct_types
         if type_ not in struct_types:
             raise BaseException("Unknown type {}".format(type_))
 
@@ -445,8 +443,6 @@ def iterate_structures(fields, types_seen=[], types_yielded=[]):
        declaration order.  Detects recurrsion in the types and raises an
        exception."""
 
-    global struct_types
-
     for (type_, name) in fields:
         if isarray(type_):
             type_ = array_base_type(type_)
@@ -541,9 +537,6 @@ def generate_struct_of_basic_types(types, names):
 
 
 def generate_member_from_description(description, builtin_types, names):
-    global struct_types
-    global all_types
-
     if len(description) == 0:
         return select_basic_type(builtin_types, names)
 
@@ -684,8 +677,6 @@ def generate_layouts_for_default_row_major(layouts):
 
 
 def fields_to_glsl_struct(type_):
-    global struct_types
-
     # The longest type name will have the form 'dmatCxR[##]' for 11
     # characters.  Use this to set the spacing between the field type and the
     # field name.
@@ -708,8 +699,6 @@ def iterate_all_struct_fields(type_,
                               packing,
                               offset,
                               row_major):
-    global struct_types
-
     for (field_type, field_name) in struct_types[type_]:
         name_from_shader = "{}.{}".format(name_from_shader_base, field_name)
         name_from_API =    "{}.{}".format(name_from_API_base,    field_name)
