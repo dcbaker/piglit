@@ -20,14 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import os
-import sys
-import errno
+from __future__ import absolute_import, division, print_function
 import ast
 import random
 import random_ubo
+import sys
 
-from random_ubo import struct_types
+from .random_ubo import struct_types
 
 def remove_empty_structure(s, do_remove=True):
     removed = [s]
@@ -78,7 +77,7 @@ def diminish_array_type(fields, i):
     else:
         smaller_type = random_ubo.array_base_type(field_type) + "[1]"
 
-    print "{} => {}".format(field_type, smaller_type)
+    print("{} => {}".format(field_type, smaller_type))
     fields[i] = (smaller_type, field_name)
     return True
 
@@ -99,13 +98,13 @@ def remove_random_field(blocks):
 
     (owner, i) = random.choice(potential_kill_list)
 
-    print "{} field index {}:".format(owner, i),
+    print("{} field index {}:".format(owner, i))
 
     if owner in struct_types:
         if diminish_array_type(struct_types[owner], i):
             return True
 
-        print "remove {}".format(struct_types[owner][i])
+        print("remove {}".format(struct_types[owner][i]))
         del struct_types[owner][i]
 
         if len(struct_types[owner]) == 0:
@@ -137,7 +136,7 @@ def remove_random_field(blocks):
         for b in blocks:
             if b[0] == owner:
                 if not diminish_array_type(b[4], i):
-                    print "remove {}".format(b[4][i])
+                    print("remove {}".format(b[4][i]))
 
                     # Delete the field
                     del b[4][i]
@@ -155,7 +154,7 @@ def remove_random_field(blocks):
     return True
 
 if len(sys.argv) <= 2:
-    print "Usage: {} input output".format(sys.argv[0])
+    print("Usage: {} input output".format(sys.argv[0]))
     sys.exit(1)
 
 file_in = open(sys.argv[1], "r", 0)
@@ -182,7 +181,7 @@ for line in file_in:
         elif packing_str == "std140":
             packing = random_ubo.Std140PackingRules()
         else:
-            print "Invalid packing string '{}'.".format(packing_str)
+            print("Invalid packing string '{}'.".format(packing_str))
             sys.exit(1)
     elif line.startswith("# STRUCT"):
         (struct_name, struct_fields) = ast.literal_eval(line[8:].strip())
