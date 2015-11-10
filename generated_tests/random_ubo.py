@@ -840,14 +840,14 @@ class block_member:
             if isstructure(base_type):
                 self.API_type = None
             else:
-                self.API_type = type_enum[base_type];
+                self.API_type = type_enum[base_type]
 
             self.size = array_elements(GLSL_type)
         elif isstructure(GLSL_type):
             self.API_type = None
             self.size = 1
         else:
-            self.API_type = type_enum[GLSL_type];
+            self.API_type = type_enum[GLSL_type]
             self.size = 1
 
     def struct_nesting(self):
