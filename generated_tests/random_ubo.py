@@ -32,6 +32,9 @@ from mako.template import Template
 
 struct_types = dict()
 
+# pylint: disable=bad-whitespace
+# Yes the whitespace is bad. Is it worth going through the fight to change it?
+# No.
 all130_types = [
     "float",  "vec2",  "vec3",  "vec4",
     "int",    "ivec2", "ivec3", "ivec4",
@@ -54,8 +57,9 @@ double_types = [
 all400_types = all130_types + double_types
 
 # All known types, including the redundant NxN matrix types.
-all_types = [ "mat2x2",  "mat3x3",  "mat4x4",
+all_types = ["mat2x2",  "mat3x3",  "mat4x4",
              "dmat2x2", "dmat3x3", "dmat4x4"] + all400_types
+# pylint: disable=bad-whitespace
 
 type_enum = {
     'float': "GL_FLOAT",
@@ -338,8 +342,8 @@ class Std140PackingRules(PackingRules):
                 return 4 * basic_machine_units(component_type(type_))
 
             raise BaseException("Invalid vector size {} for type {}".format(
-                    components,
-                    type_))
+                components,
+                type_))
         elif ismatrix(type_):
             return self.matrix_stride(type_, row_major)
 
@@ -573,9 +577,9 @@ def generate_member_from_description(description, builtin_types, names):
 
         else:
             required_fields = [generate_member_from_description(
-                    description[1:],
-                    builtin_types,
-                    names)]
+                description[1:],
+                builtin_types,
+                names)]
 
         # Pick a random spot in the list of "common" fields and insert all of
         # the required fields there.
@@ -1075,22 +1079,22 @@ def generate_test_vectors(fields,
 
         if ismatrix(base_type):
             test_vectors.append((
-                    name,
-                    m.API_type,
-                    m.size,
-                    align(m.offset, a),
-                    astride,
-                    packing.matrix_stride(base_type, m.row_major),
-                    int(m.row_major)))
+                name,
+                m.API_type,
+                m.size,
+                align(m.offset, a),
+                astride,
+                packing.matrix_stride(base_type, m.row_major),
+                int(m.row_major)))
         elif isvector(base_type) or isscalar(base_type):
             test_vectors.append((
-                    name,
-                    m.API_type,
-                    m.size,
-                    align(m.offset, a),
-                    astride,
-                    0,
-                    0))
+                name,
+                m.API_type,
+                m.size,
+                align(m.offset, a),
+                astride,
+                0,
+                0))
 
     return test_vectors
 
@@ -1126,10 +1130,8 @@ def vector_derp(type_, name, offset, data):
     scalar = component_type(type_)
     components = [ "x", "y", "z", "w" ]
 
-    return [scalar_derp(scalar,
-                 "{}.{}".format(name, components[i]),
-                 offset,
-                 data[i])
+    return [scalar_derp(scalar, "{}.{}".format(name, components[i]),
+                        offset, data[i])
             for i in xrange(vector_size(type_))]
 
 
@@ -1145,10 +1147,10 @@ def matrix_derp(type_, name, offset, data):
 
     for i in xrange(c):
         data_pairs.extend(vector_derp(
-                column_type,
-                "{}[{}]".format(name, i),
-                offset,
-                data[(i * r):(i * r) + r]))
+            column_type,
+            "{}[{}]".format(name, i),
+            offset,
+            data[(i * r):(i * r) + r]))
 
     return data_pairs
 
@@ -1208,12 +1210,12 @@ def generate_data_pairs(uniform_blocks, packing):
          fields,
          field_layouts) in uniform_blocks:
         for m in iterate_all_block_members(
-            fields,
-            field_layouts,
-            block_name,
-            instance_name,
-            packing,
-            block_row_major_default(global_layout, block_layout)):
+                fields,
+                field_layouts,
+                block_name,
+                instance_name,
+                packing,
+                block_row_major_default(global_layout, block_layout)):
 
             if m.API_type:
                 if isarray(m.GLSL_type):
@@ -1420,8 +1422,7 @@ def generate_block_list(glsl_version, packing, ubo_fields, layouts):
 
         blocks.append(("UB3",
                        "ub3",
-        # Disabled to work around Mesa bug #83508.
-        #               "ub3[2]",
+                       #"ub3[2]",  # Disabled to work around Mesa bug #83508.
                        packing.layout_string() + ", row_major",
                        None,
                        ubo_fields,
@@ -1445,12 +1446,12 @@ def emit_shader_test(blocks, packing, glsl_version, extensions):
         structures.extend([s for s in iterate_structures(fields)])
 
         test_vectors.extend(generate_test_vectors(
-                fields,
-                field_layouts,
-                block_name,
-                instance_name,
-                packing,
-                block_row_major_default(global_layout, block_layout)))
+            fields,
+            field_layouts,
+            block_name,
+            instance_name,
+            packing,
+            block_row_major_default(global_layout, block_layout)))
 
 
     (checkers, setters) = generate_data_pairs(blocks, packing)
