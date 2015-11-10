@@ -29,7 +29,7 @@ import random_ubo
 
 from random_ubo import struct_types
 
-def remove_empty_structure(s, do_remove = True):
+def remove_empty_structure(s, do_remove=True):
     removed = [s]
 
     for x in struct_types:
@@ -203,9 +203,9 @@ if len(blocks) == 0:
     sys.exit(1)
 
 file_out.write(random_ubo.emit_shader_test(
-        blocks,
-        packing,
-        glsl_version,
-        extensions))
+    blocks,
+    packing,
+    glsl_version,
+    extensions))
 file_out.write("\n")
 file_out.close()
