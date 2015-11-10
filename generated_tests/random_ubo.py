@@ -136,7 +136,7 @@ def matrix_dimensions(type_):
         return (d, d)
 
 
-class packing_rules:
+class PackingRules(object):
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractproperty
@@ -296,7 +296,7 @@ def component_type(type_):
     raise BaseException("Invalid type_ {}.  Perhaps a structure?".format(type_))
 
 
-class std140_packing_rules(packing_rules):
+class Std140PackingRules(PackingRules):
     def layout_string(self):
         return "std140"
 
@@ -430,7 +430,7 @@ class std140_packing_rules(packing_rules):
                          self.base_alignment(base_type, row_major))
 
 
-class shared_packing_rules(std140_packing_rules):
+class SharedPackingRules(Std140PackingRules):
     def layout_string(self):
         return "shared"
 
@@ -463,7 +463,7 @@ def iterate_structures(fields, types_seen=[], types_yielded=[]):
             yield type_
 
 
-class unique_name_dict:
+class UniqueNameDict(object):
     def __init__(self):
         self.names = {}
 
@@ -602,7 +602,7 @@ def generate_member_from_description(description, builtin_types, names):
 
 def generate_ubo(description_list, builtin_types):
     layouts = dict()
-    names = unique_name_dict()
+    names = UniqueNameDict()
 
     fields = []
 
@@ -707,7 +707,7 @@ def iterate_all_struct_fields(type_,
             base_type = array_base_type(field_type)
 
             if isstructure(base_type):
-                yield block_member(
+                yield BlockMember(
                     name_from_shader,
                     name_from_API,
                     field_type,
@@ -731,7 +731,7 @@ def iterate_all_struct_fields(type_,
 
                     o = align(offset, array_member_align) + (astride * i)
 
-                    yield block_member(
+                    yield BlockMember(
                         name_from_shader_with_index,
                         name_from_API_with_index,
                         base_type,
@@ -751,7 +751,7 @@ def iterate_all_struct_fields(type_,
                         o = align(o, a) + packing.size(x.GLSL_type, row_major)
 
             elif ismatrix(base_type):
-                yield block_member(
+                yield BlockMember(
                     name_from_shader,
                     name_from_API,
                     field_type,
@@ -759,7 +759,7 @@ def iterate_all_struct_fields(type_,
                     offset,
                     row_major)
             else:
-                yield block_member(
+                yield BlockMember(
                     name_from_shader,
                     name_from_API,
                     field_type,
@@ -767,7 +767,7 @@ def iterate_all_struct_fields(type_,
                     offset,
                     False)
         elif isstructure(field_type):
-            yield block_member(
+            yield BlockMember(
                 name_from_shader,
                 name_from_API,
                 field_type,
@@ -786,7 +786,7 @@ def iterate_all_struct_fields(type_,
                 yield x
 
         elif ismatrix(field_type):
-            yield block_member(
+            yield BlockMember(
                 name_from_shader,
                 name_from_API,
                 field_type,
@@ -794,7 +794,7 @@ def iterate_all_struct_fields(type_,
                 offset,
                 row_major)
         else:
-            yield block_member(
+            yield BlockMember(
                 name_from_shader,
                 name_from_API,
                 field_type,
@@ -806,7 +806,7 @@ def iterate_all_struct_fields(type_,
         offset = align(offset, a) + packing.size(field_type, row_major)
 
 
-class block_member:
+class BlockMember(object):
     def __init__(self,
                  GLSL_name,
                  API_name,
@@ -900,7 +900,7 @@ def iterate_all_block_members(fields,
             base_type = array_base_type(field_type)
 
             if isstructure(base_type):
-                yield block_member(
+                yield BlockMember(
                     name_from_shader,
                     name_from_API,
                     field_type,
@@ -923,7 +923,7 @@ def iterate_all_block_members(fields,
 
                     o = align(offset, array_member_align) + (astride * i)
 
-                    yield block_member(
+                    yield BlockMember(
                         name_from_shader_with_index,
                         name_from_API_with_index,
                         base_type,
@@ -943,7 +943,7 @@ def iterate_all_block_members(fields,
                         o = align(o, a) + packing.size(x.GLSL_type, row_major)
 
             elif ismatrix(base_type):
-                yield block_member(
+                yield BlockMember(
                     name_from_shader,
                     name_from_API,
                     field_type,
@@ -951,7 +951,7 @@ def iterate_all_block_members(fields,
                     offset,
                     field_row_major)
             else:
-                yield block_member(
+                yield BlockMember(
                     name_from_shader,
                     name_from_API,
                     field_type,
@@ -959,7 +959,7 @@ def iterate_all_block_members(fields,
                     offset,
                     False)
         elif isstructure(field_type):
-            yield block_member(
+            yield BlockMember(
                 name_from_shader,
                 name_from_API,
                 field_type,
@@ -978,7 +978,7 @@ def iterate_all_block_members(fields,
                 yield x
 
         elif ismatrix(field_type):
-            yield block_member(
+            yield BlockMember(
                 name_from_shader,
                 name_from_API,
                 field_type,
@@ -986,7 +986,7 @@ def iterate_all_block_members(fields,
                 offset,
                 field_row_major)
         elif isvector(field_type) or isscalar(field_type):
-            yield block_member(
+            yield BlockMember(
                 name_from_shader,
                 name_from_API,
                 field_type,
@@ -1508,7 +1508,7 @@ def emit_shader_test(blocks, packing, glsl_version, extensions):
     uniform ${block_name} {
                               // base   base  align  padded  row-   array   matrix
                               // align  off.  off.   size    major  stride  stride
-    % for m in iterate_all_block_members(fields, field_layouts, block_name, instance_name, packing, block_row_major_default(global_layout, block_layout)):
+    % for m in iterate_all_BlockMembers(fields, field_layouts, block_name, instance_name, packing, block_row_major_default(global_layout, block_layout)):
     ${pretty_format_member(m, packing)}
     % endfor
     } ${instance_name};
@@ -1582,7 +1582,7 @@ def emit_shader_test(blocks, packing, glsl_version, extensions):
                     test_vectors=test_vectors,
                     uniform_blocks=blocks,
                     packing=packing,
-                    iterate_all_block_members=iterate_all_block_members,
+                    iterate_all_BlockMembers=iterate_all_block_members,
                     pretty_format_member=pretty_format_member,
                     block_row_major_default=block_row_major_default,
                     struct_types=struct_types,
@@ -1648,7 +1648,7 @@ def main():
 
     # Based on the GLSL version, pick a set of packing rules
     # FINISHME: Add support for std430_packing_rules() soon.
-    packing = random.choice([std140_packing_rules(), shared_packing_rules()])
+    packing = random.choice([Std140PackingRules(), SharedPackingRules()])
 
     # Based on the GLSL version and the set of available extensions, pick
     # some required combinations of data structures to include in the UBO.
