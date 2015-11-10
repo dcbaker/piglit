@@ -30,8 +30,6 @@ import random_ubo
 from random_ubo import struct_types
 
 def remove_empty_structure(s, do_remove = True):
-    global struct_types
-
     removed = [s]
 
     for x in struct_types:
@@ -86,8 +84,6 @@ def diminish_array_type(fields, i):
 
 
 def remove_random_field(blocks):
-    global struct_types
-
     potential_kill_list = []
 
     for b in blocks:
