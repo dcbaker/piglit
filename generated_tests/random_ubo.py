@@ -119,20 +119,20 @@ def align(offset, alignment):
     return ((offset + alignment - 1) / alignment) * alignment
 
 
-def array_elements(type):
-    if "[" not in type:
+def array_elements(type_):
+    if "[" not in type_:
         return 0
 
     # Is there a better way to do this?
-    return int(type.split("[")[1].split("]")[0])
+    return int(type_.split("[")[1].split("]")[0])
 
 
-def matrix_dimensions(type):
-    if "x" in type:
-        s = type[-3:].split("x")
+def matrix_dimensions(type_):
+    if "x" in type_:
+        s = type_[-3:].split("x")
         return (int(s[0]), int(s[1]))
     else:
-        d = int(type[-1:])
+        d = int(type_[-1:])
         return (d, d)
 
 
@@ -152,86 +152,86 @@ class packing_rules:
         return NotImplemented
 
     @abc.abstractmethod
-    def base_alignment(self, type, row_major):
+    def base_alignment(self, type_, row_major):
         """Determine the base alignment, in bytes, of the named type"""
         return NotImplemented
 
     @abc.abstractmethod
-    def matrix_stride(self, type, row_major):
+    def matrix_stride(self, type_, row_major):
         """Determine the stride, in bytes, from one indexable vector of the
            matrix (column or row depending on the orientation) to the next."""
         return NotImplemented
 
     @abc.abstractmethod
-    def array_stride(self, type, row_major):
+    def array_stride(self, type_, row_major):
         """Determine the stride, in bytes, from one array element to the next.
            If the type is not an array type, zero is returned."""
         return NotImplemented
 
-    def size(self, type, row_major):
-        if "[" in type:
-            return self.array_stride(type, row_major) * array_elements(type)
+    def size(self, type_, row_major):
+        if "[" in type_:
+            return self.array_stride(type_, row_major) * array_elements(type_)
 
-        if type in ["float", "bool", "int", "uint"]:
+        if type_ in ["float", "bool", "int", "uint"]:
             return 4
 
-        if type == "double":
+        if type_ == "double":
             return 8
 
-        if type in ["vec2", "bvec2", "ivec2", "uvec2"]:
+        if type_ in ["vec2", "bvec2", "ivec2", "uvec2"]:
             return 2 * 4
 
-        if type == "dvec2":
+        if type_ == "dvec2":
             return 2 * 8
 
-        if type in ["vec3", "bvec3", "ivec3", "uvec3"]:
+        if type_ in ["vec3", "bvec3", "ivec3", "uvec3"]:
             return 3 * 4
 
-        if type == "dvec3":
+        if type_ == "dvec3":
             return 3 * 8
 
-        if type in ["vec4", "bvec4", "ivec4", "uvec4"]:
+        if type_ in ["vec4", "bvec4", "ivec4", "uvec4"]:
             return 4 * 4
 
-        if type == "dvec4":
+        if type_ == "dvec4":
             return 4 * 8
 
-        if "mat" in type:
-            (c, r) = matrix_dimensions(type)
+        if "mat" in type_:
+            (c, r) = matrix_dimensions(type_)
             if not row_major:
-                return c * self.matrix_stride(type, row_major)
+                return c * self.matrix_stride(type_, row_major)
             else:
-                return r * self.matrix_stride(type, row_major)
+                return r * self.matrix_stride(type_, row_major)
 
         global struct_types
-        if type not in struct_types:
-            raise BaseException("Unknown type {}".format(type))
+        if type_ not in struct_types:
+            raise BaseException("Unknown type_ {}".format(type_))
 
         s = 0
-        fields = struct_types[type]
+        fields = struct_types[type_]
         for (t, n) in fields:
             a = self.base_alignment(t, row_major)
 
             s = align(s, a) + self.size(t, row_major)
 
-        s = align(s, self.base_alignment(type, row_major))
+        s = align(s, self.base_alignment(type_, row_major))
         return s
 
 
-def isscalar(type):
-    return type in ["float", "bool", "int", "uint", "double"]
+def isscalar(type_):
+    return type_ in ["float", "bool", "int", "uint", "double"]
 
 
-def isvector(type):
-    return type in [ "vec2",  "vec3",  "vec4",
+def isvector(type_):
+    return type_ in ["vec2",  "vec3",  "vec4",
                      "ivec2", "ivec3", "ivec4",
                      "uvec2", "uvec3", "uvec4",
                      "bvec2", "bvec3", "bvec4",
                      "dvec2", "dvec3", "dvec4" ]
 
 
-def ismatrix(type):
-    return type in [ "mat2",    "mat3",    "mat4",
+def ismatrix(type_):
+    return type_ in ["mat2",    "mat3",    "mat4",
                      "mat2x2",  "mat2x3",  "mat2x4",
                      "mat3x2",  "mat3x3",  "mat3x4",
                      "mat4x2",  "mat4x3",  "mat4x4",
@@ -241,60 +241,60 @@ def ismatrix(type):
                      "dmat4x2", "dmat4x3", "dmat4x4" ]
 
 
-def isarray(type):
-    return "[" in type
+def isarray(type_):
+    return "[" in type_
 
 
-def isstructure(type):
-    return not (isscalar(type) or isvector(type) or ismatrix(type) or
-                isarray(type))
+def isstructure(type_):
+    return not (isscalar(type_) or isvector(type_) or ismatrix(type_) or
+                isarray(type_))
 
 
-def vector_size(type):
-    if isvector(type):
-        return int(type[-1:])
+def vector_size(type_):
+    if isvector(type_):
+        return int(type_[-1:])
 
-    raise BaseException("Non-vector type {}".format(type))
+    raise BaseException("Non-vector type {}".format(type_))
 
 
-def basic_machine_units(type):
-    if type in ["float", "bool", "int", "uint"]:
+def basic_machine_units(type_):
+    if type_ in ["float", "bool", "int", "uint"]:
         return 4
 
-    if type == "double":
+    if type_ == "double":
         return 8
 
-    raise BaseException("Non-scalar type {}".format(type))
+    raise BaseException("Non-scalar type {}".format(type_))
 
 
-def array_base_type(type):
-    if not isarray(type):
-        raise BaseException("Non-array type {}".format(type))
+def array_base_type(type_):
+    if not isarray(type_):
+        raise BaseException("Non-array type {}".format(type_))
 
-    return type.split("[")[0]
+    return type_.split("[")[0]
 
 
-def component_type(type):
-    if isscalar(type):
-        return type
-    elif isvector(type):
-        if type[0] == 'v':
+def component_type(type_):
+    if isscalar(type_):
+        return type_
+    elif isvector(type_):
+        if type_[0] == 'v':
             return "float"
-        elif type[0] == 'i':
+        elif type_[0] == 'i':
             return "int"
-        elif type[0] == 'u':
+        elif type_[0] == 'u':
             return "uint"
-        elif type[0] == 'b':
+        elif type_[0] == 'b':
             return "bool"
-        elif type[0] == 'd':
+        elif type_[0] == 'd':
             return "double"
         else:
-            raise BaseException("Unknown vector type {}".format(type))
-    elif ismatrix(type):
-        # Should this return the vector type or the scalar type?
-        raise BaseException("Add support for matrix types when necessary.")
+            raise BaseException("Unknown vector type_ {}".format(type_))
+    elif ismatrix(type_):
+        # Should this return the vector type_ or the scalar type_?
+        raise BaseException("Add support for matrix type_s when necessary.")
 
-    raise BaseException("Invalid type {}.  Perhaps a structure?".format(type))
+    raise BaseException("Invalid type_ {}.  Perhaps a structure?".format(type_))
 
 
 class std140_packing_rules(packing_rules):
@@ -304,7 +304,7 @@ class std140_packing_rules(packing_rules):
     def fixed_offsets(self):
         return True
 
-    def base_alignment(self, type, row_major):
+    def base_alignment(self, type_, row_major):
         # (4) If the member is an array of scalars or vectors, the base
         #     alignment and array stride are set to match the base alignment
         #     of a single array element, according to rules (1), (2), and (3),
@@ -313,17 +313,17 @@ class std140_packing_rules(packing_rules):
         #     the array is rounded up to the next multiple of the base
         #     alignment.
 
-        if isarray(type):
+        if isarray(type_):
             return max(16,
-                       self.base_alignment(array_base_type(type), row_major))
+                       self.base_alignment(array_base_type(type_), row_major))
 
         # (1) If the member is a scalar consuming <N> basic machine units, the
         #     base alignment is <N>.
 
-        if isscalar(type):
-            return basic_machine_units(type)
+        if isscalar(type_):
+            return basic_machine_units(type_)
 
-        if isvector(type):
+        if isvector(type_):
             # (2) If the member is a two- or four-component vector with
             #     components consuming <N> basic machine units, the base
             #     alignment is 2<N> or 4<N>, respectively.
@@ -332,21 +332,21 @@ class std140_packing_rules(packing_rules):
             #     consuming <N> basic machine units, the base alignment is
             #     4<N>.
 
-            components = vector_size(type)
+            components = vector_size(type_)
             if components == 2 or components == 4:
-                return components * basic_machine_units(component_type(type))
+                return components * basic_machine_units(component_type(type_))
             elif components == 3:
-                return 4 * basic_machine_units(component_type(type))
+                return 4 * basic_machine_units(component_type(type_))
 
             raise BaseException("Invalid vector size {} for type {}".format(
                     components,
-                    type))
-        elif ismatrix(type):
-            return self.matrix_stride(type, row_major)
+                    type_))
+        elif ismatrix(type_):
+            return self.matrix_stride(type_, row_major)
 
         global struct_types
-        if type not in struct_types:
-            raise BaseException("Unknown type {}".format(type))
+        if type_ not in struct_types:
+            raise BaseException("Unknown type {}".format(type_))
 
         # (9) If the member is a structure, the base alignment of the
         #     structure is <N>, where <N> is the largest base alignment value
@@ -360,15 +360,15 @@ class std140_packing_rules(packing_rules):
         #     of the base alignment of the structure.
 
         a = 16
-        fields = struct_types[type]
+        fields = struct_types[type_]
         for (field_type, field_name) in fields:
             a = max(a, self.base_alignment(field_type, row_major))
 
         return a
 
 
-    def matrix_stride(self, type, row_major):
-        (c, r) = matrix_dimensions(type)
+    def matrix_stride(self, type_, row_major):
+        (c, r) = matrix_dimensions(type_)
         if not row_major:
             # (4) If the member is an array of scalars or vectors, the base
             #     alignment and array stride are set to match the base
@@ -383,7 +383,7 @@ class std140_packing_rules(packing_rules):
             #     <C> column vectors with <R> components each, according to
             #     rule (4).
 
-            if type[0] == 'd':
+            if type_[0] == 'd':
                 return max(16, self.base_alignment("dvec{}".format(r), False))
             else:
                 return max(16, self.base_alignment("vec{}".format(r), False))
@@ -392,14 +392,14 @@ class std140_packing_rules(packing_rules):
             #     rows, the matrix is stored identically to an array of <R>
             #     row vectors with <C> components each, according to rule (4).
 
-            if type[0] == 'd':
+            if type_[0] == 'd':
                 return max(16, self.base_alignment("dvec{}".format(c), False))
             else:
                 return max(16, self.base_alignment("vec{}".format(c), False))
 
 
-    def array_stride(self, type, row_major):
-        base_type = array_base_type(type)
+    def array_stride(self, type_, row_major):
+        base_type = array_base_type(type_)
 
         if not isstructure(base_type):
             # (4) If the member is an array of scalars or vectors, the base
@@ -447,35 +447,35 @@ def iterate_structures(fields, types_seen=[], types_yielded=[]):
 
     global struct_types
 
-    for (type, name) in fields:
-        if isarray(type):
-            type = array_base_type(type)
+    for (type_, name) in fields:
+        if isarray(type_):
+            type_ = array_base_type(type_)
 
-        if not isstructure(type):
+        if not isstructure(type_):
             continue
 
-        if type in types_seen:
-            raise BaseException("Type recurrsion involving {}".format(type))
+        if type_ in types_seen:
+            raise BaseException("Type recurrsion involving {}".format(type_))
 
-        for t in iterate_structures(struct_types[type],
-                                    types_seen + [type],
+        for t in iterate_structures(struct_types[type_],
+                                    types_seen + [type_],
                                     types_yielded):
             yield t
 
-        if type not in types_yielded:
-            types_yielded.append(type)
-            yield type
+        if type_ not in types_yielded:
+            types_yielded.append(type_)
+            yield type_
 
 
 class unique_name_dict:
     def __init__(self):
         self.names = {}
 
-    def trim_name(self, type):
-        if isarray(type):
-            t = array_base_type(type)
+    def trim_name(self, type_):
+        if isarray(type_):
+            t = array_base_type(type_)
         else:
-            t = type
+            t = type_
 
         if ismatrix(t):
             # Canonicalize matrix type names.
@@ -494,11 +494,11 @@ class unique_name_dict:
             # Assume it must be a structure.
             return t
 
-    def add_type(self, type):
-        if isarray(type):
-            t = array_base_type(type)
+    def add_type(self, type_):
+        if isarray(type_):
+            t = array_base_type(type_)
         else:
-            t = type
+            t = type_
 
         if isvector(t):
             base = "{}v".format(component_type(t)[0])
@@ -519,10 +519,10 @@ class unique_name_dict:
         self.names[self.trim_name(t)] = (base, 1)
         return
 
-    def get_name(self, type):
-        t = self.trim_name(type)
+    def get_name(self, type_):
+        t = self.trim_name(type_)
         if t not in self.names:
-            self.add_type(type)
+            self.add_type(type_)
 
         (base, count) = self.names[t]
         self.names[t] = (base, count + 1)
@@ -638,18 +638,18 @@ def generate_layouts(fields, required_layouts, allow_row_major_structure):
         required_layouts = [None] * len(fields)
 
     layouts = []
-    for ((type, name), lay) in zip(fields, required_layouts):
-        if isarray(type):
-            type = array_base_type(type)
+    for ((type_, name), lay) in zip(fields, required_layouts):
+        if isarray(type_):
+            type_ = array_base_type(type_)
 
         if lay:
             layouts.append(lay)
-        elif isstructure(type) and not allow_row_major_structure:
+        elif isstructure(type_) and not allow_row_major_structure:
             # This would work-around a bug in NVIDIA closed source drivers.
             # They do not propogate row-major down into structures.
 
             layouts.append("#column_major")
-        elif ismatrix(type) or isstructure(type):
+        elif ismatrix(type_) or isstructure(type_):
             # Choose a random matrix orientation.  The #column_major are
             # ignored when the UBO is emitted, but when a the UBO is
             # re-emitted with a default row-major layout, these become
@@ -683,7 +683,7 @@ def generate_layouts_for_default_row_major(layouts):
     return [layout_invert_default(l) for l in layouts]
 
 
-def fields_to_glsl_struct(type):
+def fields_to_glsl_struct(type_):
     global struct_types
 
     # The longest type name will have the form 'dmatCxR[##]' for 11
@@ -698,10 +698,11 @@ def fields_to_glsl_struct(type):
     };
     """))
 
-    return structure_template.render(struct_name=type, fields=struct_types[type])
+    return structure_template.render(struct_name=type_,
+                                     fields=struct_types[type_])
 
 
-def iterate_all_struct_fields(type,
+def iterate_all_struct_fields(type_,
                               name_from_API_base,
                               name_from_shader_base,
                               packing,
@@ -709,7 +710,7 @@ def iterate_all_struct_fields(type,
                               row_major):
     global struct_types
 
-    for (field_type, field_name) in struct_types[type]:
+    for (field_type, field_name) in struct_types[type_]:
         name_from_shader = "{}.{}".format(name_from_shader_base, field_name)
         name_from_API =    "{}.{}".format(name_from_API_base,    field_name)
 
@@ -1023,33 +1024,33 @@ def hash_string(string):
     return h & 0x0ffffffff
 
 
-def random_data(type, name, offset):
-    """Generate pseudorandom data.  The data generated is based on the type,
+def random_data(type_, name, offset):
+    """Generate pseudorandom data.  The data generated is based on the type_,
        name of the field, and offset of the member in the UBO."""
 
-    if isscalar(type):
+    if isscalar(type_):
         h = hash_string("{}@{}".format(offset, name))
 
-        if type == "int":
+        if type_ == "int":
             return str(h - 0x7fffffff)
-        elif type == "uint":
+        elif type_ == "uint":
             return str(h)
-        elif type == "bool":
+        elif type_ == "bool":
             return str(int((h & 8) == 0))
-        elif type == "float" or type == "double":
+        elif type_ == "float" or type_ == "double":
             return str(float(h - 0x7fffffff) / 65535.0)
         else:
-            raise BaseException("Unknown scalar type {}".format(type))
+            raise BaseException("Unknown scalar type {}".format(type_))
 
-    if isvector(type):
-        scalar = component_type(type)
+    if isvector(type_):
+        scalar = component_type(type_)
 
         x = [random_data(scalar, name, offset + (i * 3))
-             for i in xrange(vector_size(type))]
+             for i in xrange(vector_size(type_))]
         return " ".join(x)
 
-    if ismatrix(type):
-        (r, c) = matrix_dimensions(type)
+    if ismatrix(type_):
+        (r, c) = matrix_dimensions(type_)
 
         x = [random_data("float", name, offset + (i * 7))
              for i in xrange(r * c)]
@@ -1105,20 +1106,20 @@ def generate_test_vectors(fields,
     return test_vectors
 
 
-def scalar_derp(type, name, offset, data):
-    if type == "bool":
+def scalar_derp(type_, name, offset, data):
+    if type_ == "bool":
         if int(data) == 0:
             return name
         else:
             return "!" + name
-    elif type == "uint":
+    elif type_ == "uint":
         return "{} != {}u".format(name, data)
-    elif type == "int":
+    elif type_ == "int":
         return "{} != {}".format(name, data)
-    elif type == "float":
+    elif type_ == "float":
         bits = fudge_data_for_setter(data, "float")
         return "!float_match({}, {}, {}u)".format(name, data, bits)
-    elif type == "double":
+    elif type_ == "double":
         bits = fudge_data_for_setter(data, "double")
 
         # 0xHHHHHHHHLLLLLLLL
@@ -1129,24 +1130,24 @@ def scalar_derp(type, name, offset, data):
 
         return "!double_match({}, uvec2({}, {}))".format(name, lo, hi)
     else:
-        raise BaseException("Unknown scalar type {}".format(type))
+        raise BaseException("Unknown scalar type {}".format(type_))
 
 
-def vector_derp(type, name, offset, data):
-    scalar = component_type(type)
+def vector_derp(type_, name, offset, data):
+    scalar = component_type(type_)
     components = [ "x", "y", "z", "w" ]
 
     return [scalar_derp(scalar,
                  "{}.{}".format(name, components[i]),
                  offset,
                  data[i])
-            for i in xrange(vector_size(type))]
+            for i in xrange(vector_size(type_))]
 
 
-def matrix_derp(type, name, offset, data):
-    (c, r) = matrix_dimensions(type)
+def matrix_derp(type_, name, offset, data):
+    (c, r) = matrix_dimensions(type_)
 
-    if type[0] == 'd':
+    if type_[0] == 'd':
         column_type = "dvec{}".format(r)
     else:
         column_type = "vec{}".format(r)
@@ -1163,21 +1164,21 @@ def matrix_derp(type, name, offset, data):
     return data_pairs
 
 
-def fudge_type_for_setter(type):
-    if type[0] == 'b':
-        if type == "bool":
+def fudge_type_for_setter(type_):
+    if type_[0] == 'b':
+        if type_ == "bool":
             return "int"
         else:
-            return "i" + type[1:]
+            return "i" + type_[1:]
     else:
-        return type
+        return type_
 
 
-def fudge_data_for_setter(raw_data, type):
-    if type in ["float", "vec2",   "vec3",   "vec4",
-                "mat2",  "mat2x2", "mat2x3", "mat2x4",
-                "mat3",  "mat3x2", "mat3x3", "mat3x4",
-                "mat4",  "mat4x2", "mat4x3", "mat4x4"]:
+def fudge_data_for_setter(raw_data, type_):
+    if type_ in ["float", "vec2",   "vec3",   "vec4",
+                 "mat2",  "mat2x2", "mat2x3", "mat2x4",
+                 "mat3",  "mat3x2", "mat3x3", "mat3x4",
+                 "mat4",  "mat4x2", "mat4x3", "mat4x4"]:
         fudged_data = []
 
         for d in raw_data.split(" "):
@@ -1186,10 +1187,10 @@ def fudge_data_for_setter(raw_data, type):
             fudged_data.append(hex(u))
 
         return " ".join(fudged_data)
-    elif type in ["double", "dvec2",   "dvec3",   "dvec4",
-                  "dmat2",  "dmat2x2", "dmat2x3", "dmat2x4",
-                  "dmat3",  "dmat3x2", "dmat3x3", "dmat3x4",
-                  "dmat4",  "dmat4x2", "dmat4x3", "dmat4x4"]:
+    elif type_ in ["double", "dvec2",   "dvec3",   "dvec4",
+                   "dmat2",  "dmat2x2", "dmat2x3", "dmat2x4",
+                   "dmat3",  "dmat3x2", "dmat3x3", "dmat3x4",
+                   "dmat4",  "dmat4x2", "dmat4x3", "dmat4x4"]:
         fudged_data = []
 
         for d in raw_data.split(" "):
@@ -1287,19 +1288,19 @@ def generate_data_pairs(uniform_blocks, packing):
     return (checkers, setters)
 
 
-def pretty_format_type_data(packing, type, offset, row_major):
-    a = packing.base_alignment(type, row_major)
+def pretty_format_type_data(packing, type_, offset, row_major):
+    a = packing.base_alignment(type_, row_major)
     aligned_offset = align(offset, a)
-    size = packing.size(type, row_major)
+    size = packing.size(type_, row_major)
 
     row_major_str = "-"
     mstride = "-"
     astride = "-"
 
-    if isarray(type):
-        astride = packing.array_stride(type, row_major)
+    if isarray(type_):
+        astride = packing.array_stride(type_, row_major)
 
-        base_type = array_base_type(type)
+        base_type = array_base_type(type_)
         if ismatrix(base_type) and row_major:
             if row_major:
                 row_major_str = "yes"
@@ -1308,13 +1309,13 @@ def pretty_format_type_data(packing, type, offset, row_major):
 
             mstride = packing.matrix_stride(base_type, row_major)
     else:
-        if ismatrix(type):
+        if ismatrix(type_):
             if row_major:
                 row_major_str = "yes"
             else:
                 row_major_str = "no"
 
-            mstride = packing.matrix_stride(type, row_major)
+            mstride = packing.matrix_stride(type_, row_major)
 
     return "{base_align:>3}  {base_offset:>4}  {aligned_offset:>5}  {padded_size:>6}  {row_major:^5}  {array_stride:>6}  {matrix_stride:>6}".format(
         base_align=a,
