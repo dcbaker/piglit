@@ -133,109 +133,13 @@ class TestDict(dict):  # pylint: disable=too-few-public-methods
         self.__allow_reassignment -= 1
 
 
-class TestProfile(object):
-    """ Class that holds a list of tests for execution
-
-    This class provides a container for storing tests in either a nested
-    dictionary structure (deprecated), or a flat dictionary structure with '/'
-    delimited groups.
-
-    Once a TestProfile object is created tests can be added to the test_list
-    name as a key/value pair, the key should be a fully qualified name for the
-    test, including it's group hierarchy and should be '/' delimited, with no
-    leading or trailing '/', the value should be an exectest.Test derived
-    object.
-
-    When the test list is filled calling TestProfile.run() will set the
-    execution of these tests off, and will flatten the nested group hierarchy
-    of self.tests and merge it with self.test_list
-
-    """
+class BaseProfile(object):
+    """A shared base class for Profiles."""
     def __init__(self):
-        self.test_list = TestDict()
-        self.filters = []
+        self.test_list = {}
         # Sets a default of a Dummy
         self._dmesg = None
         self.dmesg = False
-        self.results_dir = None
-
-    @property
-    def dmesg(self):
-        """ Return dmesg """
-        return self._dmesg
-
-    @dmesg.setter
-    def dmesg(self, not_dummy):
-        """ Set dmesg
-
-        Arguments:
-        not_dummy -- if Truthy dmesg will try to get a PosixDmesg, if Falsy it
-                     will get a DummyDmesg
-
-        """
-        self._dmesg = get_dmesg(not_dummy)
-
-    def _prepare_test_list(self, opts):
-        """ Prepare tests for running
-
-        Flattens the nested group hierarchy into a flat dictionary using '/'
-        delimited groups by calling self.flatten_group_hierarchy(), then
-        runs it's own filters plus the filters in the self.filters name
-
-        Arguments:
-        opts - a core.Options instance
-
-        """
-        def matches_any_regexp(x, re_list):
-            return any(r.search(x) for r in re_list)
-
-        # The extra argument is needed to match check_all's API
-        def test_matches(path, test):
-            """Filter for user-specified restrictions"""
-            return ((not opts.filter or
-                     matches_any_regexp(path, opts.filter)) and
-                    path not in opts.exclude_tests and
-                    not matches_any_regexp(path, opts.exclude_filter))
-
-        filters = self.filters + [test_matches]
-
-        def check_all(item):
-            """ Checks group and test name against all filters """
-            path, test = item
-            for f in filters:
-                if not f(path, test):
-                    return False
-            return True
-
-        # Filter out unwanted tests
-        self.test_list = dict(item for item in self.test_list.iteritems()
-                              if check_all(item))
-
-        if not self.test_list:
-            raise exceptions.PiglitFatalError(
-                'There are no tests scheduled to run. Aborting run.')
-
-    def _pre_run_hook(self, opts):
-        """ Hook executed at the start of TestProfile.run
-
-        To make use of this hook one will need to subclass TestProfile, and
-        set this to do something, as be default it will no-op
-
-        Arguments:
-        opts -- a core.Options instance
-        """
-        pass
-
-    def _post_run_hook(self, opts):
-        """ Hook executed at the end of TestProfile.run
-
-        To make use of this hook one will need to subclass TestProfile, and
-        set this to do something, as be default it will no-op
-
-        Arguments:
-        opts -- a core.Options instance
-        """
-        pass
 
     def run(self, opts, logger, backend):
         """ Runs all tests using Thread pool
@@ -261,7 +165,6 @@ class TestProfile(object):
 
         chunksize = 1
 
-        self._prepare_test_list(opts)
         log = LogManager(logger, len(self.test_list))
 
         def test(pair):
@@ -304,6 +207,110 @@ class TestProfile(object):
 
         self._post_run_hook(opts)
 
+    def _pre_run_hook(self, opts):
+        """ Hook executed at the start of TestProfile.run
+
+        To make use of this hook one will need to subclass TestProfile, and
+        set this to do something, as be default it will no-op
+
+        Arguments:
+        opts -- a core.Options instance
+        """
+        pass
+
+    def _post_run_hook(self, opts):
+        """ Hook executed at the end of TestProfile.run
+
+        To make use of this hook one will need to subclass TestProfile, and
+        set this to do something, as be default it will no-op
+
+        Arguments:
+        opts -- a core.Options instance
+        """
+        pass
+
+    @property
+    def dmesg(self):
+        """ Return dmesg """
+        return self._dmesg
+
+    @dmesg.setter
+    def dmesg(self, not_dummy):
+        """ Set dmesg
+
+        Arguments:
+        not_dummy -- if Truthy dmesg will try to get a PosixDmesg, if Falsy it
+                     will get a DummyDmesg
+
+        """
+        self._dmesg = get_dmesg(not_dummy)
+
+
+class TestProfile(BaseProfile):
+    """ Class that holds a list of tests for execution
+
+    This class provides a container for storing tests in either a nested
+    dictionary structure (deprecated), or a flat dictionary structure with '/'
+    delimited groups.
+
+    Once a TestProfile object is created tests can be added to the test_list
+    name as a key/value pair, the key should be a fully qualified name for the
+    test, including it's group hierarchy and should be '/' delimited, with no
+    leading or trailing '/', the value should be an exectest.Test derived
+    object.
+
+    When the test list is filled calling TestProfile.run() will set the
+    execution of these tests off, and will flatten the nested group hierarchy
+    of self.tests and merge it with self.test_list
+
+    """
+    def __init__(self):
+        super(TestProfile, self).__init__()
+
+        self.test_list = TestDict()
+        self.filters = []
+        self.results_dir = None
+
+    def _prepare_test_list(self, opts):
+        """ Prepare tests for running
+
+        Flattens the nested group hierarchy into a flat dictionary using '/'
+        delimited groups by calling self.flatten_group_hierarchy(), then
+        runs it's own filters plus the filters in the self.filters name
+
+        Arguments:
+        opts - a core.Options instance
+
+        """
+        def matches_any_regexp(x, re_list):
+            return any(r.search(x) for r in re_list)
+
+        # The extra argument is needed to match check_all's API
+        def test_matches(path, test):
+            """Filter for user-specified restrictions"""
+            return ((not opts.filter or
+                     matches_any_regexp(path, opts.filter)) and
+                    path not in opts.exclude_tests and
+                    not matches_any_regexp(path, opts.exclude_filter))
+
+        filters = self.filters + [test_matches]
+
+        def check_all(item):
+            """ Checks group and test name against all filters """
+            path, test = item
+            for f in filters:
+                if not f(path, test):
+                    return False
+            return True
+
+        # Filter out unwanted tests
+        self.test_list = dict(item for item in self.test_list.iteritems()
+                              if check_all(item))
+
+        if not self.test_list:
+            raise exceptions.PiglitFatalError(
+                'There are no tests scheduled to run. Aborting run.')
+
     def filter_tests(self, function):
         """Filter out tests that return false from the supplied function
 
@@ -328,6 +335,10 @@ class TestProfile(object):
         """
         for profile in profiles:
             self.test_list.update(profile.test_list)
+
+    def run(self, *args, **kwargs):
+        self._prepare_test_list(kwargs['opts'])
+        super(TestProfile, self).run(*args, **kwargs)
 
     @contextlib.contextmanager
     def group_manager(self, test_class, group, prefix=None, **default_args):
