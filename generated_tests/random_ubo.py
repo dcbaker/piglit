@@ -212,7 +212,7 @@ class PackingRules(object):
 
         s = 0
         fields = struct_types[type_]
-        for (t, n) in fields:
+        for t in fields.iterkeys():
             a = self.base_alignment(t, row_major)
 
             s = align(s, a) + self.size(t, row_major)
@@ -363,7 +363,7 @@ class Std140PackingRules(PackingRules):
 
         a = 16
         fields = struct_types[type_]
-        for (field_type, field_name) in fields:
+        for field_type in fields.iterkeys():
             a = max(a, self.base_alignment(field_type, row_major))
 
         return a
@@ -447,7 +447,7 @@ def iterate_structures(fields, types_seen=[], types_yielded=[]):
        declaration order.  Detects recurrsion in the types and raises an
        exception."""
 
-    for (type_, name) in fields:
+    for type_ in fields.iterkeys():
         if isarray(type_):
             type_ = array_base_type(type_)
 
@@ -537,7 +537,7 @@ def select_basic_type(types, names):
 
 def generate_struct_of_basic_types(types, names):
     return [select_basic_type(types, names)
-            for i in xrange(0, random.randint(1,12))]
+            for _ in xrange(0, random.randint(1,12))]
 
 
 def generate_member_from_description(description, builtin_types, names):
@@ -621,7 +621,7 @@ def generate_ubo(description_list, builtin_types):
     random.shuffle(fields)
 
     required_layouts = []
-    for (field_type, field_name) in fields:
+    for _, field_name in fields:
         if field_name in layouts:
             required_layouts.append(layouts[field_name])
         else:
@@ -635,7 +635,7 @@ def generate_layouts(fields, required_layouts, allow_row_major_structure):
         required_layouts = [None] * len(fields)
 
     layouts = []
-    for ((type_, name), lay) in zip(fields, required_layouts):
+    for (type_, _), lay in zip(fields, required_layouts):
         if isarray(type_):
             type_ = array_base_type(type_)
 
@@ -1099,7 +1099,7 @@ def generate_test_vectors(fields,
     return test_vectors
 
 
-def scalar_derp(type_, name, offset, data):
+def scalar_derp(type_, name, data):
     if type_ == "bool":
         if int(data) == 0:
             return name
@@ -1126,16 +1126,15 @@ def scalar_derp(type_, name, offset, data):
         raise BaseException("Unknown scalar type {}".format(type_))
 
 
-def vector_derp(type_, name, offset, data):
+def vector_derp(type_, name, data):
     scalar = component_type(type_)
     components = [ "x", "y", "z", "w" ]
 
-    return [scalar_derp(scalar, "{}.{}".format(name, components[i]),
-                        offset, data[i])
+    return [scalar_derp(scalar, "{}.{}".format(name, components[i]), data[i])
             for i in xrange(vector_size(type_))]
 
 
-def matrix_derp(type_, name, offset, data):
+def matrix_derp(type_, name, data):
     (c, r) = matrix_dimensions(type_)
 
     if type_[0] == 'd':
@@ -1149,7 +1148,6 @@ def matrix_derp(type_, name, offset, data):
         data_pairs.extend(vector_derp(
             column_type,
             "{}[{}]".format(name, i),
-            offset,
             data[(i * r):(i * r) + r]))
 
     return data_pairs
@@ -1239,17 +1237,14 @@ def generate_data_pairs(uniform_blocks, packing):
                         if isscalar(base_type):
                             checkers.append(scalar_derp(base_type,
                                                         name,
-                                                        offset,
                                                         data[0]))
                         elif isvector(base_type):
                             checkers.extend(vector_derp(base_type,
                                                         name,
-                                                        offset,
                                                         data))
                         elif ismatrix(base_type):
                             checkers.extend(matrix_derp(base_type,
                                                         name,
-                                                        offset,
                                                         data))
                 else:
                     raw_data = random_data(m.GLSL_type, m.GLSL_name, m.offset)
@@ -1263,17 +1258,14 @@ def generate_data_pairs(uniform_blocks, packing):
                     if isscalar(m.GLSL_type):
                         checkers.append(scalar_derp(m.GLSL_type,
                                                     m.GLSL_name,
-                                                    m.offset,
                                                     data[0]))
                     elif isvector(m.GLSL_type):
                         checkers.extend(vector_derp(m.GLSL_type,
                                                     m.GLSL_name,
-                                                    m.offset,
                                                     data))
                     elif ismatrix(m.GLSL_type):
                         checkers.extend(matrix_derp(m.GLSL_type,
                                                     m.GLSL_name,
-                                                    m.offset,
                                                     data))
 
     return (checkers, setters)
@@ -1659,10 +1651,10 @@ def main():
     allow_row_major_structure = glsl_version >= 150
 
     requirements = []
-    for i in [1, 2]:
+    for _ in [1, 2]:
         x = [random.choice(["array", "struct"])]
 
-        for j in [1, 2, 3]:
+        for _ in [1, 2, 3]:
             # If arrays-of-arrays are not supported, don't allow "array" to be
             # picked twice in a row.
 
