@@ -442,10 +442,14 @@ class SharedPackingRules(Std140PackingRules):
         return False
 
 
-def iterate_structures(fields, types_seen=[], types_yielded=[]):
+def iterate_structures(fields, types_seen=None, types_yielded=None):
     """Given a list of fields, yields the structures in the fields in proper
        declaration order.  Detects recurrsion in the types and raises an
        exception."""
+    # Setting the default value to [] doesn't do what you expect
+    types_seen = types_seen or []
+    types_yielded = types_yielded or []
+
 
     for type_ in fields.iterkeys():
         if isarray(type_):
