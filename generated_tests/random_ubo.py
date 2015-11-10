@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-# Copyright (c) 2014 Intel Corporation
+# Copyright (c) 2014, 2015 Intel Corporation
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from __future__ import absolute_import, division, print_function
 import random
 import abc
 import collections
@@ -85,7 +86,7 @@ type_enum = {
     'mat2x2': "GL_FLOAT_MAT2",
     'mat2x3': "GL_FLOAT_MAT2x3",
     'mat2x4': "GL_FLOAT_MAT2x4",
-    
+
     'mat3':   "GL_FLOAT_MAT3",
     'mat3x2': "GL_FLOAT_MAT3x2",
     'mat3x3': "GL_FLOAT_MAT3",
@@ -100,7 +101,7 @@ type_enum = {
     'dmat2x2': "GL_DOUBLE_MAT2",
     'dmat2x3': "GL_DOUBLE_MAT2x3",
     'dmat2x4': "GL_DOUBLE_MAT2x4",
-    
+
     'dmat3':   "GL_DOUBLE_MAT3",
     'dmat3x2': "GL_DOUBLE_MAT3x2",
     'dmat3x3': "GL_DOUBLE_MAT3",
@@ -129,7 +130,7 @@ def matrix_dimensions(type):
     else:
         d = int(type[-1:])
         return (d, d)
-    
+
 class packing_rules:
     __metaclass__ = abc.ABCMeta
 
@@ -199,7 +200,7 @@ class packing_rules:
 
         global struct_types
         if type not in struct_types:
-            raise BaseException("Unknown type {}".format(type))   
+            raise BaseException("Unknown type {}".format(type))
 
         s = 0
         fields = struct_types[type]
@@ -339,7 +340,7 @@ class std140_packing_rules(packing_rules):
 
         global struct_types
         if type not in struct_types:
-            raise BaseException("Unknown type {}".format(type))   
+            raise BaseException("Unknown type {}".format(type))
 
         # (9) If the member is a structure, the base alignment of the
         #     structure is <N>, where <N> is the largest base alignment value
@@ -422,7 +423,7 @@ class std140_packing_rules(packing_rules):
             #     of the array are laid out in order, according to rule (9).
 
             return align(self.size(base_type, row_major),
-                         self.base_alignment(base_type, row_major))         
+                         self.base_alignment(base_type, row_major))
 
 
 class shared_packing_rules(std140_packing_rules):
@@ -486,7 +487,7 @@ class unique_name_dict:
         else:
             # Assume it must be a structure.
             return t
-        
+
     def add_type(self, type):
         if isarray(type):
             t = array_base_type(type)
@@ -846,7 +847,7 @@ class block_member:
             # as structure nesting.
 
             if self.GLSL_name != self.API_name:
-                return collections.Counter(self.GLSL_name)["."] - 1 
+                return collections.Counter(self.GLSL_name)["."] - 1
             else:
                 return collections.Counter(self.GLSL_name)["."]
         else:
@@ -892,7 +893,7 @@ def iterate_all_block_members(fields,
             field_row_major = False
         else:
             field_row_major = row_major
-            
+
         if isarray(field_type):
             base_type = array_base_type(field_type)
 
@@ -1033,14 +1034,14 @@ def random_data(type, name, offset):
 
         x = [random_data(scalar, name, offset + (i * 3))
              for i in xrange(vector_size(type))]
-        return " ".join(x)            
+        return " ".join(x)
 
     if ismatrix(type):
         (r, c) = matrix_dimensions(type)
 
         x = [random_data("float", name, offset + (i * 7))
              for i in xrange(r * c)]
-        return " ".join(x)            
+        return " ".join(x)
 
     return None
 
@@ -1073,7 +1074,7 @@ def generate_test_vectors(fields,
         if ismatrix(base_type):
             test_vectors.append((
                     name,
-                    m.API_type, 
+                    m.API_type,
                     m.size,
                     align(m.offset, a),
                     astride,
@@ -1082,13 +1083,13 @@ def generate_test_vectors(fields,
         elif isvector(base_type) or isscalar(base_type):
             test_vectors.append((
                     name,
-                    m.API_type, 
+                    m.API_type,
                     m.size,
                     align(m.offset, a),
                     astride,
                     0,
                     0))
- 
+
     return test_vectors
 
 
@@ -1182,7 +1183,7 @@ def fudge_data_for_setter(raw_data, type):
         for d in raw_data.split(" "):
             p = struct.pack('!d', float(d))
             u = struct.unpack('!Q', p)[0]
-            
+
             # Sometimes the hex() generates a spurious "L" at the end of the
             # string.  Only take the first 18 characters to omit the unwanted
             # "L".  I believe this occurs when bit 63 is set.
@@ -1367,7 +1368,7 @@ def block_row_major_default(global_layout, block_layout):
 
     if global_layout and "row_major" in global_layout:
         row_major = True
-            
+
     if  block_layout:
         if "row_major" in block_layout:
             row_major = True
@@ -1440,7 +1441,7 @@ def emit_shader_test(blocks, packing, glsl_version, extensions):
          field_layouts) in blocks:
 
         structures.extend([s for s in iterate_structures(fields)])
-        
+
         test_vectors.extend(generate_test_vectors(
                 fields,
                 field_layouts,
@@ -1498,7 +1499,7 @@ def emit_shader_test(blocks, packing, glsl_version, extensions):
     % if global_layout:
     layout(${global_layout}) uniform;
 
-    % endif 
+    % endif
     % if block_layout:
     layout(${block_layout})
     % endif
@@ -1596,7 +1597,7 @@ def generate_file_name(requirements, packing):
     return prefix + body + suffix
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     if len(sys.argv) > 1:
         max_glsl_version = int(sys.argv[1])
     else:
@@ -1695,8 +1696,8 @@ if __name__ == "__main__":
         fields,
         layouts)
 
-    print emit_shader_test(
+    print(emit_shader_test(
         blocks,
         packing,
         glsl_version,
-        extensions)
+        extensions))
