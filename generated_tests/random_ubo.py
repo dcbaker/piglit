@@ -1597,7 +1597,7 @@ def generate_file_name(requirements, packing):
     return prefix + body + suffix
 
 
-if __name__ == "__main__":
+def main():
     if len(sys.argv) > 1:
         max_glsl_version = int(sys.argv[1])
     else:
@@ -1701,3 +1701,7 @@ if __name__ == "__main__":
         packing,
         glsl_version,
         extensions))
+
+
+if __name__ == "__main__":
+    main()
