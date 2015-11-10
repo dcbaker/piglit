@@ -21,14 +21,14 @@
 # SOFTWARE.
 
 from __future__ import absolute_import, division, print_function
-import argparse
-import random
 import abc
+import argparse
 import collections
+import random
 import struct
-import sys
-from mako.template import Template
 from textwrap import dedent
+
+from mako.template import Template
 
 struct_types = dict()
 
