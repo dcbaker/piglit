@@ -33,6 +33,7 @@ import multiprocessing.dummy
 import importlib
 import contextlib
 import itertools
+import cStringIO as StringIO
 
 from framework import grouptools, exceptions
 from framework.dmesg import get_dmesg
@@ -419,6 +420,31 @@ class TestProfile(BaseProfile):
         """A convenience wrapper around self.test_list.allow_reassignment."""
         with self.test_list.allow_reassignment:
             yield
+
+
+class FuzzerGenerator(object):
+    def __init__(self, func, args_func, testclass):
+        self.__fuzzer_func = func
+        self.__gen_args = args_func
+        # Testclass is expected to create a tmepfile and cleanup afterwards.
+        self.__testclass = testclass
+
+    def __len__(self):
+        # TODO: This is currently just an enormous number
+        return 1000000000
+
+    def iteritems(self):
+        # TODO: Put a limit of some kind on this (or at least an option)
+        # TODO ensure that this is a unique test instance
+        for _ in xrange(1000000000):
+            args = self.__gen_args()
+            yield ' '.join(str(a) for a in args), self.__testclass(self.__fuzzer_func(*args))
+
+
+class FuzzerProfile(BaseProfile):
+    def __init__(self, fuzzer_func, args_func, testclass):
+        super(FuzzerProfile, self).__init__()
+        self.test_list = FuzzerGenerator(fuzzer_func, args_func, testclass)
 
 
 def load_test_profile(filename):

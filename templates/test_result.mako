@@ -75,6 +75,14 @@
           </pre>${value.command}</pre>
         </td>
       </tr>
+    % if value.test:
+      <tr>
+        <td>Test Content:</td>
+        <td>
+          <pre>${value.test | h}</pre>
+        </td>
+      </tr>
+    % endif
     % if value.traceback:
       <tr>
         <td>Traceback</td>

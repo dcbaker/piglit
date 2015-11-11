@@ -214,7 +214,7 @@ class PackingRules(object):
 
         s = 0
         fields = struct_types[type_]
-        for t in fields.iterkeys():
+        for t, _ in fields:
             a = self.base_alignment(t, row_major)
 
             s = align(s, a) + self.size(t, row_major)
@@ -365,7 +365,7 @@ class Std140PackingRules(PackingRules):
 
         a = 16
         fields = struct_types[type_]
-        for field_type in fields.iterkeys():
+        for field_type, _ in fields:
             a = max(a, self.base_alignment(field_type, row_major))
 
         return a
@@ -453,7 +453,7 @@ def iterate_structures(fields, types_seen=None, types_yielded=None):
     types_yielded = types_yielded or []
 
 
-    for type_ in fields.iterkeys():
+    for type_, _ in fields:
         if isarray(type_):
             type_ = array_base_type(type_)
 
@@ -1610,34 +1610,36 @@ def main():
                         help='OpenGL Extensions to support.')
     args = parser.parse_args()
 
+    print(gen(args.glsl_version, args.extensions))
+
+
+def gen(version, extensions):
     available_versions = [v for v in [130, 140, 150, 400, 430]
-                          if v <= args.glsl_version]
+                          if v <= version]
 
     # Pick a random GLSL version from the available set of possible versions.
     glsl_version = random.choice(available_versions)
 
     # Use the GLSL version filter out some extensions that are redundant.
-    if glsl_version >= 140 and "GL_ARB_uniform_buffer_object" in args.extensions:
-        args.extensions.remove("GL_ARB_uniform_buffer_object")
+    if glsl_version >= 140 and "GL_ARB_uniform_buffer_object" in extensions:
+        extensions.remove("GL_ARB_uniform_buffer_object")
 
-    if glsl_version >= 400 and "GL_ARB_gpu_shader_fp64" in args.extensions:
-        args.extensions.remove("GL_ARB_gpu_shader_fp64")
+    if glsl_version >= 400 and "GL_ARB_gpu_shader_fp64" in extensions:
+        extensions.remove("GL_ARB_gpu_shader_fp64")
 
-    if glsl_version >= 430 and "GL_ARB_arrays_of_arrays" in args.extensions:
-        args.extensions.remove("GL_ARB_arrays_of_arrays")
+    if glsl_version >= 430 and "GL_ARB_arrays_of_arrays" in extensions:
+        extensions.remove("GL_ARB_arrays_of_arrays")
 
     # Pick a random subset of the remaining extensions.
-    num_ext = len(args.extensions)
+    num_ext = len(extensions)
     if num_ext > 0:
-        random.shuffle(args.extensions)
+        random.shuffle(extensions)
         r = random.randint(0, num_ext)
-        extensions = args.extensions[:r]
-    else:
-        extensions = []
+        extensions = extensions[:r]
 
     # Based on the GLSL version and the set of extensions, pick the set of
     # possible data types.
-    if args.glsl_version < 400:
+    if glsl_version < 400:
         types = all130_types
     else:
         types = all400_types
@@ -1700,11 +1702,7 @@ def main():
         fields,
         layouts)
 
-    print(emit_shader_test(
-        blocks,
-        packing,
-        glsl_version,
-        extensions))
+    return emit_shader_test(blocks, packing, glsl_version, extensions)
 
 
 if __name__ == "__main__":
