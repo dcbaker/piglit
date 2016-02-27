@@ -23,7 +23,7 @@ clear
 % for i in range(len(env)):
 parameter env_vp ${i} (${env[i][0]}, ${env[i][1]}, ${env[i][2]}, ${env[i][3]})
 % endfor
-parameter env_vp 2 (${not_expected}, 0, 1, 0)
+parameter env_vp ${len(env)} (${not_expected}, 0, 1, 0)
 draw rect ${x} ${y} ${w} ${h}
 # Will expect ${expected[0] * .5 + .25} ${expected[1] * .5 + .25} ${expected[2] * .5 + .25} ${expected[3] * .5 + .25}
 % endfor
