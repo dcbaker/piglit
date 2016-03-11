@@ -23,17 +23,20 @@ from __future__ import (
 )
 import abc
 import os
+import re
 import subprocess
 
 import six
 from six.moves import range
 
-from framework import core, grouptools, exceptions
+from framework import core, grouptools, exceptions, status
 from framework.profile import TestProfile
 from framework.test.base import Test, is_crash_returncode, TestRunError
+from framework.options import OPTIONS
 
 __all__ = [
     'DEQPBaseTest',
+    'DEQPGroupTest',
     'gen_caselist_txt',
     'get_option',
     'iter_deqp_test_cases',
@@ -61,13 +64,20 @@ _EXTRA_ARGS = get_option('PIGLIT_DEQP_EXTRA_ARGS',
                          default='').split()
 
 
-def make_profile(test_list, test_class):
+def make_profile(test_list, single_class=None, multi_class=None):
     """Create a TestProfile instance."""
+    if OPTIONS.deqp_mode == 'group':
+        assert multi_class is not None
+        _class = multi_class
+    elif OPTIONS.deqp_mode == 'test':
+        assert single_class is not None
+        _class = single_class
+
     profile = TestProfile()
     for testname in test_list:
         # deqp uses '.' as the testgroup separator.
         piglit_name = testname.replace('.', grouptools.SEPARATOR)
-        profile.test_list[piglit_name] = test_class(testname)
+        profile.test_list[piglit_name] = _class(testname)
 
     return profile
 
@@ -101,10 +111,41 @@ def gen_caselist_txt(bin_, caselist, extra_args):
     return caselist_path
 
 
-def iter_deqp_test_cases(case_file):
+def _iterate_file(file_):
+    """Lazily iterate a file line-by-line."""
+    while True:
+        line = file_.readline()
+        if not line:
+            raise StopIteration
+        yield line
+
+
+def _iter_deqp_test_groups(case_file):
+    """Iterate over original dEQP testcase groups.
+
+    This generator yields the name of each leaf group (that is, a group which
+    contains only tests.)
+
+    """
+    slice_ = slice(len('GROUP: '), None)
+    group = ''
+    with open(case_file, 'r') as caselist_file:
+        for i, line in enumerate(_iterate_file(caselist_file)):
+            if line.startswith('GROUP:'):
+                group = line[slice_]
+            elif line.startswith('TEST:'):
+                if group != '':
+                    yield group.rstrip()
+                    group = ''
+            else:
+                raise exceptions.PiglitFatalError(
+                    'deqp: {}:{}: ill-formed line'.format(case_file, i))
+
+
+def _iter_deqp_test_single(case_file):
     """Iterate over original dEQP testcase names."""
     with open(case_file, 'r') as caselist_file:
-        for i, line in enumerate(caselist_file):
+        for i, line in enumerate(_iterate_file(caselist_file)):
             if line.startswith('GROUP:'):
                 continue
             elif line.startswith('TEST:'):
@@ -112,6 +153,14 @@ def iter_deqp_test_cases(case_file):
             else:
                 raise exceptions.PiglitFatalError(
                     'deqp: {}:{}: ill-formed line'.format(case_file, i))
+
+
+def iter_deqp_test_cases(case_file):
+    """Wrapper that sets the iterator based on the mode."""
+    if OPTIONS.deqp_mode == 'group':
+        return _iter_deqp_test_groups(case_file)
+    elif OPTIONS.deqp_mode == 'test':
+        return _iter_deqp_test_single(case_file)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -187,3 +236,99 @@ class DEQPBaseTest(Test):
                 return
 
         raise TestRunError('Failed to connect to X server 5 times', 'fail')
+
+
+class DEQPGroupTest(DEQPBaseTest):
+    timeout = 300  # 5 minutes
+    __name_slicer = slice(len("Test case '"), -len("'.."))
+    __finder = re.compile(r'^  (Warnings|Not supported|Failed|Passed):\s+\d/(?P<total>\d+).*')
+
+    # This a very hot path, a small speed optimization can be had by shortening
+    # this match to just one character
+    _RESULT_MAP = {
+        "P": status.PASS,    # Pass
+        "F": status.FAIL,    # Fail
+        "Q": status.WARN,    # QualityWarnings
+        "I": status.FAIL,    # InternalError
+        "C": status.CRASH,   # Crash
+        "N": status.SKIP,    # NotSupported
+        "R": status.CRASH,   # ResourceError
+    }
+
+    def __init__(self, case_name, **kwargs):
+        super(DEQPGroupTest, self).__init__(case_name + '*', **kwargs)
+
+    def interpret_result(self):
+        """Group based result interpretation.
+
+        This method is used to find names of subtests and their results and put
+        them together.
+
+        It provides a block keyword argument, this should be a callable taking
+        the the line being processed as output. It may process the line, and
+        can raise an Exception descending from PiglitException to mark
+        conditions.
+
+        """
+        # This function is ugly and complicated. But it can be pretty easily
+        # understood as an extension of DEQPBaseTest.inrepret_result. In this
+        # case though there are multiple results, each being treated as a
+        # subtest. This function must not only find the result of each subtest,
+        # but the name as well.
+
+        # If the returncode is non-0 don't bother, call it crash and move on,
+        # since there will almost certinaly be an exception raised.
+        if self.result.returncode != 0:
+            self.result.result = 'crash'
+            return
+
+        # Strip the first 3 lines, and the last 8 lines, which aren't useful
+        # for this pass
+        lines = self.result.out.rstrip().split('\n')[3:]
+        cur = ''
+        total = None
+        for each in reversed(lines):
+            m = self.__finder.match(each)
+            if m:
+                total = int(m.group('total'))
+                break
+        assert total is not None, 'Could not calculate total test count'
+
+        lines = (l for l in lines[:-8])
+
+        # Walk over standard out line by line, looking for 'Test case' (to get
+        # the name of the test) and then for a result. Track each line, which
+        # is used to both know when to stop walking and for error reporting.
+        while len(self.result.subtests) < total:
+            for l in lines:
+                if l.startswith('Test case'):
+                    name = l[self.__name_slicer].rsplit('.', 1)[1].lower()
+                    break
+            else:
+                raise exceptions.PiglitInternalError(
+                    'Expected "Test case", but didn\'t find it in:\n'
+                    '{}\ncurrent line: {}'.format(self.result.out, l))
+
+            for l in lines:
+                # If there is an info block fast forward through it by calling
+                # next on the generator until it is passed.
+                if l.startswith('INFO'):
+                    cur = ''
+                    while not (cur.startswith('INFO') and cur.endswith('----')):
+                        cur = next(lines)
+
+                elif l.startswith('  '):
+                    try:
+                        self.result.subtests[name] = self._RESULT_MAP[l[2]]
+                    except KeyError:
+                        raise exceptions.PiglitInternalError(
+                            'Unknown status {}'.format(l[2:].split()[0]))
+                    break
+            else:
+                raise exceptions.PiglitInternalError(
+                    'Expected "  (Pass,Fail,...)", but didn\'t find it in:\n'
+                    '{}\ncurrent line: {}'.format(self.result.out, l))
+
+        # We failed to parse the test output. Fallback to 'fail'.
+        if self.result.result == 'notrun':
+            self.result.result = 'fail'

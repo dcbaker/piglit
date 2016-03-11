@@ -164,6 +164,13 @@ def _run_parser(input_):
                         dest='overwrite',
                         action='store_true',
                         help='If the results_path already exists, delete it')
+    parser.add_argument('--deqp-test-mode',
+                        action='store',
+                        choices=['test', 'group'],
+                        default='test',
+                        dest='deqp_mode',
+                        help='Run DEQP integration in either "group-at-a-time"'
+                             ' or "test-at-a-time" mode.')
     parser.add_argument("test_profile",
                         metavar="<Profile path(s)>",
                         nargs='+',
@@ -241,6 +248,7 @@ def run(input_):
     options.OPTIONS.valgrind = args.valgrind
     options.OPTIONS.dmesg = args.dmesg
     options.OPTIONS.sync = args.sync
+    options.OPTIONS.deqp_mode = args.deqp_mode
 
     # Set the platform to pass to waffle
     options.OPTIONS.env['PIGLIT_PLATFORM'] = args.platform
@@ -320,6 +328,7 @@ def resume(input_):
     options.OPTIONS.valgrind = results.options['valgrind']
     options.OPTIONS.dmesg = results.options['dmesg']
     options.OPTIONS.sync = results.options['sync']
+    options.OPTIONS.deqp_mode = results.options['deqp_mode']
 
     core.get_config(args.config_file)
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Intel Corporation
+# Copyright (c) 2015-2016 Intel Corporation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,26 +28,36 @@ tests
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import sys
 import textwrap
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-
 import nose.tools as nt
-import six
+
+# There is a bug in mock < 1.2 or python 3.4 that we'd like to avoid, otherwise
+# some tests will skip.
+if sys.version_info[0:2] >= (3, 4):
+    from unittest import mock
+else:
+    try:
+        import mock
+    except ImportError:
+        from unittest import mock
 
 from framework import profile, grouptools, exceptions
 from framework.test import deqp
 from . import utils
 
-# pylint:disable=line-too-long,invalid-name
+# pylint:disable=line-too-long,invalid-name,protected-access
 
 doc_formatter = utils.DocFormatter({'separator': grouptools.SEPARATOR})
 
 
 class _DEQPTestTest(deqp.DEQPBaseTest):
+    deqp_bin = 'deqp.bin'
+    extra_args = ['extra']
+
+
+class _DEQPGroupTest(deqp.DEQPGroupTest):
     deqp_bin = 'deqp.bin'
     extra_args = ['extra']
 
@@ -270,3 +280,212 @@ class TestDEQPBaseTestIntepretResultStatus(object):
         self.inst.result.out = self.__gen_stdout('ResourceError')
         self.inst.interpret_result()
         nt.eq_(self.inst.result.result, 'crash')
+
+
+class TestDEQPGroupTest_interpret_result(object):
+    __out = textwrap.dedent("""
+        dEQP Core unknown (0xcafebabe) starting..
+          target implementation = 'X11 GLX'
+
+        Test case 'dEQP-GLES3.functional.fragment_out.random.0'..
+        Vertex shader compile time = 4.134000 ms
+        Fragment shader compile time = 0.345000 ms
+        Link time = 2.442000 ms
+        Test case duration in microseconds = 10164 us
+          Fail (After program setup: glGetError() returned GL_INVALID_FRAMEBUFFER_OPERATION at es3fFragmentOutputTests.cpp:706)
+
+        Test case 'dEQP-GLES3.functional.fragment_out.random.1'..
+        Vertex shader compile time = 0.352000 ms
+        Fragment shader compile time = 0.276000 ms
+        Link time = 2.625000 ms
+        Test case duration in microseconds = 3894 us
+          Pass (After program setup: glGetError() returned GL_INVALID_FRAMEBUFFER_OPERATION at es3fFragmentOutputTests.cpp:706)
+
+        DONE!
+
+        Test run totals:
+          Passed:        2/2 (100.0%)
+          Failed:        0/2 (0.0%)
+          Not supported: 0/2 (0.0%)
+          Warnings:      0/2 (0.0%)
+    """)
+
+    @classmethod
+    def setup_class(cls):
+        cls.test = _DEQPGroupTest('foo')
+        cls.test.result.returncode = 0
+        cls.test.result.out = cls.__out
+        cls.test.interpret_result()
+
+    def test_name(self):
+        """test.deqp.DEQPGroupTest: set's name properly"""
+        nt.assert_set_equal({'0', '1'}, set(self.test.result.subtests.keys()))
+
+    def test_status(self):
+        """test.deqp.DEQPGroupTest: set's status properly"""
+        nt.assert_dict_equal(
+            {'0': 'fail', '1': 'pass'},
+            dict(self.test.result.subtests))
+
+
+def test_DEQPGroupTest_interpret_result_cts():
+    """test.deqp.DEQPGroupTest.interpret_result: Handles CTS shader dumps."""
+    # The following is just something that looks kind of like a CTS shader, the
+    # point is that the layout doesn't trip up the intepret_result method
+    out = textwrap.dedent("""\
+        dEQP Core GL-CTS-2.0 (0x0052484b) starting..
+          target implementation = 'intel-gbm'
+
+        Test case 'A.Test.case.1'..
+        INFO:a test-------------------------------- BEGIN ---------------------------------
+        INFO:a test
+
+        [VERTEX SHADER]
+
+        #version foobar
+        #ifdef something
+        in something
+        INFO:mo stuff:
+
+        [FRAGMENT SHADER]
+
+        #version 300 es
+        precision highp int;
+
+        struct S {
+            vec4 foo;
+            vec2 fo[2];
+        };
+        layout(std140) uniform UB0 {
+            S     x;
+            S     y[2];
+        } ub0;
+        INFO:even more stuff:
+
+        [VERTEX SHADER]
+
+        #version 300 es
+        bool something () {
+            if (thing) { do! }
+        INFO:and even more stuff:
+
+        [FRAGMENT SHADER]
+
+        #version 300 es
+        precision highp int;
+
+        INFO:a test:OK
+        INFO:a test:--------------------------------- END ----------------------------------
+          Pass (Pass)
+
+        Test case 'A.Test.case.2'..
+        INFO:a test-------------------------------- BEGIN ---------------------------------
+        INFO:a test
+
+        [VERTEX SHADER]
+
+        #version foobar
+        #ifdef something
+        in something
+        INFO:mo stuff:
+
+        [FRAGMENT SHADER]
+
+        #version 300 es
+        precision highp int;
+
+        struct S {
+            vec4 boo;
+            vec2 bo[2];
+        };
+        layout(std140) uniform UB0 {
+            S     x;
+            S     y[2];
+        } ub0;
+        INFO:even more stuff:
+
+        [VERTEX SHADER]
+
+        #version 300 es
+        bool something () {
+            if (thing) { do! }
+        INFO:and even more stuff:
+
+        [FRAGMENT SHADER]
+
+        #version 300 es
+        precision highp int;
+
+        INFO:a test:OK
+        INFO:a test:--------------------------------- END ----------------------------------
+          Pass (Pass)
+
+        DONE!
+
+        Test run totals:
+          Passed:        2/2 (100.00%)
+          Failed:        0/2 (0.00%)
+          Not supported: 0/2 (0.00%)
+          Warnings:      0/2 (0.00%)
+    """)
+
+    test = _DEQPGroupTest('foo')
+    test.result.returncode = 0
+    test.result.out = out
+    test.interpret_result()
+    nt.eq_(test.result.subtests['1'], 'pass')
+    nt.eq_(test.result.subtests['2'], 'pass')
+
+
+def test_DEQPGroupTest_interpret_result_nonzero():
+    """test.deqp.DEQPGroupTest.interpret_results: if returncode is nonzero test is crash"""
+    test = _DEQPGroupTest('foo')
+    test.result.returncode = -6
+    test.interpret_result()
+    nt.eq_(test.result.result, 'crash')
+
+
+@utils.skip(not (sys.version_info[0:2] >= (3, 4) or
+                 float(mock.__version__[:3]) >= 1.2),
+            'Test requires that mock.mock_open provides readline method.')
+def test_iter_deqp_test_groups():
+    """deqp._test_deqp_test_groups: Returns expected values"""
+    text = textwrap.dedent("""\
+        GROUP: dEQP-GLES2.info
+        TEST: dEQP-GLES2.info.vendor
+        TEST: dEQP-GLES2.info.renderer
+        TEST: dEQP-GLES2.info.version
+        TEST: dEQP-GLES2.info.shading_language_version
+        TEST: dEQP-GLES2.info.extensions
+        TEST: dEQP-GLES2.info.render_target
+        GROUP: dEQP-GLES2.capability
+        GROUP: dEQP-GLES2.capability.limits
+        TEST: dEQP-GLES2.capability.limits.vertex_attribs
+        TEST: dEQP-GLES2.capability.limits.varying_vectors
+        TEST: dEQP-GLES2.capability.limits.vertex_uniform_vectors
+        TEST: dEQP-GLES2.capability.limits.fragment_uniform_vectors
+        TEST: dEQP-GLES2.capability.limits.texture_image_units
+        TEST: dEQP-GLES2.capability.limits.vertex_texture_image_units
+        TEST: dEQP-GLES2.capability.limits.combined_texture_image_units
+        TEST: dEQP-GLES2.capability.limits.texture_2d_size
+        TEST: dEQP-GLES2.capability.limits.texture_cube_size
+        TEST: dEQP-GLES2.capability.limits.renderbuffer_size
+        GROUP: dEQP-GLES2.capability.limits_lower
+        TEST: dEQP-GLES2.capability.limits_lower.minimum_size
+        GROUP: dEQP-GLES2.capability.extensions
+        GROUP: dEQP-GLES2.capability.extensions.uncompressed_texture_formats
+        TEST: dEQP-GLES2.capability.extensions.uncompressed_texture_formats.foo
+    """)
+
+    expected = [
+        'dEQP-GLES2.info',
+        'dEQP-GLES2.capability.limits',
+        'dEQP-GLES2.capability.limits_lower',
+        'dEQP-GLES2.capability.extensions.uncompressed_texture_formats',
+    ]
+
+    with mock.patch('framework.test.deqp.open', create=True,
+                    new=mock.mock_open(read_data=text)):
+        actual = list(deqp._iter_deqp_test_groups(None))
+
+    nt.assert_list_equal(actual, expected)

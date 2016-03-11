@@ -30,6 +30,7 @@ from __future__ import (
 import re
 
 from framework.test import deqp
+from framework import exceptions
 
 __all__ = ['profile']
 
@@ -45,17 +46,18 @@ _DEQP_ASSERT = re.compile(
     r'deqp-vk: external/vulkancts/.*: Assertion `.*\' failed.')
 
 
-class DEQPVKTest(deqp.DEQPBaseTest):
-    """Test representation for Khronos Vulkan CTS."""
-    timeout = 60
+class _Mixin(object):
+    """Mixin class that provides shared methods for dEQP-VK."""
     deqp_bin = _DEQP_VK_BIN
     @property
     def extra_args(self):
-        return super(DEQPVKTest, self).extra_args + \
+        return super(_Mixin, self).extra_args + \
             [x for x in _EXTRA_ARGS if not x.startswith('--deqp-case')]
 
-    def __init__(self, *args, **kwargs):
-        super(DEQPVKTest, self).__init__(*args, **kwargs)
+
+class DEQPVKTest(_Mixin, deqp.DEQPBaseTest):
+    """Test representation for Khronos Vulkan CTS."""
+    timeout = 60
 
     def interpret_result(self):
         if 'Failed to compile shader at vkGlslToSpirV' in self.result.out:
@@ -70,8 +72,13 @@ class DEQPVKTest(deqp.DEQPBaseTest):
             super(DEQPVKTest, self).interpret_result()
 
 
+class DEQPVKGroupTest(_Mixin, deqp.DEQPGroupTest):
+    """Test representation for Khronos Vulkacn CTS in group mode."""
+    pass
+
+
 profile = deqp.make_profile(  # pylint: disable=invalid-name
     deqp.iter_deqp_test_cases(
         deqp.gen_caselist_txt(_DEQP_VK_BIN, 'dEQP-VK-cases.txt',
                               _EXTRA_ARGS)),
-    DEQPVKTest)
+    single_class=DEQPVKTest, multi_class=DEQPVKGroupTest)

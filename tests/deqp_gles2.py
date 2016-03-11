@@ -1,4 +1,4 @@
-# Copyright 2015 Intel Corporation
+# Copyright (c) 2015-2016 Intel Corporation
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,18 +37,28 @@ _EXTRA_ARGS = deqp.get_option('PIGLIT_DEQP_GLES2_EXTRA_ARGS',
                               default='').split()
 
 
-class DEQPGLES2Test(deqp.DEQPBaseTest):
+class _Mixin(object):
+    """Mixin class that provides shared methods for dEQP-GLES2."""
     deqp_bin = _DEQP_GLES2_BIN
 
     @property
     def extra_args(self):
-        return super(DEQPGLES2Test, self).extra_args + \
+        return super(_Mixin, self).extra_args + \
             [x for x in _EXTRA_ARGS if not x.startswith('--deqp-case')]
 
+
+class DEQPGLES2Test(_Mixin, deqp.DEQPBaseTest):
+    """Class for running dEQP GLES2 in test at a time mode."""
+    pass
+
+
+class DEQPGLES2GroupTest(_Mixin, deqp.DEQPGroupTest):
+    """Class for running dEQP GLES2 in group at a time mode."""
+    pass
 
 
 profile = deqp.make_profile(  # pylint: disable=invalid-name
     deqp.iter_deqp_test_cases(
         deqp.gen_caselist_txt(_DEQP_GLES2_BIN, 'dEQP-GLES2-cases.txt',
                               _EXTRA_ARGS)),
-    DEQPGLES2Test)
+    single_class=DEQPGLES2Test, multi_class=DEQPGLES2GroupTest)

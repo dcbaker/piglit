@@ -179,6 +179,8 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
     valgrind -- True if valgrind is to be used
     dmesg -- True if dmesg checking is desired. This forces concurrency off
     env -- environment variables set for each test before run
+    deqp_mode -- either 'test' or 'group. Controls deqp integration mode, to
+                 either run test at a time or group at a time.
 
     """
     include_filter = _ReListDescriptor('_include_filter', type_=_FilterReList)
@@ -193,6 +195,7 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
         self.valgrind = False
         self.dmesg = False
         self.sync = False
+        self.deqp_mode = 'test'
 
         # env is used to set some base environment variables that are not going
         # to change across runs, without sending them to os.environ which is

@@ -57,13 +57,23 @@ _EXTRA_ARGS = deqp.get_option('PIGLIT_CTS_EXTRA_ARGS', ('cts', 'extra_args'),
                               default='').split()
 
 
-class DEQPCTSTest(deqp.DEQPBaseTest):
+class _Mixin(object):
     deqp_bin = _CTS_BIN
 
     @property
     def extra_args(self):
-        return super(DEQPCTSTest, self).extra_args + \
+        return super(_Mixin, self).extra_args + \
             [x for x in _EXTRA_ARGS if not x.startswith('--deqp-case')]
+
+
+class DEQPCTSTest(_Mixin, deqp.DEQPBaseTest):
+    """Class for running GLES CTS in test at a time mode."""
+    pass
+
+
+class DEQPCTSGroupTest(_Mixin, deqp.DEQPGroupTest):
+    """Class for running GLES CTS in group at a time mode."""
+    pass
 
 
 # Add all of the suites by default, users can use filters to remove them.
@@ -79,4 +89,4 @@ profile = deqp.make_profile(  # pylint: disable=invalid-name
             deqp.gen_caselist_txt(_CTS_BIN, 'ESEXT-CTS-cases.txt',
                                   _EXTRA_ARGS)),
     ),
-    DEQPCTSTest)
+    single_class=DEQPCTSTest, multi_class=DEQPCTSGroupTest)

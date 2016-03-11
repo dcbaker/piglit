@@ -38,6 +38,10 @@ import subprocess
 import errno
 import importlib
 from contextlib import contextmanager
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 try:
     import simplejson as json
@@ -537,3 +541,36 @@ def unset_compression():
         os.environ['PIGLIT_COMPRESSION'] = _SAVED_COMPRESSION
     else:
         del os.environ['PIGLIT_COMPRESSION']
+
+
+def skip(condition, msg='Test skipped.'):
+    """Decorator that will skip if the condition evaluates to Truthy.
+
+    Arguments:
+    condition -- A value or condition. If Truthy the test will skip.
+
+    Keyword Arugments:
+    msg -- a message to print if the test skips. default: 'Test skipped.'
+
+    >>> @skip(True)
+    ... def mytest():
+    ...     pass
+    >>> mytest()
+    Traceback (most recent call last):
+      ...
+    unittest.case.SkipTest: Test skipped.
+
+    >>> @skip(False)
+    ... def mytest():
+    ...     pass
+    >>> mytest()
+
+    """
+    def _wrapper(func):
+        @functools.wraps(func)
+        def _inner(*args, **kwargs):
+            if condition:
+                raise SkipTest(msg)
+            return func(*args, **kwargs)
+        return _inner
+    return _wrapper
