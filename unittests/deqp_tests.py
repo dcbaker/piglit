@@ -203,8 +203,8 @@ class TestDEQPBaseTestIntepretResultStatus(object):
         self.inst = None
 
     __OUT = textwrap.dedent("""\
-        dEQP Core 2014.x (0xcafebabe) starting..
-          target implementation = 'DRM'
+        dEQP Core unknown (0xcafebabe) starting..
+          target implementation = 'X11 GLX'
 
         Test case 'dEQP-GLES2.functional.shaders.conversions.vector_to_vector.vec3_to_ivec3_fragment'..
         Vertex shader compile time = 0.129000 ms
@@ -280,6 +280,72 @@ class TestDEQPBaseTestIntepretResultStatus(object):
         self.inst.result.out = self.__gen_stdout('ResourceError')
         self.inst.interpret_result()
         nt.eq_(self.inst.result.result, 'crash')
+
+
+def test_DEQPBaseTest_interpret_result_cts():
+    """test.deqp.DEQPBaseTest.interpret_result: Handles CTS shader dumps."""
+    # The following is just something that looks kind of like a CTS shader, the
+    # point is that the layout doesn't trip up the intepret_result method
+    out = textwrap.dedent("""\
+        dEQP Core GL-CTS-2.0 (0x0052484b) starting..
+          target implementation = 'intel-gbm'
+
+        Test case 'A.Test.case'..
+        INFO:a test-------------------------------- BEGIN ---------------------------------
+        INFO:a test
+
+        [VERTEX SHADER]
+
+        #version foobar
+        #ifdef something
+        in something
+        INFO:mo stuff:
+
+        [FRAGMENT SHADER]
+
+        #version 300 es
+        precision highp int;
+
+        struct S {
+            vec4 foo;
+            vec2 fo[2];
+        };
+        layout(std140) uniform UB0 {
+            S     x;
+            S     y[2];
+        } ub0;
+        INFO:even more stuff:
+
+        [VERTEX SHADER]
+
+        #version 300 es
+        bool something () {
+            if (thing) { do! }
+        INFO:and even more stuff:
+
+        [FRAGMENT SHADER]
+
+        #version 300 es
+        precision highp int;
+
+        INFO:a test:OK
+        INFO:a test:--------------------------------- END ----------------------------------
+          Pass (Pass)
+
+        DONE!
+
+        Test run totals:
+          Passed:        1/1 (100.00%)
+          Failed:        0/1 (0.00%)
+          Not supported: 0/1 (0.00%)
+          Warnings:      0/1 (0.00%)
+    """)
+
+    test = _DEQPTestTest('foo')
+    test.result.out = out
+    test.result.returncode = 0
+    test.interpret_result()
+    nt.eq_(test.result.result, 'pass')
 
 
 class TestDEQPGroupTest_interpret_result(object):

@@ -165,14 +165,16 @@ def iter_deqp_test_cases(case_file):
 
 @six.add_metaclass(abc.ABCMeta)
 class DEQPBaseTest(Test):
-    __RESULT_MAP = {
-        "Pass": "pass",
-        "Fail": "fail",
-        "QualityWarning": "warn",
-        "InternalError": "fail",
-        "Crash": "crash",
-        "NotSupported": "skip",
-        "ResourceError": "crash",
+    # This a very hot path, a small speed optimization can be had by shortening
+    # this match to just one character
+    _RESULT_MAP = {
+        "P": status.PASS,    # Pass
+        "F": status.FAIL,    # Fail
+        "Q": status.WARN,    # QualityWarnings
+        "I": status.FAIL,    # InternalError
+        "C": status.CRASH,   # Crash
+        "N": status.SKIP,    # NotSupported
+        "R": status.CRASH,   # ResourceError
     }
 
     @abc.abstractproperty
@@ -205,24 +207,25 @@ class DEQPBaseTest(Test):
         command = super(DEQPBaseTest, self).command
         return command + self.extra_args
 
-    def __find_map(self):
-        """Run over the lines and set the result."""
-        # splitting this into a separate function allows us to return cleanly,
-        # otherwise this requires some break/else/continue madness
-        for line in self.result.out.split('\n'):
-            line = line.lstrip()
-            for k, v in six.iteritems(self.__RESULT_MAP):
-                if line.startswith(k):
-                    self.result.result = v
-                    return
-
     def interpret_result(self):
         if is_crash_returncode(self.result.returncode):
             self.result.result = 'crash'
         elif self.result.returncode != 0:
             self.result.result = 'fail'
         else:
-            self.__find_map()
+            # Strip the first 3 lines, which are useless
+            cur = ''
+            lines = (l for l in self.result.out.rstrip().split('\n')[3:-8])
+            for l in lines:
+                # If there is an info block fast forward through it by calling
+                # next on the generator until it is passed.
+                if l.startswith('INFO'):
+                    while not (cur.startswith('INFO') and cur.endswith('----')):
+                        cur = next(lines)
+                    l = cur
+
+                if l.startswith('  '):
+                    self.result.result = self._RESULT_MAP[l[2]]
 
         # We failed to parse the test output. Fallback to 'fail'.
         if self.result.result == 'notrun':
@@ -242,18 +245,6 @@ class DEQPGroupTest(DEQPBaseTest):
     timeout = 300  # 5 minutes
     __name_slicer = slice(len("Test case '"), -len("'.."))
     __finder = re.compile(r'^  (Warnings|Not supported|Failed|Passed):\s+\d/(?P<total>\d+).*')
-
-    # This a very hot path, a small speed optimization can be had by shortening
-    # this match to just one character
-    _RESULT_MAP = {
-        "P": status.PASS,    # Pass
-        "F": status.FAIL,    # Fail
-        "Q": status.WARN,    # QualityWarnings
-        "I": status.FAIL,    # InternalError
-        "C": status.CRASH,   # Crash
-        "N": status.SKIP,    # NotSupported
-        "R": status.CRASH,   # ResourceError
-    }
 
     def __init__(self, case_name, **kwargs):
         super(DEQPGroupTest, self).__init__(case_name + '*', **kwargs)
