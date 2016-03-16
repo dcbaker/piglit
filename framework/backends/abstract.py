@@ -207,6 +207,12 @@ class FileBackend(Backend):
 
         """
         def finish(val):
+            # If finish is passed None delete the file. This is used in the
+            # dEQP backend
+            if val is None:
+                os.unlink(file_)
+                return
+
             tfile = file_ + '.tmp'
             with open(tfile, 'w') as f:
                 self._write(f, name, val)

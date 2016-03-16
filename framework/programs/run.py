@@ -171,6 +171,13 @@ def _run_parser(input_):
                         dest='deqp_mode',
                         help='Run DEQP integration in either "group-at-a-time"'
                              ' or "test-at-a-time" mode.')
+    parser.add_argument('--deqp-no-group-rerun',
+                        action='store_true',
+                        dest='deqp_no_group_rerun',
+                        help='With --deqp-test-mode=group, this option will '
+                             'prevent all tests with a status not in '
+                             '[pass, skip] from being rerun in test at a '
+                             'time mode')
     parser.add_argument("test_profile",
                         metavar="<Profile path(s)>",
                         nargs='+',
@@ -249,6 +256,7 @@ def run(input_):
     options.OPTIONS.dmesg = args.dmesg
     options.OPTIONS.sync = args.sync
     options.OPTIONS.deqp_mode = args.deqp_mode
+    options.OPTIONS.deqp_group_rerun = not args.deqp_no_group_rerun
 
     # Set the platform to pass to waffle
     options.OPTIONS.env['PIGLIT_PLATFORM'] = args.platform
@@ -329,6 +337,7 @@ def resume(input_):
     options.OPTIONS.dmesg = results.options['dmesg']
     options.OPTIONS.sync = results.options['sync']
     options.OPTIONS.deqp_mode = results.options['deqp_mode']
+    options.OPTIONS.deqp_group_rerun = results.options['deqp_group_rerun']
 
     core.get_config(args.config_file)
 

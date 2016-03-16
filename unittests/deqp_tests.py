@@ -45,7 +45,7 @@ else:
     except ImportError:
         from unittest import mock
 
-from framework import profile, grouptools, exceptions
+from framework import grouptools, exceptions
 from framework.test import deqp
 from . import utils
 
@@ -107,23 +107,23 @@ def test_get_option_conf_no_option():
            None)
 
 
-def test_iter_deqp_test_cases_test():
-    """deqp.iter_deqp_test_cases: correctly detects a TEST: line"""
+def test_iter_test_cases_test():
+    """deqp.iter_test_cases: correctly detects a TEST: line"""
     with utils.tempfile('TEST: a.deqp.test') as tfile:
         gen = deqp._iter_test_cases(tfile)
         nt.eq_('a.deqp.test', next(gen))
 
 
-def test_iter_deqp_test_cases_group():
-    """deqp.iter_deqp_test_casesgen_caselist_txt: correctly detects a GROUP: line"""
+def test_iter_test_cases_group():
+    """deqp.iter_test_casesgen_caselist_txt: correctly detects a GROUP: line"""
     with utils.tempfile('GROUP: a group\nTEST: a.deqp.test') as tfile:
         gen = deqp._iter_test_cases(tfile)
         nt.eq_('a.deqp.test', next(gen))
 
 
 @nt.raises(exceptions.PiglitFatalError)
-def test_iter_deqp_test_cases_bad():
-    """deqp.iter_deqp_test_casesgen_caselist_txt: PiglitFatalException is raised if line is not TEST: or GROUP:
+def test_iter_test_cases_bad():
+    """deqp.iter_test_casesgen_caselist_txt: PiglitFatalException is raised if line is not TEST: or GROUP:
     """
     with utils.tempfile('this will fail') as tfile:
         gen = deqp._iter_test_cases(tfile)
@@ -363,7 +363,7 @@ class TestDEQPGroupTest_interpret_result(object):
 
     @classmethod
     def setup_class(cls):
-        cls.test = _DEQPGroupTest('foo')
+        cls.test = _DEQPGroupTest('foo', [])
         cls.test.result.returncode = 0
         cls.test.result.out = cls.__out
         cls.test.interpret_result()
@@ -480,7 +480,7 @@ def test_DEQPGroupTest_interpret_result_cts():
           Warnings:      0/2 (0.00%)
     """)
 
-    test = _DEQPGroupTest('foo')
+    test = _DEQPGroupTest('foo', [])
     test.result.returncode = 0
     test.result.out = out
     test.interpret_result()
@@ -490,7 +490,7 @@ def test_DEQPGroupTest_interpret_result_cts():
 
 def test_DEQPGroupTest_interpret_result_nonzero():
     """test.deqp.DEQPGroupTest.interpret_results: if returncode is nonzero test is crash"""
-    test = _DEQPGroupTest('foo')
+    test = _DEQPGroupTest('foo', [])
     test.result.returncode = -6
     test.interpret_result()
     nt.eq_(test.result.result, 'crash')
@@ -499,8 +499,8 @@ def test_DEQPGroupTest_interpret_result_nonzero():
 @utils.skip(not (sys.version_info[0:2] >= (3, 4) or
                  float(mock.__version__[:3]) >= 1.2),
             'Test requires that mock.mock_open provides readline method.')
-def test_iter_deqp_test_groups():
-    """deqp._test_deqp_test_groups: Returns expected values"""
+def test_iter_test_groups():
+    """deqp._test_test_groups: Returns expected values"""
     text = textwrap.dedent("""\
         GROUP: dEQP-GLES2.info
         TEST: dEQP-GLES2.info.vendor
@@ -529,10 +529,28 @@ def test_iter_deqp_test_groups():
     """)
 
     expected = [
-        'dEQP-GLES2.info',
-        'dEQP-GLES2.capability.limits',
-        'dEQP-GLES2.capability.limits_lower',
-        'dEQP-GLES2.capability.extensions.uncompressed_texture_formats',
+        ('dEQP-GLES2.info',
+         ['dEQP-GLES2.info.vendor',
+          'dEQP-GLES2.info.renderer',
+          'dEQP-GLES2.info.version',
+          'dEQP-GLES2.info.shading_language_version',
+          'dEQP-GLES2.info.extensions',
+          'dEQP-GLES2.info.render_target',]),
+        ('dEQP-GLES2.capability.limits',
+         ['dEQP-GLES2.capability.limits.vertex_attribs',
+          'dEQP-GLES2.capability.limits.varying_vectors',
+          'dEQP-GLES2.capability.limits.vertex_uniform_vectors',
+          'dEQP-GLES2.capability.limits.fragment_uniform_vectors',
+          'dEQP-GLES2.capability.limits.texture_image_units',
+          'dEQP-GLES2.capability.limits.vertex_texture_image_units',
+          'dEQP-GLES2.capability.limits.combined_texture_image_units',
+          'dEQP-GLES2.capability.limits.texture_2d_size',
+          'dEQP-GLES2.capability.limits.texture_cube_size',
+          'dEQP-GLES2.capability.limits.renderbuffer_size']),
+        ('dEQP-GLES2.capability.limits_lower',
+         ['dEQP-GLES2.capability.limits_lower.minimum_size']),
+        ('dEQP-GLES2.capability.extensions.uncompressed_texture_formats',
+         ['dEQP-GLES2.capability.extensions.uncompressed_texture_formats.foo']),
     ]
 
     with mock.patch('framework.test.deqp.open', create=True,

@@ -232,6 +232,50 @@ class TestProfile(object):
         """
         pass
 
+    def _test(self, pair, log, backend):
+        """Function to call test.execute from map"""
+        name, test = pair
+        with backend.write_test(name) as w:
+            test.execute(name, log.get(), self.dmesg)
+            w(test.result)
+
+    def _run_threads(self, pool, testlist, log, backend):
+        """ Open a pool, close it, and join it """
+        pool.imap(lambda pair: self._test(pair, log, backend), testlist)
+        pool.close()
+        pool.join()
+
+    def _run(self, log, backend, test_list=None):
+        """Run all the tests using requested threading."""
+        test_list = test_list or self.test_list
+
+        # Multiprocessing.dummy is a wrapper around Threading that provides a
+        # multiprocessing compatible API
+        #
+        # The default value of pool is the number of virtual processor cores
+        single = multiprocessing.dummy.Pool(1)
+        multi = multiprocessing.dummy.Pool()
+
+        if options.OPTIONS.concurrent == "all":
+            self._run_threads(multi, six.iteritems(test_list), log,
+                              backend)
+        elif options.OPTIONS.concurrent == "none":
+            self._run_threads(single, six.iteritems(test_list), log,
+                              backend)
+        else:
+            # Filter and return only thread safe tests to the threaded pool
+            self._run_threads(
+                multi,
+                (x for x in six.iteritems(test_list) if x[1].run_concurrent),
+                log,
+                backend)
+            # Filter and return the non thread safe tests to the single pool
+            self._run_threads(
+                single,
+                (x for x in six.iteritems(test_list) if not x[1].run_concurrent),
+                log,
+                backend)
+
     def run(self, logger, backend):
         """ Runs all tests using Thread pool
 
@@ -252,43 +296,9 @@ class TestProfile(object):
 
         self._pre_run_hook()
 
-        chunksize = 1
-
         self._prepare_test_list()
         log = LogManager(logger, len(self.test_list))
-
-        def test(pair):
-            """Function to call test.execute from map"""
-            name, test = pair
-            with backend.write_test(name) as w:
-                test.execute(name, log.get(), self.dmesg)
-                w(test.result)
-
-        def run_threads(pool, testlist):
-            """ Open a pool, close it, and join it """
-            pool.imap(test, testlist, chunksize)
-            pool.close()
-            pool.join()
-
-        # Multiprocessing.dummy is a wrapper around Threading that provides a
-        # multiprocessing compatible API
-        #
-        # The default value of pool is the number of virtual processor cores
-        single = multiprocessing.dummy.Pool(1)
-        multi = multiprocessing.dummy.Pool()
-
-        if options.OPTIONS.concurrent == "all":
-            run_threads(multi, six.iteritems(self.test_list))
-        elif options.OPTIONS.concurrent == "none":
-            run_threads(single, six.iteritems(self.test_list))
-        else:
-            # Filter and return only thread safe tests to the threaded pool
-            run_threads(multi, (x for x in six.iteritems(self.test_list)
-                                if x[1].run_concurrent))
-            # Filter and return the non thread safe tests to the single pool
-            run_threads(single, (x for x in six.iteritems(self.test_list)
-                                 if not x[1].run_concurrent))
-
+        self._run(log, backend)
         log.get().summary()
 
         self._post_run_hook()

@@ -33,6 +33,7 @@ from six.moves import range
 from framework import core, grouptools, exceptions, status
 from framework.profile import TestProfile
 from framework.test.base import Test, is_crash_returncode, TestRunError
+from framework.log import LogManager
 from framework.options import OPTIONS
 
 __all__ = [
@@ -61,6 +62,8 @@ def get_option(env_varname, config_option, default=None):
 _EXTRA_ARGS = get_option('PIGLIT_DEQP_EXTRA_ARGS',
                          ('deqp', 'extra_args'),
                          default='').split()
+
+_RERUN = ['crash', 'incomplete', 'timeout', 'notrun', 'skip']
 
 
 def _gen_caselist_txt(bin_, caselist, extra_args):
@@ -109,19 +112,29 @@ def _iter_test_groups(case_file):
     contains only tests.)
 
     """
-    slice_ = slice(len('GROUP: '), None)
+    slice_group = slice(len('GROUP: '), None)
+    slice_test = slice(len('TEST: '), None)
+
     group = ''
+    tests = []
     with open(case_file, 'r') as caselist_file:
         for i, line in enumerate(_iterate_file(caselist_file)):
             if line.startswith('GROUP:'):
-                group = line[slice_]
+                new = line[slice_group].strip()
+
+                # This needs to handle the name of the new group being a
+                # superset of the old group (ex: items to items_max)
+                if new != group and tests:
+                    yield group, tests
+                    tests = []
+                group = new
             elif line.startswith('TEST:'):
-                if group != '':
-                    yield group.rstrip()
-                    group = ''
+                tests.append(line[slice_test].strip())
             else:
                 raise exceptions.PiglitFatalError(
                     'deqp: {}:{}: ill-formed line'.format(case_file, i))
+        # Yield the final set of tests.
+        yield group.strip(), tests
 
 
 def _iter_test_single(case_file):
@@ -189,18 +202,61 @@ class DEQPProfile(TestProfile):
         filter_ = pop('filter_', default=lambda x: x)
 
         super(DEQPProfile, self).__init__(*args, **kwargs)
+        self._rerun = multi_class.rerun
+        self._rerun_class = single_class
 
         iter_ = _iter_test_cases(filter_(
             _gen_caselist_txt(bin_, filename, extra_args)))
 
         if OPTIONS.deqp_mode == 'group':
-            class_ = multi_class
+            for testname, rerun in iter_:
+                # deqp uses '.' as the testgroup separator.
+                piglit_name = testname.replace('.', grouptools.SEPARATOR)
+                self.test_list[piglit_name] = multi_class(testname, rerun)
         elif OPTIONS.deqp_mode == 'test':
-            class_ = single_class
+            for testname in iter_:
+                # deqp uses '.' as the testgroup separator.
+                piglit_name = testname.replace('.', grouptools.SEPARATOR)
+                self.test_list[piglit_name] = single_class(testname)
 
-        for testname in iter_:
-            piglit_name = testname.replace('.', grouptools.SEPARATOR)
-            self.test_list[piglit_name] = class_(testname)
+    def run(self, logger, backend):
+        """Run all tests.
+
+        Adds the option to rerun tests if requested.
+
+        """
+        super(DEQPProfile, self).run(logger, backend)
+
+        if OPTIONS.deqp_group_rerun and self._rerun:
+            print('\nRerunning failed tests in single mode. '
+                  '(run with --deqp-no-group-rerun to disable)\n')
+
+            log = LogManager(logger, len(self._rerun))
+            self._run(log, backend,
+                      # TODO: replace this dict with a profile.TestDict
+                      test_list={k.replace('.', grouptools.SEPARATOR).lower():
+                                 self._rerun_class(k) for k in self._rerun})
+
+            log.get().summary()
+
+    def _test(self, pair, log, backend):
+        """Function to call test.execute from map.
+
+        if in Group mode and group-rerun is enabled,then pass None to write if
+        the test isn't pass or skip, this will cause it to delete the result
+        file rather than loading it, which will be replaced when the re-run
+        happens.
+
+        """
+        name, test = pair
+        if (OPTIONS.deqp_mode == 'group' and
+                OPTIONS.deqp_group_rerun and
+                isinstance(test, DEQPGroupTest)):
+            with backend.write_test(name) as w:
+                test.execute(name, log.get(), self.dmesg)
+                w(None if test.result.result in _RERUN else test.result)
+        else:
+            super(DEQPProfile, self)._test(pair, log, backend)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -283,11 +339,13 @@ class DEQPBaseTest(Test):
 
 class DEQPGroupTest(DEQPBaseTest):
     timeout = 300  # 5 minutes
+    rerun = []
     __name_slicer = slice(len("Test case '"), -len("'.."))
     __finder = re.compile(r'^  (Warnings|Not supported|Failed|Passed):\s+\d/(?P<total>\d+).*')
 
-    def __init__(self, case_name, **kwargs):
+    def __init__(self, case_name, individual_cases, **kwargs):
         super(DEQPGroupTest, self).__init__(case_name + '*', **kwargs)
+        self._individual_cases = individual_cases
 
     def interpret_result(self):
         """Group based result interpretation.
@@ -311,55 +369,59 @@ class DEQPGroupTest(DEQPBaseTest):
         # since there will almost certinaly be an exception raised.
         if self.result.returncode != 0:
             self.result.result = 'crash'
-            return
-
-        # Strip the first 3 lines, and the last 8 lines, which aren't useful
-        # for this pass
-        lines = self.result.out.rstrip().split('\n')[3:]
-        cur = ''
-        total = None
-        for each in reversed(lines):
-            m = self.__finder.match(each)
-            if m:
-                total = int(m.group('total'))
-                break
-        assert total is not None, 'Could not calculate total test count'
-
-        lines = (l for l in lines[:-8])
-
-        # Walk over standard out line by line, looking for 'Test case' (to get
-        # the name of the test) and then for a result. Track each line, which
-        # is used to both know when to stop walking and for error reporting.
-        while len(self.result.subtests) < total:
-            for l in lines:
-                if l.startswith('Test case'):
-                    name = l[self.__name_slicer].rsplit('.', 1)[1].lower()
+        else:
+            # Strip the first 3 lines, and the last 8 lines, which aren't
+            # useful for this pass
+            lines = self.result.out.rstrip().split('\n')[3:]
+            cur = ''
+            total = None
+            for each in reversed(lines):
+                m = self.__finder.match(each)
+                if m:
+                    total = int(m.group('total'))
                     break
-            else:
-                raise exceptions.PiglitInternalError(
-                    'Expected "Test case", but didn\'t find it in:\n'
-                    '{}\ncurrent line: {}'.format(self.result.out, l))
+            assert total is not None, 'Could not calculate total test count'
 
-            for l in lines:
-                # If there is an info block fast forward through it by calling
-                # next on the generator until it is passed.
-                if l.startswith('INFO'):
-                    cur = ''
-                    while not (cur.startswith('INFO') and cur.endswith('----')):
-                        cur = next(lines)
+            lines = (l for l in lines[:-8])
 
-                elif l.startswith('  '):
-                    try:
-                        self.result.subtests[name] = self._RESULT_MAP[l[2]]
-                    except KeyError:
-                        raise exceptions.PiglitInternalError(
-                            'Unknown status {}'.format(l[2:].split()[0]))
-                    break
-            else:
-                raise exceptions.PiglitInternalError(
-                    'Expected "  (Pass,Fail,...)", but didn\'t find it in:\n'
-                    '{}\ncurrent line: {}'.format(self.result.out, l))
+            # Walk over standard out line by line, looking for 'Test case' (to
+            # get the name of the test) and then for a result. Track each line,
+            # which is used to both know when to stop walking and for error
+            # reporting.
+            while len(self.result.subtests) < total:
+                for l in lines:
+                    if l.startswith('Test case'):
+                        name = l[self.__name_slicer].rsplit('.', 1)[1].lower()
+                        break
+                else:
+                    raise exceptions.PiglitInternalError(
+                        'Expected "Test case", but didn\'t find it in:\n'
+                        '{}\ncurrent line: {}'.format(self.result.out, l))
 
+                for l in lines:
+                    # If there is an info block fast forward through it by
+                    # calling next on the generator until it is passed.
+                    if l.startswith('INFO'):
+                        cur = ''
+                        while not (cur.startswith('INFO') and cur.endswith('----')):
+                            cur = next(lines)
+
+                    elif l.startswith('  '):
+                        try:
+                            self.result.subtests[name] = self._RESULT_MAP[l[2]]
+                        except KeyError:
+                            raise exceptions.PiglitInternalError(
+                                'Unknown status {}'.format(l[2:].split()[0]))
+                        break
+                else:
+                    raise exceptions.PiglitInternalError(
+                        'Expected "  (Pass,Fail,...)", '
+                        'but didn\'t find it in:\n'
+                        '{}\ncurrent line: {}'.format(self.result.out, l))
+
+        # If group_rerun (the default) and the status is crash rerun
+        if OPTIONS.deqp_group_rerun and self.result.result == 'crash':
+            self.rerun.extend(self._individual_cases)
         # We failed to parse the test output. Fallback to 'fail'.
-        if self.result.result == 'notrun':
+        elif self.result.result == 'notrun':
             self.result.result = 'fail'

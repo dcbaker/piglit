@@ -30,7 +30,6 @@ from __future__ import (
 import re
 
 from framework.test import deqp
-from framework import exceptions
 
 __all__ = ['profile']
 
@@ -74,7 +73,15 @@ class DEQPVKTest(_Mixin, deqp.DEQPBaseTest):
 
 class DEQPVKGroupTest(_Mixin, deqp.DEQPGroupTest):
     """Test representation for Khronos Vulkacn CTS in group mode."""
-    pass
+    def interpret_result(self):
+        # If there are either of the know result problems add all subcases to
+        # the rerun list.
+        if 'Failed to compile shader at vkGlslToSpirV' in self.result.out:
+            self.rerun.extend(self._individual_cases)
+        elif _DEQP_ASSERT.search(self.result.err):
+            self.rerun.extend(self._individual_cases)
+        else:
+            super(DEQPVKGroupTest, self).interpret_result()
 
 
 profile = deqp.DEQPProfile(  # pylint: disable=invalid-name

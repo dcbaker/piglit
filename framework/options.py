@@ -181,6 +181,8 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
     env -- environment variables set for each test before run
     deqp_mode -- either 'test' or 'group. Controls deqp integration mode, to
                  either run test at a time or group at a time.
+    deqp_group_rerun -- If True any tests that fail in group mode will be rerun
+                        in individual mode.
 
     """
     include_filter = _ReListDescriptor('_include_filter', type_=_FilterReList)
@@ -196,6 +198,7 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
         self.dmesg = False
         self.sync = False
         self.deqp_mode = 'test'
+        self.deqp_group_rerun = False
 
         # env is used to set some base environment variables that are not going
         # to change across runs, without sending them to os.environ which is
