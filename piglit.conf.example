@@ -36,6 +36,14 @@ testB
 [deqp]
 ; Options that affect all deqp based suites
 ;extra_args=--deqp-visibility=hidden
+;
+; Option that sets the statuses to rerun individually for. Should be a space
+; separated list, and will have split(' ') called on it.
+; This can be overwritten by PIGLIT_DEQP_RERUN enviornment variable.
+;
+; Non-exaustive options: fail dmesg-fail warn dmesg-warn
+; Default=crash notrun incomplete skip timeout
+;group_rerun=crash notrun incomplete skip timeout
 
 [deqp-gles2]
 ; Path to the deqp-gles2 executable
@@ -152,3 +160,5 @@ run_test=./%(test_name)s
 [expected-crashes]
 ; Like expected-failures, but specifies that a test is expected to
 ; crash.
+
+; vim: filetype=dosini

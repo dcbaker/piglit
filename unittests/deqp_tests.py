@@ -502,6 +502,7 @@ def test_DEQPGroupTest_interpret_result_nonzero():
 def test_iter_test_groups():
     """deqp._test_test_groups: Returns expected values"""
     text = textwrap.dedent("""\
+        GROUP: dEQP-GLES2
         GROUP: dEQP-GLES2.info
         TEST: dEQP-GLES2.info.vendor
         TEST: dEQP-GLES2.info.renderer
@@ -509,6 +510,8 @@ def test_iter_test_groups():
         TEST: dEQP-GLES2.info.shading_language_version
         TEST: dEQP-GLES2.info.extensions
         TEST: dEQP-GLES2.info.render_target
+        GROUP: dEQP-GLES2.cap
+        TEST: dEQP-GLES2.cap.testy
         GROUP: dEQP-GLES2.capability
         GROUP: dEQP-GLES2.capability.limits
         TEST: dEQP-GLES2.capability.limits.vertex_attribs
@@ -526,6 +529,11 @@ def test_iter_test_groups():
         GROUP: dEQP-GLES2.capability.extensions
         GROUP: dEQP-GLES2.capability.extensions.uncompressed_texture_formats
         TEST: dEQP-GLES2.capability.extensions.uncompressed_texture_formats.foo
+        GROUP: dEQP-GLES2.egl
+        GROUP: dEQP-GLES2.egl.egl_image
+        TEST: dEQP-GLES2.egl.egl_image.egl_image
+        GROUP: dEQP-GLES2.egl.egl_image_external
+        TEST: dEQP-GLES2.egl.egl_image_external.TestGetBinding
     """)
 
     expected = [
@@ -536,6 +544,8 @@ def test_iter_test_groups():
           'dEQP-GLES2.info.shading_language_version',
           'dEQP-GLES2.info.extensions',
           'dEQP-GLES2.info.render_target',]),
+        ('dEQP-GLES2.cap',
+         ['dEQP-GLES2.cap.testy']),
         ('dEQP-GLES2.capability.limits',
          ['dEQP-GLES2.capability.limits.vertex_attribs',
           'dEQP-GLES2.capability.limits.varying_vectors',
@@ -551,6 +561,9 @@ def test_iter_test_groups():
          ['dEQP-GLES2.capability.limits_lower.minimum_size']),
         ('dEQP-GLES2.capability.extensions.uncompressed_texture_formats',
          ['dEQP-GLES2.capability.extensions.uncompressed_texture_formats.foo']),
+        ('dEQP-GLES2.egl.egl_image', ['dEQP-GLES2.egl.egl_image.egl_image']),
+        ('dEQP-GLES2.egl.egl_image_external',
+         ['dEQP-GLES2.egl.egl_image_external.TestGetBinding']),
     ]
 
     with mock.patch('framework.test.deqp.open', create=True,

@@ -63,7 +63,9 @@ _EXTRA_ARGS = get_option('PIGLIT_DEQP_EXTRA_ARGS',
                          ('deqp', 'extra_args'),
                          default='').split()
 
-_RERUN = ['crash', 'incomplete', 'timeout', 'notrun', 'skip']
+_RERUN = get_option('PIGLIT_DEQP_RERUN',
+                    ('deqp', 'group_rerun'),
+                    default='crash notrun incomplete timeout').split()
 
 
 def _gen_caselist_txt(bin_, caselist, extra_args):
@@ -115,10 +117,15 @@ def _iter_test_groups(case_file):
     slice_group = slice(len('GROUP: '), None)
     slice_test = slice(len('TEST: '), None)
 
-    group = ''
+    group = '.'
     tests = []
     with open(case_file, 'r') as caselist_file:
-        for i, line in enumerate(_iterate_file(caselist_file)):
+        iter_ = _iterate_file(caselist_file)
+        # Wind passed the very base group, which would otherwise require
+        # special handling.
+        next(iter_)
+
+        for i, line in enumerate(iter_):
             if line.startswith('GROUP:'):
                 new = line[slice_group].strip()
 
@@ -228,8 +235,9 @@ class DEQPProfile(TestProfile):
         super(DEQPProfile, self).run(logger, backend)
 
         if OPTIONS.deqp_group_rerun and self._rerun:
-            print('\nRerunning failed tests in single mode. '
-                  '(run with --deqp-no-group-rerun to disable)\n')
+            print('\nRerunning tests in single mode with statuses: "{}". '
+                  '(run with --deqp-no-group-rerun to disable)\n'.format(
+                      ', '.join(_RERUN)))
 
             log = LogManager(logger, len(self._rerun))
             self._run(log, backend,
@@ -344,7 +352,7 @@ class DEQPGroupTest(DEQPBaseTest):
     __finder = re.compile(r'^  (Warnings|Not supported|Failed|Passed):\s+\d/(?P<total>\d+).*')
 
     def __init__(self, case_name, individual_cases, **kwargs):
-        super(DEQPGroupTest, self).__init__(case_name + '*', **kwargs)
+        super(DEQPGroupTest, self).__init__(case_name + '.*', **kwargs)
         self._individual_cases = individual_cases
 
     def interpret_result(self):
@@ -420,7 +428,7 @@ class DEQPGroupTest(DEQPBaseTest):
                         '{}\ncurrent line: {}'.format(self.result.out, l))
 
         # If group_rerun (the default) and the status is crash rerun
-        if OPTIONS.deqp_group_rerun and self.result.result == 'crash':
+        if OPTIONS.deqp_group_rerun and self.result.result in _RERUN:
             self.rerun.extend(self._individual_cases)
         # We failed to parse the test output. Fallback to 'fail'.
         elif self.result.result == 'notrun':
