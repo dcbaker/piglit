@@ -28,10 +28,12 @@ tests
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import copy
 import sys
 import textwrap
 
 import nose.tools as nt
+import six
 
 # There is a bug in mock < 1.2 or python 3.4 that we'd like to avoid, otherwise
 # some tests will skip.
@@ -105,34 +107,17 @@ def test_get_option_conf_no_option():
            None)
 
 
-class TestMakeProfile(object):
-    """Test deqp.make_profile."""
-    @classmethod
-    def setup_class(cls):
-        cls.profile = deqp.make_profile(['this.is.a.deqp.test'], _DEQPTestTest)
-
-    def test_returns_profile(self):
-        """deqp.make_profile: returns a TestProfile"""
-        nt.assert_is_instance(self.profile, profile.TestProfile)
-
-    @doc_formatter
-    def test_grouptools(self):
-        """deqp.make_profile: replaces '.' with '{separator}'"""
-        nt.assert_in(grouptools.join('this', 'is', 'a', 'deqp', 'test'),
-                     self.profile.test_list)
-
-
 def test_iter_deqp_test_cases_test():
     """deqp.iter_deqp_test_cases: correctly detects a TEST: line"""
     with utils.tempfile('TEST: a.deqp.test') as tfile:
-        gen = deqp.iter_deqp_test_cases(tfile)
+        gen = deqp._iter_test_cases(tfile)
         nt.eq_('a.deqp.test', next(gen))
 
 
 def test_iter_deqp_test_cases_group():
     """deqp.iter_deqp_test_casesgen_caselist_txt: correctly detects a GROUP: line"""
     with utils.tempfile('GROUP: a group\nTEST: a.deqp.test') as tfile:
-        gen = deqp.iter_deqp_test_cases(tfile)
+        gen = deqp._iter_test_cases(tfile)
         nt.eq_('a.deqp.test', next(gen))
 
 
@@ -141,7 +126,7 @@ def test_iter_deqp_test_cases_bad():
     """deqp.iter_deqp_test_casesgen_caselist_txt: PiglitFatalException is raised if line is not TEST: or GROUP:
     """
     with utils.tempfile('this will fail') as tfile:
-        gen = deqp.iter_deqp_test_cases(tfile)
+        gen = deqp._iter_test_cases(tfile)
         nt.eq_('a.deqp.test', next(gen))
 
 
@@ -552,6 +537,42 @@ def test_iter_deqp_test_groups():
 
     with mock.patch('framework.test.deqp.open', create=True,
                     new=mock.mock_open(read_data=text)):
-        actual = list(deqp._iter_deqp_test_groups(None))
+        actual = list(deqp._iter_test_groups(None))
 
     nt.assert_list_equal(actual, expected)
+
+
+@utils.nose_generator
+def test_DEQPProfile_init_required():
+    """Generate tests for DEQPPRofile's constructor required arguments.
+
+    Basically this builds a valid list of arguments, and then erases them one
+    by one looking for an exception.
+
+    """
+    description = 'deqp.DEQPProfile: requires kwarg {}'
+
+    kwargs = {
+        'single_class': None,
+        'multi_class': None,
+        'bin_': None,
+        'filename': None,
+    }
+
+    def test(arg):
+        """The actual test."""
+        test_args = copy.copy(kwargs)
+        del test_args[arg]
+
+        with nt.assert_raises(TypeError) as e:
+            deqp.DEQPProfile(**test_args)
+
+        # Ensure that we're getting the right error.
+        # An initial version of the test "passed" because of a typo in
+        # DEQPProfile
+        nt.eq_(six.text_type(e.exception),
+               'Required keyword argument {} was not set'.format(arg))
+
+    for arg in six.iterkeys(kwargs):
+        test.description = description.format(arg)
+        yield test, arg

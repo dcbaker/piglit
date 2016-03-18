@@ -57,8 +57,9 @@ class DEQPGLES31GroupTest(_Mixin, deqp.DEQPGroupTest):
     pass
 
 
-profile = deqp.make_profile(  # pylint: disable=invalid-name
-    deqp.iter_deqp_test_cases(
-        deqp.gen_caselist_txt(_DEQP_GLES31_BIN, 'dEQP-GLES31-cases.txt',
-                              _EXTRA_ARGS)),
-    single_class=DEQPGLES31Test, multi_class=DEQPGLES31GroupTest)
+profile = deqp.DEQPProfile(  # pylint: disable=invalid-name
+    single_class=DEQPGLES31Test,
+    multi_class=DEQPGLES31GroupTest,
+    bin_=_DEQP_GLES31_BIN,
+    filename='dEQP-GLES31-cases.txt',
+    extra_args=_EXTRA_ARGS)

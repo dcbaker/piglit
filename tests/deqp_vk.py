@@ -77,8 +77,9 @@ class DEQPVKGroupTest(_Mixin, deqp.DEQPGroupTest):
     pass
 
 
-profile = deqp.make_profile(  # pylint: disable=invalid-name
-    deqp.iter_deqp_test_cases(
-        deqp.gen_caselist_txt(_DEQP_VK_BIN, 'dEQP-VK-cases.txt',
-                              _EXTRA_ARGS)),
-    single_class=DEQPVKTest, multi_class=DEQPVKGroupTest)
+profile = deqp.DEQPProfile(  # pylint: disable=invalid-name
+    single_class=DEQPVKTest,
+    multi_class=DEQPVKGroupTest,
+    bin_=_DEQP_VK_BIN,
+    filename='dEQP-VK-cases.txt',
+    extra_args=_EXTRA_ARGS)

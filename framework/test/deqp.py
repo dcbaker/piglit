@@ -22,6 +22,7 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 import abc
+import functools
 import os
 import re
 import subprocess
@@ -37,10 +38,8 @@ from framework.options import OPTIONS
 __all__ = [
     'DEQPBaseTest',
     'DEQPGroupTest',
-    'gen_caselist_txt',
+    'DEQPProfile',
     'get_option',
-    'iter_deqp_test_cases',
-    'make_profile',
 ]
 
 
@@ -64,25 +63,7 @@ _EXTRA_ARGS = get_option('PIGLIT_DEQP_EXTRA_ARGS',
                          default='').split()
 
 
-def make_profile(test_list, single_class=None, multi_class=None):
-    """Create a TestProfile instance."""
-    if OPTIONS.deqp_mode == 'group':
-        assert multi_class is not None
-        _class = multi_class
-    elif OPTIONS.deqp_mode == 'test':
-        assert single_class is not None
-        _class = single_class
-
-    profile = TestProfile()
-    for testname in test_list:
-        # deqp uses '.' as the testgroup separator.
-        piglit_name = testname.replace('.', grouptools.SEPARATOR)
-        profile.test_list[piglit_name] = _class(testname)
-
-    return profile
-
-
-def gen_caselist_txt(bin_, caselist, extra_args):
+def _gen_caselist_txt(bin_, caselist, extra_args):
     """Generate a caselist.txt and return its path.
 
     Extra args should be a list of extra arguments to pass to deqp.
@@ -107,7 +88,8 @@ def gen_caselist_txt(bin_, caselist, extra_args):
         subprocess.check_call(
             [bin_, '--deqp-runmode=txt-caselist'] + extra_args, cwd=basedir,
             stdout=d, stderr=d)
-    assert os.path.exists(caselist_path)
+    assert os.path.exists(caselist_path), \
+        'Could not find {}'.format(caselist_path)
     return caselist_path
 
 
@@ -120,7 +102,7 @@ def _iterate_file(file_):
         yield line
 
 
-def _iter_deqp_test_groups(case_file):
+def _iter_test_groups(case_file):
     """Iterate over original dEQP testcase groups.
 
     This generator yields the name of each leaf group (that is, a group which
@@ -142,7 +124,7 @@ def _iter_deqp_test_groups(case_file):
                     'deqp: {}:{}: ill-formed line'.format(case_file, i))
 
 
-def _iter_deqp_test_single(case_file):
+def _iter_test_single(case_file):
     """Iterate over original dEQP testcase names."""
     with open(case_file, 'r') as caselist_file:
         for i, line in enumerate(_iterate_file(caselist_file)):
@@ -155,12 +137,70 @@ def _iter_deqp_test_single(case_file):
                     'deqp: {}:{}: ill-formed line'.format(case_file, i))
 
 
-def iter_deqp_test_cases(case_file):
+def _iter_test_cases(case_file):
     """Wrapper that sets the iterator based on the mode."""
     if OPTIONS.deqp_mode == 'group':
-        return _iter_deqp_test_groups(case_file)
+        return _iter_test_groups(case_file)
     elif OPTIONS.deqp_mode == 'test':
-        return _iter_deqp_test_single(case_file)
+        return _iter_test_single(case_file)
+
+
+def _pop(kwargs, name, default=None):
+    """A guard function for DEQPProfile."""
+    try:
+        return kwargs.pop(name)
+    except KeyError:
+        if default is not None:
+            return default
+        raise TypeError('Required keyword argument {} was not set'.format(name))
+
+
+class DEQPProfile(TestProfile):
+    """A profile specifically for dEQP tests.
+
+    This profile provides much of the necessary setup bits for dEQP
+    integration, including generating a valid test list.
+
+    All arguments not listed will be passed to the parent class.
+
+    Keyword Arguments:
+    single_class -- the class to use for 'test at a time' mode. Required.
+    multi_class -- the class to use for 'group at a time' mode. Required.
+    filter_ -- A function that filters that test cases. By default this is a
+               no-op function.
+    bin_ -- the dEQP binary to use. Required.
+    extra_args -- the extra arguments to pass to the dEQP binary for each test.
+                  Default: [].
+    filename -- the name of the txt file containing all of the test and group
+                information that dEQP generates. Required.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        # PYTHON3: This could all be done with explict keyword arguments
+        # instead of this...madness
+        pop = functools.partial(_pop, kwargs)
+
+        single_class = pop('single_class')
+        multi_class = pop('multi_class')
+        bin_ = pop('bin_')
+        filename = pop('filename')
+        extra_args = pop('extra_args', default=[])
+        filter_ = pop('filter_', default=lambda x: x)
+
+        super(DEQPProfile, self).__init__(*args, **kwargs)
+
+        iter_ = _iter_test_cases(filter_(
+            _gen_caselist_txt(bin_, filename, extra_args)))
+
+        if OPTIONS.deqp_mode == 'group':
+            class_ = multi_class
+        elif OPTIONS.deqp_mode == 'test':
+            class_ = single_class
+
+        for testname in iter_:
+            piglit_name = testname.replace('.', grouptools.SEPARATOR)
+            self.test_list[piglit_name] = class_(testname)
 
 
 @six.add_metaclass(abc.ABCMeta)

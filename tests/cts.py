@@ -45,9 +45,10 @@ PIGLIT_CTS_EXTRA_ARGS -- environment equivalent of [cts]:extra_args
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-import itertools
+import functools
 
 from framework.test import deqp
+from framework import profile
 
 __all__ = ['profile']
 
@@ -76,17 +77,28 @@ class DEQPCTSGroupTest(_Mixin, deqp.DEQPGroupTest):
     pass
 
 
-# Add all of the suites by default, users can use filters to remove them.
-profile = deqp.make_profile(  # pylint: disable=invalid-name
-    itertools.chain(
-        deqp.iter_deqp_test_cases(
-            deqp.gen_caselist_txt(_CTS_BIN, 'ES2-CTS-cases.txt', _EXTRA_ARGS)),
-        deqp.iter_deqp_test_cases(
-            deqp.gen_caselist_txt(_CTS_BIN, 'ES3-CTS-cases.txt', _EXTRA_ARGS)),
-        deqp.iter_deqp_test_cases(
-            deqp.gen_caselist_txt(_CTS_BIN, 'ES31-CTS-cases.txt', _EXTRA_ARGS)),
-        deqp.iter_deqp_test_cases(
-            deqp.gen_caselist_txt(_CTS_BIN, 'ESEXT-CTS-cases.txt',
-                                  _EXTRA_ARGS)),
-    ),
-    single_class=DEQPCTSTest, multi_class=DEQPCTSGroupTest)
+def _make_profile():
+    """Make a single profile for the GLES CTS.
+
+    The GLES CTS is wierd. It's 4 distinct test suites, that need to be run as
+    one. The profile mechanism for dEQP integration doesn't really support
+    this, so instead what is done is that 4 profiles are created, then merged.
+
+    This can easily be trimmed using the standard test filters from the command
+    line.
+
+    """
+    partial = functools.partial(deqp.DEQPProfile,
+                                single_class=DEQPCTSTest,
+                                multi_class=DEQPCTSGroupTest,
+                                bin_=_CTS_BIN,
+                                extra_args=_EXTRA_ARGS)
+    profile_ = partial(filename='ES2-CTS-cases.txt')
+    profile_.update(partial(filename='ES3-CTS-cases.txt'))
+    profile_.update(partial(filename='ES31-CTS-cases.txt'))
+    profile_.update(partial(filename='ESEXT-CTS-cases.txt'))
+
+    return profile_
+
+
+profile = _make_profile()  # pylint: disable=invalid-name

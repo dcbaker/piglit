@@ -99,8 +99,10 @@ class DEQPGLES3GroupTest(_Mixin, deqp.DEQPGroupTest):
     pass
 
 
-profile = deqp.make_profile(  # pylint: disable=invalid-name
-    deqp.iter_deqp_test_cases(filter_mustpass(
-        deqp.gen_caselist_txt(_DEQP_GLES3_EXE, 'dEQP-GLES3-cases.txt',
-                              _EXTRA_ARGS))),
-    single_class=DEQPGLES3Test, multi_class=DEQPGLES3GroupTest)
+profile = deqp.DEQPProfile(  # pylint: disable=invalid-name
+    single_class=DEQPGLES3Test,
+    multi_class=DEQPGLES3GroupTest,
+    bin_=_DEQP_GLES3_EXE,
+    filename='dEQP-GLES3-cases.txt',
+    filter_=filter_mustpass,
+    extra_args=_EXTRA_ARGS)
