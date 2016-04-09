@@ -351,7 +351,7 @@ target_to_short_name(GLenum target)
 }
 
 
-static void
+static enum piglit_result
 compile_glsl(GLenum target)
 {
 	GLuint shader = glCreateShader(target);
@@ -359,33 +359,42 @@ compile_glsl(GLenum target)
 
 	switch (target) {
 	case GL_VERTEX_SHADER:
-		piglit_require_vertex_shader();
+		if (piglit_get_gl_version() < 20 &&
+		    !(piglit_is_extension_supported("GL_ARB_shader_objects") &&
+		      piglit_is_extension_supported("GL_ARB_vertex_shader")))
+			return PIGLIT_SKIP;
 		break;
 	case GL_FRAGMENT_SHADER:
-		piglit_require_fragment_shader();
+		if (piglit_get_gl_version() < 20 &&
+		    !(piglit_is_extension_supported("GL_ARB_shader_objects") &&
+		      piglit_is_extension_supported("GL_ARB_fragment_shader")))
+			return PIGLIT_SKIP;
 		break;
 	case GL_TESS_CONTROL_SHADER:
 	case GL_TESS_EVALUATION_SHADER:
 		if (gl_version.num < (gl_version.es ? 32 : 40))
-			piglit_require_extension(gl_version.es ?
-						 "GL_OES_tessellation_shader" :
-						 "GL_ARB_tessellation_shader");
+			if (!piglit_is_extension_supported(gl_version.es ?
+							   "GL_OES_tessellation_shader" :
+							   "GL_ARB_tessellation_shader"))
+				return PIGLIT_SKIP;
 		break;
 	case GL_GEOMETRY_SHADER:
 		if (gl_version.num < 32)
-			piglit_require_extension(gl_version.es ?
-						 "GL_OES_geometry_shader" :
-						 "GL_ARB_geometry_shader4");
+			if (!piglit_is_extension_supported(gl_version.es ?
+							   "GL_OES_geometry_shader" :
+							   "GL_ARB_geometry_shader4"))
+				return PIGLIT_SKIP;
 		break;
 	case GL_COMPUTE_SHADER:
 		if (gl_version.num < (gl_version.es ? 31 : 43))
-			piglit_require_extension("GL_ARB_compute_shader");
+			if (!piglit_is_extension_supported("GL_ARB_compute_shader"))
+				return PIGLIT_SKIP;
 		break;
 	}
 
 	if (!glsl_req_version.num) {
 		printf("GLSL version requirement missing\n");
-		piglit_report_result(PIGLIT_FAIL);
+		return PIGLIT_FAIL;
 	}
 
 	if (!strstr(shader_string, "#version ")) {
@@ -432,7 +441,7 @@ compile_glsl(GLenum target)
 			info);
 
 		free(info);
-		piglit_report_result(PIGLIT_FAIL);
+		return PIGLIT_FAIL;
 	}
 
 	switch (target) {
@@ -461,9 +470,10 @@ compile_glsl(GLenum target)
 		num_compute_shaders++;
 		break;
 	}
+	return PIGLIT_PASS;
 }
 
-static void
+static enum piglit_result
 compile_and_bind_program(GLenum target, const char *start, int len)
 {
 	GLuint prog;
@@ -471,25 +481,29 @@ compile_and_bind_program(GLenum target, const char *start, int len)
 
 	switch (target) {
 	case GL_VERTEX_PROGRAM_ARB:
-		piglit_require_extension("GL_ARB_vertex_program");
+		if (!piglit_is_extension_supported("GL_ARB_vertex_program"))
+			return PIGLIT_SKIP;
 		break;
 	case GL_FRAGMENT_PROGRAM_ARB:
-		piglit_require_extension("GL_ARB_fragment_program");
+		if (!piglit_is_extension_supported("GL_ARB_fragment_program"))
+			return PIGLIT_SKIP;
 		break;
 	}
 
 	source = malloc(len + 1);
 	memcpy(source, start, len);
 	source[len] = 0;
-	prog = piglit_compile_program(target, source);
+	prog = piglit_compile_program(target, source);//TODO
 
 	glEnable(target);
 	glBindProgramARB(target, prog);
 	link_ok = true;
 	prog_in_use = true;
+
+	return PIGLIT_PASS;
 }
 
-static void
+static enum piglit_result
 link_sso(GLenum target)
 {
 	GLint ok;
@@ -512,9 +526,7 @@ link_sso(GLenum target)
 			prog_err_info);
 
 		free(prog_err_info);
-		piglit_report_result(PIGLIT_FAIL);
-
-		return;
+		return PIGLIT_FAIL;
 	}
 
 	switch (target) {
@@ -543,6 +555,7 @@ link_sso(GLenum target)
 		glUseProgramStages(pipeline, GL_COMPUTE_SHADER_BIT, prog);
 		break;
 	}
+	return PIGLIT_PASS;
 }
 
 /**
@@ -701,7 +714,7 @@ parse_version_comparison(const char *line, enum comparison *cmp,
 /**
  * Parse and check a line from the requirement section of the test
  */
-static void
+static enum piglit_result
 process_requirement(const char *line)
 {
 	char buffer[4096];
@@ -759,7 +772,7 @@ process_requirement(const char *line)
 		glGetIntegerv(int_enum, &gl_int_value);
 		if (!piglit_check_gl_error(GL_NO_ERROR)) {
 			fprintf(stderr, "Error reading %s\n", buffer);
-			piglit_report_result(PIGLIT_FAIL);
+			return PIGLIT_FAIL;
 		}
 
 		if (!compare(comparison_value, gl_int_value, cmp)) {
@@ -769,10 +782,10 @@ process_requirement(const char *line)
 			       comparison_string(cmp),
 			       comparison_value,
 			       gl_int_value);
-			piglit_report_result(PIGLIT_SKIP);
+			return PIGLIT_SKIP;
 		}
 
-		return;
+		return PIGLIT_PASS;
 	}
 
 	/* There are five types of requirements that a test can currently
@@ -808,17 +821,19 @@ process_requirement(const char *line)
 			       comparison_string(cmp),
 			       maxcomp,
 			       *getint_limits[i].val);
-			piglit_report_result(PIGLIT_SKIP);
+			return PIGLIT_SKIP;
 		}
-		return;
+		return PIGLIT_PASS;
 	}
 
 	if (string_match("GL_", line)) {
 		strcpy_to_space(buffer, line);
-		piglit_require_extension(buffer);
+		if (!piglit_is_extension_supported(buffer))
+			return PIGLIT_SKIP;
 	} else if (string_match("!GL_", line)) {
 		strcpy_to_space(buffer, line + 1);
-		piglit_require_not_extension(buffer);
+		if (piglit_is_extension_supported(buffer))
+			return PIGLIT_SKIP;
 	} else if (string_match("GLSL", line)) {
 		enum comparison cmp;
 
@@ -829,7 +844,7 @@ process_requirement(const char *line)
 		 * version number to insert a #version directive. */
 		if (cmp != greater_equal) {
 			printf("Unsupported GLSL version comparison\n");
-			piglit_report_result(PIGLIT_FAIL);
+			return PIGLIT_FAIL;
 		}
 
 		if (!version_compare(&glsl_req_version, &glsl_version, cmp)) {
@@ -838,7 +853,7 @@ process_requirement(const char *line)
 			       comparison_string(cmp),
 			       version_string(&glsl_req_version),
 			       version_string(&glsl_version));
-			piglit_report_result(PIGLIT_SKIP);
+			return PIGLIT_SKIP;
 		}
 	} else if (string_match("GL", line)) {
 		enum comparison cmp;
@@ -853,7 +868,7 @@ process_requirement(const char *line)
 			       comparison_string(cmp),
 			       version_string(&gl_req_version),
 			       version_string(&gl_version));
-			piglit_report_result(PIGLIT_SKIP);
+			return PIGLIT_SKIP;
 		}
 	} else if (string_match("rlimit", line)) {
 		unsigned long lim;
@@ -864,17 +879,19 @@ process_requirement(const char *line)
 		lim = strtoul(line, &ptr, 0);
 		if (ptr == line) {
 			printf("rlimit requires numeric argument\n");
-			piglit_report_result(PIGLIT_FAIL);
+			return PIGLIT_FAIL;
 		}
 
 		piglit_set_rlimit(lim);
 	}  else if (string_match("SSO", line)) {
 		line = eat_whitespace(line + 3);
 		if (string_match("ENABLED", line)) {
-			piglit_require_extension("GL_ARB_separate_shader_objects");
+			if (!piglit_is_extension_supported("GL_ARB_separate_shader_objects"))
+				return PIGLIT_SKIP;
 			sso_in_use = true;
 		}
 	}
+	return PIGLIT_PASS;
 }
 
 
@@ -904,7 +921,7 @@ process_geometry_layout(const char *line)
 }
 
 
-static void
+static enum piglit_result
 leave_state(enum states state, const char *line)
 {
 	switch (state) {
@@ -916,52 +933,44 @@ leave_state(enum states state, const char *line)
 
 	case vertex_shader:
 		shader_string_size = line - shader_string;
-		compile_glsl(GL_VERTEX_SHADER);
-		break;
+		return compile_glsl(GL_VERTEX_SHADER);
 
 	case vertex_shader_passthrough:
-		compile_glsl(GL_VERTEX_SHADER);
-		break;
+		return compile_glsl(GL_VERTEX_SHADER);
 
 	case vertex_program:
-		compile_and_bind_program(GL_VERTEX_PROGRAM_ARB,
-					 shader_string,
-					 line - shader_string);
-		break;
+		return compile_and_bind_program(GL_VERTEX_PROGRAM_ARB,
+						shader_string,
+						line - shader_string);
 
 	case tess_ctrl_shader:
 		shader_string_size = line - shader_string;
-		compile_glsl(GL_TESS_CONTROL_SHADER);
-		break;
+		return compile_glsl(GL_TESS_CONTROL_SHADER);
 
 	case tess_eval_shader:
 		shader_string_size = line - shader_string;
-		compile_glsl(GL_TESS_EVALUATION_SHADER);
-		break;
+		return compile_glsl(GL_TESS_EVALUATION_SHADER);
 
 	case geometry_shader:
 		shader_string_size = line - shader_string;
-		compile_glsl(GL_GEOMETRY_SHADER);
-		break;
+		return compile_glsl(GL_GEOMETRY_SHADER);
 
 	case geometry_layout:
 		break;
 
 	case fragment_shader:
 		shader_string_size = line - shader_string;
-		compile_glsl(GL_FRAGMENT_SHADER);
-		break;
+		return compile_glsl(GL_FRAGMENT_SHADER);
 
 	case fragment_program:
-		compile_and_bind_program(GL_FRAGMENT_PROGRAM_ARB,
-					 shader_string,
-					 line - shader_string);
+		return compile_and_bind_program(GL_FRAGMENT_PROGRAM_ARB,
+						shader_string,
+						line - shader_string);
 		break;
 
 	case compute_shader:
 		shader_string_size = line - shader_string;
-		compile_glsl(GL_COMPUTE_SHADER);
-		break;
+		return compile_glsl(GL_COMPUTE_SHADER);
 
 	case vertex_data:
 		vertex_data_end = line;
@@ -973,14 +982,15 @@ leave_state(enum states state, const char *line)
 	default:
 		assert(!"Not yet supported.");
 	}
+	return PIGLIT_PASS;
 }
 
 
-static void
+static enum piglit_result
 process_shader(GLenum target, unsigned num_shaders, GLuint *shaders)
 {
 	if (num_shaders == 0)
-		return;
+		return PIGLIT_PASS;
 
 	if (sso_in_use) {
 		prog = glCreateProgram();
@@ -1014,14 +1024,16 @@ process_shader(GLenum target, unsigned num_shaders, GLuint *shaders)
 	glBindAttribLocation(prog, PIGLIT_ATTRIB_TEX, "piglit_texcoord");
 
 	if (sso_in_use) {
-		link_sso(target);
+		return link_sso(target);
 	}
+	return PIGLIT_PASS;
 }
 
 
-static void
+static enum piglit_result
 link_and_use_shaders(void)
 {
+	enum piglit_result result;
 	unsigned i;
 	GLenum err;
 	GLint ok;
@@ -1032,17 +1044,29 @@ link_and_use_shaders(void)
 	    && (num_tess_eval_shaders == 0)
 	    && (num_geometry_shaders == 0)
 	    && (num_compute_shaders == 0))
-		return;
+		return PIGLIT_PASS;
 
 	if (!sso_in_use)
 		prog = glCreateProgram();
 
-	process_shader(GL_VERTEX_SHADER, num_vertex_shaders, vertex_shaders);
-	process_shader(GL_TESS_CONTROL_SHADER, num_tess_ctrl_shaders, tess_ctrl_shaders);
-	process_shader(GL_TESS_EVALUATION_SHADER, num_tess_eval_shaders, tess_eval_shaders);
-	process_shader(GL_GEOMETRY_SHADER, num_geometry_shaders, geometry_shaders);
-	process_shader(GL_FRAGMENT_SHADER, num_fragment_shaders, fragment_shaders);
-	process_shader(GL_COMPUTE_SHADER, num_compute_shaders, compute_shaders);
+	result = process_shader(GL_VERTEX_SHADER, num_vertex_shaders, vertex_shaders);
+	if (result != PIGLIT_PASS)
+		return result;
+	result = process_shader(GL_TESS_CONTROL_SHADER, num_tess_ctrl_shaders, tess_ctrl_shaders);
+	if (result != PIGLIT_PASS)
+		return result;
+	result = process_shader(GL_TESS_EVALUATION_SHADER, num_tess_eval_shaders, tess_eval_shaders);
+	if (result != PIGLIT_PASS)
+		return result;
+	result = process_shader(GL_GEOMETRY_SHADER, num_geometry_shaders, geometry_shaders);
+	if (result != PIGLIT_PASS)
+		return result;
+	result = process_shader(GL_FRAGMENT_SHADER, num_fragment_shaders, fragment_shaders);
+	if (result != PIGLIT_PASS)
+		return result;
+	result = process_shader(GL_COMPUTE_SHADER, num_compute_shaders, compute_shaders);
+	if (result != PIGLIT_PASS)
+		return result;
 
 	if (!sso_in_use)
 		glLinkProgram(prog);
@@ -1083,7 +1107,7 @@ link_and_use_shaders(void)
 
 			glGetProgramInfoLog(prog, size, NULL, prog_err_info);
 
-			return;
+			return PIGLIT_PASS;
 		}
 
 		glUseProgram(prog);
@@ -1100,25 +1124,29 @@ link_and_use_shaders(void)
 
 		glGetProgramInfoLog(prog, size, NULL, prog_err_info);
 	}
+	return PIGLIT_PASS;
 }
 
 
-static void
+static enum piglit_result
 process_test_script(const char *script_name)
 {
 	unsigned text_size;
 	char *text = piglit_load_text_file(script_name, &text_size);
 	enum states state = none;
 	const char *line = text;
+	enum piglit_result result;
 
 	if (line == NULL) {
 		printf("could not read file \"%s\"\n", script_name);
-		piglit_report_result(PIGLIT_FAIL);
+		return PIGLIT_FAIL;
 	}
 
 	while (line[0] != '\0') {
 		if (line[0] == '[') {
-			leave_state(state, line);
+			result = leave_state(state, line);
+			if (result != PIGLIT_PASS)
+				return result;
 
 			if (string_match("[require]", line)) {
 				state = requirements;
@@ -1161,12 +1189,12 @@ process_test_script(const char *script_name)
 				test_start = strchrnul(line, '\n');
 				if (test_start[0] != '\0')
 					test_start++;
-				return;
+				return PIGLIT_PASS;
 			} else {
 				fprintf(stderr,
 					"Unknown section in test script.  "
 					"Perhaps missing closing ']'?\n");
-				piglit_report_result(PIGLIT_FAIL);
+				return PIGLIT_FAIL;
 			}
 		} else {
 			switch (state) {
@@ -1175,7 +1203,9 @@ process_test_script(const char *script_name)
 				break;
 
 			case requirements:
-				process_requirement(line);
+				result = process_requirement(line);
+				if (result != PIGLIT_PASS)
+					return result;
 				break;
 
 			case geometry_layout:
@@ -1209,7 +1239,7 @@ process_test_script(const char *script_name)
 			line++;
 	}
 
-	leave_state(state, line);
+	return leave_state(state, line);
 }
 
 struct requirement_parse_results {
@@ -2625,17 +2655,17 @@ setup_ubos(void)
 	}
 }
 
-static void
+static enum piglit_result
 program_must_be_in_use(void)
 {
 	if (!link_ok) {
 		fprintf(stderr, "Failed to link:\n%s\n", prog_err_info);
-		piglit_report_result(PIGLIT_FAIL);
+		return PIGLIT_FAIL;
 	} else if (!prog_in_use) {
 		fprintf(stderr, "Failed to use program: %s\n", prog_err_info);
-		piglit_report_result(PIGLIT_FAIL);
+		return PIGLIT_FAIL;
 	}
-
+	return PIGLIT_PASS;
 }
 
 static void
@@ -3275,6 +3305,36 @@ piglit_display(void)
 	return pass ? PIGLIT_PASS : PIGLIT_FAIL;
 }
 
+static enum piglit_result
+init_test(const char *file)
+{
+	enum piglit_result result;
+
+	result = process_test_script(file);
+	if (result != PIGLIT_PASS)
+		return result;
+
+	result = link_and_use_shaders();
+	if (result != PIGLIT_PASS)
+		return result;
+
+	if (sso_in_use)
+		glBindProgramPipeline(pipeline);
+
+	if (link_ok && vertex_data_start != NULL) {
+		result = program_must_be_in_use();
+		if (result != PIGLIT_PASS)
+			return result;
+
+		bind_vao_if_supported();
+
+		num_vbo_rows = setup_vbo_from_text(prog, vertex_data_start,
+						   vertex_data_end);
+		vbo_present = true;
+	}
+	setup_ubos();
+	return PIGLIT_PASS;
+}
 
 void
 piglit_init(int argc, char **argv)
@@ -3283,6 +3343,7 @@ piglit_init(int argc, char **argv)
 	int minor;
 	bool core = piglit_is_core_profile;
 	bool es;
+	enum piglit_result result;
 
 	piglit_require_GLSL();
 
@@ -3340,21 +3401,10 @@ piglit_init(int argc, char **argv)
 		exit(1);
 	}
 
-	process_test_script(argv[1]);
-	link_and_use_shaders();
 
-	if (sso_in_use)
-		glBindProgramPipeline(pipeline);
-
-	if (link_ok && vertex_data_start != NULL) {
-		program_must_be_in_use();
-		bind_vao_if_supported();
-
-		num_vbo_rows = setup_vbo_from_text(prog, vertex_data_start,
-						   vertex_data_end);
-		vbo_present = true;
-	}
-	setup_ubos();
+	result = init_test(argv[1]);
+	if (result != PIGLIT_PASS)
+		piglit_report_result(result);
 
 	render_width = piglit_width;
 	render_height = piglit_height;
