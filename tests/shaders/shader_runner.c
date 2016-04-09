@@ -28,9 +28,15 @@
 #include "piglit-util.h"
 #include "piglit-util-gl.h"
 #include "piglit-vbo.h"
+#include "piglit-framework-gl/piglit_gl_framework.h"
 
 #include "shader_runner_gles_workarounds.h"
 #include "parser_utils.h"
+
+#define DEFAULT_WINDOW_WIDTH 250
+#define DEFAULT_WINDOW_HEIGHT 250
+
+static struct piglit_gl_test_config current_config;
 
 static void
 get_required_config(const char *script_name,
@@ -43,14 +49,16 @@ get_uints(const char *line, unsigned *uints, unsigned count);
 
 PIGLIT_GL_TEST_CONFIG_BEGIN
 
-	config.window_width = 250;
-	config.window_height = 250;
+	config.window_width = DEFAULT_WINDOW_WIDTH;
+	config.window_height = DEFAULT_WINDOW_HEIGHT;
 	config.window_visual = PIGLIT_GL_VISUAL_RGBA | PIGLIT_GL_VISUAL_DOUBLE;
 
 	if (argc > 1)
 		get_required_config(argv[1], &config);
 	else
 		config.supports_gl_compat_version = 10;
+
+	current_config = config;
 
 PIGLIT_GL_TEST_CONFIG_END
 
@@ -84,6 +92,7 @@ struct string_to_enum {
 
 extern float piglit_tolerance[4];
 
+static int test_num = 1;
 static struct component_version gl_version;
 static struct component_version glsl_version;
 static struct component_version glsl_req_version;
@@ -3470,6 +3479,62 @@ init_test(const char *file)
 	return PIGLIT_PASS;
 }
 
+static void
+recreate_gl_context(char *exec_arg, int param_argc, char **param_argv)
+{
+	int argc = param_argc + 3;
+	char **argv = malloc(sizeof(char*) * argc);
+
+	if (!argv) {
+		fprintf(stderr, "%s: malloc failed.\n", __func__);
+		piglit_report_result(PIGLIT_FAIL);
+	}
+
+	argv[0] = exec_arg;
+	memcpy(&argv[1], param_argv, param_argc * sizeof(char*));
+	argv[argc-2] = "-auto";
+	argv[argc-1] = "-fbo";
+
+	if (gl_fw->destroy)
+		gl_fw->destroy(gl_fw);
+	gl_fw = NULL;
+
+	exit(main(argc, argv));
+}
+
+static bool
+validate_current_gl_context(const char *filename)
+{
+	struct piglit_gl_test_config config = {};
+
+	config.window_width = DEFAULT_WINDOW_WIDTH;
+	config.window_height = DEFAULT_WINDOW_HEIGHT;
+
+	get_required_config(filename, &config);
+
+	if (!current_config.supports_gl_compat_version !=
+	    !config.supports_gl_compat_version)
+		return false;
+
+	if (!current_config.supports_gl_core_version !=
+	    !config.supports_gl_core_version)
+		return false;
+
+	if (!current_config.supports_gl_es_version !=
+	    !config.supports_gl_es_version)
+		return false;
+
+	if (current_config.window_width != config.window_width ||
+	    current_config.window_height != config.window_height)
+		return false;
+
+	if (!(current_config.window_visual & PIGLIT_GL_VISUAL_DEPTH) &&
+	    config.window_visual & PIGLIT_GL_VISUAL_DEPTH)
+		return false;
+
+	return true;
+}
+
 void
 piglit_init(int argc, char **argv)
 {
@@ -3478,6 +3543,10 @@ piglit_init(int argc, char **argv)
 	bool core = piglit_is_core_profile;
 	bool es;
 	enum piglit_result result;
+	float default_piglit_tolerance[4];
+
+	memcpy(default_piglit_tolerance, piglit_tolerance,
+	       sizeof(piglit_tolerance));
 
 	piglit_require_GLSL();
 
@@ -3532,11 +3601,158 @@ piglit_init(int argc, char **argv)
 		exit(1);
 	}
 
+	render_width = piglit_width;
+	render_height = piglit_height;
+
+	/* Automatic mode can run multiple tests per session. */
+	if (piglit_automatic) {
+		char testname[4096], *ext;
+		int i, j;
+
+		for (i = 1; i < argc; i++) {
+			const char *hit, *filename = argv[i];
+
+			memcpy(piglit_tolerance, default_piglit_tolerance,
+			       sizeof(piglit_tolerance));
+
+			/* Re-initialize the GL context if a different GL config is required. */
+			if (!validate_current_gl_context(filename))
+				recreate_gl_context(argv[0], argc - i, argv + i);
+
+			/* Clear global variables to defaults. */
+			test_start = NULL;
+			num_vertex_shaders = 0;
+			num_tess_ctrl_shaders = 0;
+			num_tess_eval_shaders = 0;
+			num_geometry_shaders = 0;
+			num_fragment_shaders = 0;
+			num_compute_shaders = 0;
+			num_uniform_blocks = 0;
+			assert(uniform_block_bos == NULL);
+			geometry_layout_input_type = GL_TRIANGLES;
+			geometry_layout_output_type = GL_TRIANGLE_STRIP;
+			geometry_layout_vertices_out = 0;
+			atomics_bo = 0;
+			memset(ssbo, 0, sizeof(ssbo));
+			for (j = 0; j < ARRAY_SIZE(subuniform_locations); j++)
+				assert(subuniform_locations == NULL);
+			memset(num_subuniform_locations, 0, sizeof(num_subuniform_locations));
+			shader_string = NULL;
+			shader_string_size = 0;
+			vertex_data_start = NULL;
+			vertex_data_end = NULL;
+			prog = 0;
+			sso_vertex_prog = 0;
+			sso_tess_control_prog = 0;
+			sso_tess_eval_prog = 0;
+			sso_geometry_prog = 0;
+			sso_fragment_prog = 0;
+			sso_compute_prog = 0;
+			num_vbo_rows = 0;
+			vbo_present = false;
+			link_ok = false;
+			prog_in_use = false;
+			sso_in_use = false;
+			prog_err_info = NULL;
+			vao = 0;
+			fbo = 0;
+
+			/* Clear GL states to defaults. */
+			glClearColor(0, 0, 0, 0);
+			glClearDepth(1);
+			glBindFramebuffer(GL_FRAMEBUFFER, piglit_winsys_fbo);
+			glActiveTexture(GL_TEXTURE0);
+			glUseProgram(0);
+			glDisable(GL_DEPTH_TEST);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+			glDisable(GL_CLIP_PLANE0);
+			glDisable(GL_CLIP_PLANE1);
+			glDisable(GL_CLIP_PLANE2);
+			glDisable(GL_CLIP_PLANE3);
+			glDisable(GL_CLIP_PLANE4);
+			glDisable(GL_CLIP_PLANE5);
+			if (es || gl_version.num >= 30) {
+				glDisable(GL_CLIP_PLANE0+6);
+				glDisable(GL_CLIP_PLANE0+7);
+			}
+
+			if (es)
+				glEnable(GL_PROGRAM_POINT_SIZE);
+			else if (gl_version.num >= 20 ||
+				 piglit_is_extension_supported("GL_ARB_vertex_program"))
+				glDisable(GL_PROGRAM_POINT_SIZE);
+
+			for (int i = 0; i < 16; i++)
+				glDisableVertexAttribArray(i);
+
+			if (!piglit_is_core_profile) {
+				glMatrixMode(GL_PROJECTION);
+				glLoadIdentity();
+				glMatrixMode(GL_MODELVIEW);
+				glLoadIdentity();
+				glShadeModel(GL_SMOOTH);
+				glDisable(GL_VERTEX_PROGRAM_TWO_SIDE);
+			}
+
+			if (piglit_is_extension_supported("GL_ARB_vertex_program")) {
+				glDisable(GL_VERTEX_PROGRAM_ARB);
+				glBindProgramARB(GL_VERTEX_PROGRAM_ARB, 0);
+			}
+			if (piglit_is_extension_supported("GL_ARB_fragment_program")) {
+				glDisable(GL_FRAGMENT_PROGRAM_ARB);
+				glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
+			}
+			if (piglit_is_extension_supported("GL_ARB_separate_shader_objects")) {
+				if (!pipeline)
+					glGenProgramPipelines(1, &pipeline);
+				glBindProgramPipeline(0);
+			}
+
+			if (piglit_is_extension_supported("GL_EXT_provoking_vertex"))
+				glProvokingVertexEXT(GL_LAST_VERTEX_CONVENTION_EXT);
+
+			if (gl_version.num >= (gl_version.es ? 32 : 40) ||
+			    piglit_is_extension_supported(gl_version.es ?
+							  "GL_OES_tessellation_shader" :
+							  "GL_ARB_tessellation_shader")) {
+				static float ones[] = {1, 1, 1, 1};
+				glPatchParameteri(GL_PATCH_VERTICES, 3);
+				glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, ones);
+				glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, ones);
+			}
+
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			/* Strip the file path. */
+			hit = strrchr(filename, PIGLIT_PATH_SEP);
+			if (hit)
+				strcpy(testname, hit+1);
+			else
+				strcpy(testname, filename);
+
+			/* Strip the file extension. */
+			ext = strstr(testname, ".shader_test");
+			if (ext && !ext[12])
+				*ext = 0;
+
+			/* Run the test. */
+			printf("TEST %i: %s\n", test_num++, testname);
+			result = init_test(filename);
+
+			if (result != PIGLIT_PASS) {
+				piglit_report_subtest_result(result, "%s", testname);
+				continue;
+			}
+
+			result = piglit_display();
+			piglit_report_subtest_result(result, "%s", testname);
+
+			/* destroy GL objects? */
+		}
+		exit(0);
+	}
 
 	result = init_test(argv[1]);
 	if (result != PIGLIT_PASS)
 		piglit_report_result(result);
-
-	render_width = piglit_width;
-	render_height = piglit_height;
 }
