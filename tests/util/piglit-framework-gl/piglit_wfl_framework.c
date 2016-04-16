@@ -559,6 +559,7 @@ make_context_current_singlepass(struct piglit_wfl_framework *wfl_fw,
 	if (!ok)
 		goto fail;
 
+	piglit_gl_invalidate_extensions();
 	return true;
 
 fail:
@@ -571,7 +572,7 @@ fail:
 	wfl_fw->context = NULL;
 	wfl_fw->config = NULL;
 
-	piglit_gl_reinitialize_extensions();
+	piglit_gl_invalidate_extensions();
 
 	return false;
 }
