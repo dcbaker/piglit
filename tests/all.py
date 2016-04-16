@@ -7,6 +7,7 @@ from __future__ import (
 import itertools
 import os
 import platform
+import collections
 
 from six.moves import range
 
@@ -214,12 +215,16 @@ def power_set(s):
 profile = TestProfile()  # pylint: disable=invalid-name
 
 # Find and add all shader tests.
+shader_files = collections.defaultdict(list)
 for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
     for dirpath, _, filenames in os.walk(basedir):
+        groupname = grouptools.from_path(os.path.relpath(dirpath, basedir))
+
         for filename in filenames:
             testname, ext = os.path.splitext(filename)
             if ext == '.shader_test':
-                test = ShaderTest(os.path.join(dirpath, filename))
+                shader_files[groupname].append(os.path.join(dirpath, filename))
+                continue
             elif ext in ['.vert', '.tesc', '.tese', '.geom', '.frag', '.comp']:
                 try:
                     test = GLSLParserTest(os.path.join(dirpath, filename))
@@ -234,12 +239,15 @@ for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
             else:
                 continue
 
-            group = grouptools.join(
-                grouptools.from_path(os.path.relpath(dirpath, basedir)),
-                testname)
+            group = grouptools.join(groupname, testname)
             assert group not in profile.test_list, group
 
             profile.test_list[group] = test
+
+for group in shader_files:
+    files = shader_files[group]
+    assert group not in profile.test_list, group
+    profile.test_list[group] = ShaderTest(files)
 
 # Collect and add all asmparsertests
 for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:

@@ -27,6 +27,7 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 import re
+import os
 
 import six
 
@@ -52,15 +53,17 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
     _match_glsl_version = re.compile(
         r'^GLSL\s+(?P<es>ES)?\s*(?P<op>(<|<=|=|>=|>))\s*(?P<ver>\d\.\d+)')
 
-    def __init__(self, filename):
+    def __init__(self, files):
         self.gl_required = set()
+
+        first_filename = files[0]
 
         # Iterate over the lines in shader file looking for the config section.
         # By using a generator this can be split into two for loops at minimal
         # cost. The first one looks for the start of the config block or raises
         # an exception. The second looks for the GL version or raises an
         # exception
-        with open(filename, 'r') as shader_file:
+        with open(first_filename, 'r') as shader_file:
             # The mock in python 3.3 doesn't support readlines(), so use
             # read().split() as a workaround
             if six.PY3:
@@ -79,13 +82,13 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
                     break
             else:
                 raise exceptions.PiglitFatalError(
-                    "In file {}: Config block not found".format(filename))
+                    "In file {}: Config block not found".format(first_filename))
 
             lines = list(lines)
 
-        prog = self.__find_gl(lines, filename)
+        prog = self.__find_gl(lines, first_filename)
 
-        super(ShaderTest, self).__init__([prog, filename], run_concurrent=True)
+        super(ShaderTest, self).__init__([prog] + files, run_concurrent=True)
 
         # This needs to be run after super or gl_required will be reset
         self.__find_requirements(lines)
