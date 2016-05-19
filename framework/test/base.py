@@ -220,6 +220,8 @@ class Test(object):
         else:
             log.log('dry-run')
 
+        return self.result
+
     @property
     def command(self):
         assert self._command

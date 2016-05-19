@@ -313,8 +313,7 @@ class TestProfile(object):
             """Function to call test.execute from map"""
             name, test = pair
             with backend.write_test(name) as w:
-                test.execute(name, log.get(), self.dmesg)
-                w(test.result)
+                w(test.execute(name, log.get(), self.dmesg))
 
         def run_threads(pool, testlist):
             """ Open a pool, close it, and join it """
