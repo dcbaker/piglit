@@ -246,21 +246,31 @@ piglit_result_to_string(enum piglit_result result)
         return "Unknown result";
 }
 
-void
-piglit_report_result(enum piglit_result result)
+/* A special reporter that doesn't exit.
+ * It's meant to be used with test runners like shader_runner that can take
+ * multiple tests at a time.
+ */
+void piglit_report_intermediate_result(enum piglit_result result)
 {
 	const char *result_str = piglit_result_to_string(result);
 
+	fflush(stderr);
+
+	printf("PIGLIT: {\"result\": \"%s\"}\n", result_str);
+
+	fflush(stdout);
+}
+
+void
+piglit_report_result(enum piglit_result result)
+{
 #ifdef PIGLIT_HAS_POSIX_TIMER_NOTIFY_THREAD
 	/* Ensure we only report one result in case we race with timeout */
 	static pthread_mutex_t result_lock = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutex_lock(&result_lock);
 #endif
 
-	fflush(stderr);
-
-	printf("PIGLIT: {\"result\": \"%s\" }\n", result_str);
-	fflush(stdout);
+	piglit_report_intermediate_result(result);
 
 	switch(result) {
 	case PIGLIT_PASS:
