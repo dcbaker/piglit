@@ -154,9 +154,17 @@ class JSONBackend(FileBackend):
                 # writing worked and is valid or it didn't work.
                 try:
                     with open(test, 'r') as f:
-                        data['tests'].update(json.load(f, object_hook=piglit_decoder))
+                        loaded = json.load(f, object_hook=piglit_decoder)
                 except ValueError:
-                    pass
+                    continue
+
+                if isinstance(loaded, dict):
+                    data['tests'].update(loaded)
+                elif isinstance(loaded, list):
+                    for t in loaded:
+                        data['tests'].update(t)
+                else:
+                    raise Exception("invalid type")
         assert data['tests']
 
         data = results.TestrunResult.from_dict(data)
