@@ -36,16 +36,16 @@ __all__ = [
 
 
 class GTest(Test):
-    def interpret_result(self):
+    def interpret_result(self, result):
         # Since gtests can have several subtets, if any of the subtests fail
         # then we need to report fail.
-        out = self.result.out
+        out = result.out
         if len(re.findall('FAILED', out, re.MULTILINE)) > 0:
-            self.result.result = 'fail'
+            result.result = 'fail'
         elif len(re.findall('PASSED', out, re.MULTILINE)) > 0:
-            self.result.result = 'pass'
+            result.result = 'pass'
         else:
             #If we get here, then the test probably exited early.
-            self.result.result = 'fail'
+            result.result = 'fail'
 
-        super(GTest, self).interpret_result()
+        return super(GTest, self).interpret_result(result)

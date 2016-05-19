@@ -156,34 +156,36 @@ class DEQPBaseTest(Test):
         command = super(DEQPBaseTest, self).command
         return command + self.extra_args
 
-    def __find_map(self):
+    def __find_map(self, result):
         """Run over the lines and set the result."""
         # splitting this into a separate function allows us to return cleanly,
         # otherwise this requires some break/else/continue madness
-        for line in self.result.out.split('\n'):
+        for line in result.out.split('\n'):
             line = line.lstrip()
             for k, v in six.iteritems(self.__RESULT_MAP):
                 if line.startswith(k):
-                    self.result.result = v
+                    result.result = v
                     return
 
-    def interpret_result(self):
-        if is_crash_returncode(self.result.returncode):
-            self.result.result = 'crash'
-        elif self.result.returncode != 0:
-            self.result.result = 'fail'
+    def interpret_result(self, result):
+        if is_crash_returncode(result.returncode):
+            result.result = 'crash'
+        elif result.returncode != 0:
+            result.result = 'fail'
         else:
-            self.__find_map()
+            self.__find_map(result)
 
         # We failed to parse the test output. Fallback to 'fail'.
-        if self.result.result == 'notrun':
-            self.result.result = 'fail'
+        if result.result == 'notrun':
+            result.result = 'fail'
 
-    def _run_command(self):
+        return result
+
+    def _run_command(self, result):
         """Rerun the command if X11 connection failure happens."""
         for _ in range(5):
-            super(DEQPBaseTest, self)._run_command()
-            if "FATAL ERROR: Failed to open display" not in self.result.err:
-                return
+            super(DEQPBaseTest, self)._run_command(result)
+            if "FATAL ERROR: Failed to open display" not in result.err:
+                return result
 
         raise TestRunError('Failed to connect to X server 5 times', 'fail')

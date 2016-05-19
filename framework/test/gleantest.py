@@ -56,12 +56,12 @@ class GleanTest(Test):
     def command(self):
         return super(GleanTest, self).command + self.GLOBAL_PARAMS
 
-    def interpret_result(self):
-        if self.result.returncode != 0 or 'FAIL' in self.result.out:
-            self.result.result = 'fail'
+    def interpret_result(self, result):
+        if result.returncode != 0 or 'FAIL' in result.out:
+            result.result = 'fail'
         else:
-            self.result.result = 'pass'
-        super(GleanTest, self).interpret_result()
+            result.result = 'pass'
+        return super(GleanTest, self).interpret_result(result)
 
     def is_skip(self):
         # Glean tests require glx

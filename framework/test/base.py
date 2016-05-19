@@ -170,7 +170,7 @@ class Test(object):
     run_concurrent -- If True the test is thread safe. Default: False
 
     """
-    __slots__ = ['run_concurrent', 'env', 'result', 'cwd', '_command']
+    __slots__ = ['run_concurrent', 'env', 'cwd', '_command']
     timeout = None
 
     def __init__(self, command, run_concurrent=False, timeout=None):
@@ -179,7 +179,6 @@ class Test(object):
         self.run_concurrent = run_concurrent
         self._command = copy.copy(command)
         self.env = {}
-        self.result = TestResult()
         self.cwd = None
         if timeout is not None:
             assert isinstance(timeout, int)
@@ -197,30 +196,32 @@ class Test(object):
         dmesg -- a dmesg.BaseDmesg derived class
 
         """
+        result = TestResult()
+
         log.start(path)
         # Run the test
         if options.OPTIONS.execute:
             try:
-                self.result.time.start = time.time()
+                result.time.start = time.time()
                 dmesg.update_dmesg()
-                self.run()
-                self.result.time.end = time.time()
-                self.result = dmesg.update_result(self.result)
+                self.run(result)
+                result.time.end = time.time()
+                result = dmesg.update_result(result)
             # This is a rare case where a bare exception is okay, since we're
             # using it to log exceptions
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exc(file=sys.stderr)
-                self.result.result = 'fail'
-                self.result.exception = "{}{}".format(exc_type, exc_value)
-                self.result.traceback = "".join(
+                result.result = 'fail'
+                result.exception = "{}{}".format(exc_type, exc_value)
+                result.traceback = "".join(
                     traceback.format_tb(exc_traceback))
 
-            log.log(self.result.result)
+            log.log(result.result)
         else:
             log.log('dry-run')
 
-        return self.result
+        return result
 
     @property
     def command(self):
@@ -228,18 +229,20 @@ class Test(object):
         return self._command
 
     @abc.abstractmethod
-    def interpret_result(self):
+    def interpret_result(self, result):
         """Convert the raw output of the test into a form piglit understands.
         """
-        if is_crash_returncode(self.result.returncode):
-            self.result.result = 'crash'
-        elif self.result.returncode != 0:
-            if self.result.result == 'pass':
-                self.result.result = 'warn'
+        if is_crash_returncode(result.returncode):
+            result.result = 'crash'
+        elif result.returncode != 0:
+            if result.result == 'pass':
+                result.result = 'warn'
             else:
-                self.result.result = 'fail'
+                result.result = 'fail'
 
-    def run(self):
+        return result
+
+    def run(self, result):
         """
         Run a test.  The return value will be a dictionary with keys
         including 'result', 'info', 'returncode' and 'command'.
@@ -249,28 +252,28 @@ class Test(object):
         * For 'returncode', the value will be the numeric exit code/value.
         * For 'command', the value will be command line program and arguments.
         """
-        self.result.command = ' '.join(self.command)
-        self.result.environment = " ".join(
+        result.command = ' '.join(self.command)
+        result.environment = " ".join(
             '{0}="{1}"'.format(k, v) for k, v in itertools.chain(
                 six.iteritems(options.OPTIONS.env), six.iteritems(self.env)))
 
         try:
             self.is_skip()
         except TestIsSkip as e:
-            self.result.result = 'skip'
-            self.result.out = e.reason
-            self.result.returncode = None
-            return
+            result.result = 'skip'
+            result.out = e.reason
+            result.returncode = None
+            return result
 
         try:
-            self._run_command()
+            self._run_command(result)
         except TestRunError as e:
-            self.result.result = six.text_type(e.status)
-            self.result.out = six.text_type(e)
-            self.result.returncode = None
-            return
+            result.result = six.text_type(e.status)
+            result.out = six.text_type(e)
+            result.returncode = None
+            return result
 
-        self.interpret_result()
+        return self.interpret_result(result)
 
     def is_skip(self):
         """ Application specific check for skip
@@ -281,7 +284,7 @@ class Test(object):
         """
         pass
 
-    def _run_command(self):
+    def _run_command(self, result):
         """ Run the test command and get the result
 
         This method sets environment options, then runs the executable. If the
@@ -317,7 +320,7 @@ class Test(object):
                                     universal_newlines=True,
                                     **_EXTRA_POPEN_ARGS)
 
-            self.result.pid = proc.pid
+            result.pid = proc.pid
             if not _SUPPRESS_TIMEOUT:
                 out, err = proc.communicate(timeout=self.timeout)
             else:
@@ -346,7 +349,7 @@ class Test(object):
 
             # Since the process isn't running it's safe to get any remaining
             # stdout/stderr values out and store them.
-            self.result.out, self.result.err = proc.communicate()
+            result.out, result.err = proc.communicate()
 
             raise TestRunError(
                 'Test run time exceeded timeout value ({} seconds)\n'.format(
@@ -354,9 +357,9 @@ class Test(object):
                 'timeout')
 
         # The setter handles the bytes/unicode conversion
-        self.result.out = out
-        self.result.err = err
-        self.result.returncode = returncode
+        result.out = out
+        result.err = err
+        result.returncode = returncode
 
     def __eq__(self, other):
         return self.command == other.command
@@ -377,7 +380,7 @@ class WindowResizeMixin(object):
     see: https://bugzilla.gnome.org/show_bug.cgi?id=680214
 
     """
-    def _run_command(self):
+    def _run_command(self, result):
         """Run a test up 5 times when window resize is detected.
 
         Rerun the command up to 5 times if the window size changes, if it
@@ -386,8 +389,8 @@ class WindowResizeMixin(object):
 
         """
         for _ in range(5):
-            super(WindowResizeMixin, self)._run_command()
-            if "Got spurious window resize" not in self.result.out:
+            super(WindowResizeMixin, self)._run_command(result)
+            if "Got spurious window resize" not in result.out:
                 return
 
         # If we reach this point then there has been no error, but spurious
@@ -410,7 +413,7 @@ class ValgrindMixin(object):
         else:
             return command
 
-    def interpret_result(self):
+    def interpret_result(self, result):
         """Set the status to the valgrind status.
 
         It is important that the valgrind interpret_results code is run last,
@@ -419,16 +422,18 @@ class ValgrindMixin(object):
         super().interpret_result(), then calls it's own result.
 
         """
-        super(ValgrindMixin, self).interpret_result()
+        result = super(ValgrindMixin, self).interpret_result(result)
 
         if options.OPTIONS.valgrind:
             # If the underlying test failed, simply report
             # 'skip' for this valgrind test.
-            if self.result.result != 'pass':
-                self.result.result = 'skip'
-            elif self.result.returncode == 0:
+            if result.result != 'pass':
+                result.result = 'skip'
+            elif result.returncode == 0:
                 # Test passes and is valgrind clean.
-                self.result.result = 'pass'
+                result.result = 'pass'
             else:
                 # Test passed but has valgrind errors.
-                self.result.result = 'fail'
+                result.result = 'fail'
+
+        return result
