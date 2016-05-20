@@ -39,7 +39,7 @@ import warnings
 import six
 from six.moves import range
 
-from framework import exceptions, options
+from framework import exceptions, options, status
 from framework.results import TestResult
 
 # We're doing some special crazy here to make timeouts work on python 2. pylint
@@ -381,6 +381,7 @@ class MultiResultMixin(object):
             # This is a rare case where a bare exception is okay, since we're
             # using it to log exceptions
             except Exception:
+                raise
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exc(file=sys.stderr)
                 # TODO: handle this
@@ -390,6 +391,8 @@ class MultiResultMixin(object):
                 result.traceback = "".join(
                     traceback.format_tb(exc_traceback))
                 '''
+                log.log(status.CRASH)
+                return [TestResult(result=status.CRASH)]
 
             log.log(max(r.result for r in result))
         else:

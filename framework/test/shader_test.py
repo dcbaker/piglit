@@ -176,7 +176,11 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
             def wind(generator):
                 for l in generator:
                     if l.startswith('START:'):
-                        return l[7:]
+                        name = l[len('START: '):]
+                        assert name is not None, "name cannot be None"
+                        return name
+                else:
+                    raise exceptions.PiglitInternalError('No name found')
 
             oname = wind(out)
             ename = wind(err)
