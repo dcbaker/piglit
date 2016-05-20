@@ -218,7 +218,7 @@ class FileBackend(Backend):
             next(self._counter), self._file_extension))
 
         with open(file_, 'w') as f:
-            self._write(f, self.__INCOMPLETE(name=name))
+            self._write(f, [self.__INCOMPLETE(name=name)])
             self.__fsync(f)
 
         yield finish

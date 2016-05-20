@@ -221,7 +221,7 @@ class Test(object):
         else:
             log.log('dry-run')
 
-        return result
+        return [result]
 
     @property
     def command(self):

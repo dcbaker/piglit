@@ -158,13 +158,7 @@ class JSONBackend(FileBackend):
                 except ValueError:
                     continue
 
-                if isinstance(loaded, dict):
-                    data['tests'].update(loaded)
-                elif isinstance(loaded, list):
-                    for t in loaded:
-                        data['tests'].update(t)
-                else:
-                    raise Exception("invalid type")
+                data['tests'].update(loaded)
         assert data['tests']
 
         data = results.TestrunResult.from_dict(data)
@@ -180,7 +174,7 @@ class JSONBackend(FileBackend):
 
     @staticmethod
     def _write(f, data):
-        json.dump({data.name: data}, f, default=piglit_encoder)
+        json.dump({d.name: d for d in data}, f, default=piglit_encoder)
 
 
 def load_results(filename, compression_):

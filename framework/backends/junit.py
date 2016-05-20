@@ -102,7 +102,8 @@ class JUnitBackend(FileBackend):
                 # If the element cannot be properly parsed then consider it a
                 # failed transaction and ignore it.
                 try:
-                    piglit.append(etree.parse(f).getroot())
+                    for e in etree.parse(f).iterfind('//testcase'):
+                        piglit.append(e)
                 except etree.ParseError:
                     continue
 
@@ -121,8 +122,7 @@ class JUnitBackend(FileBackend):
 
         shutil.rmtree(os.path.join(self._dest, 'tests'))
 
-    def _write(self, f, data):
-
+    def _write(self, f, data_list):
         def calculate_result():
             """Set the result."""
             expected_result = "pass"
@@ -183,58 +183,64 @@ class JUnitBackend(FileBackend):
             if res is not None:
                 res.attrib['type'] = str(data.result)
 
-        # Split the name of the test and the group (what junit refers to as
-        # classname), and replace piglits '/' separated groups with '.', after
-        # replacing any '.' with '_' (so we don't get false groups).
-        classname, testname = grouptools.splitname(data.name)
-        classname = classname.split(grouptools.SEPARATOR)
-        classname = [junit_escape(e) for e in classname]
-        classname = '.'.join(classname)
+        base = etree.Element('Container')
 
-        # Add the test to the piglit group rather than directly to the root
-        # group, this allows piglit junit to be used in conjunction with other
-        # piglit
-        # TODO: It would be nice if other suites integrating with piglit could
-        # set different root names.
-        classname = 'piglit.' + classname
+        for data in data_list:
+            # Split the name of the test and the group (what junit refers to as
+            # classname), and replace piglits '/' separated groups with '.',
+            # after replacing any '.' with '_' (so we don't get false groups).
+            classname, testname = grouptools.splitname(data.name)
+            classname = classname.split(grouptools.SEPARATOR)
+            classname = [junit_escape(e) for e in classname]
+            classname = '.'.join(classname)
 
-        # Jenkins will display special pages when the test has certain names.
-        # https://jenkins-ci.org/issue/18062
-        # https://jenkins-ci.org/issue/19810
-        # The testname variable is used in the calculate_result
-        # closure, and must not have the suffix appended.
-        full_test_name = testname + self._test_suffix
-        if full_test_name in _JUNIT_SPECIAL_NAMES:
-            testname += '_'
+            # Add the test to the piglit group rather than directly to the root
+            # group, this allows piglit junit to be used in conjunction with
+            # other piglit
+            # TODO: It would be nice if other suites integrating with piglit
+            # could set different root names.
+            classname = 'piglit.' + classname
+
+            # Jenkins will display special pages when the test has certain
+            # names.
+            # https://jenkins-ci.org/issue/18062
+            # https://jenkins-ci.org/issue/19810
+            # The testname variable is used in the calculate_result closure,
+            # and must not have the suffix appended.
             full_test_name = testname + self._test_suffix
+            if full_test_name in _JUNIT_SPECIAL_NAMES:
+                testname += '_'
+                full_test_name = testname + self._test_suffix
 
-        # Create the root element
-        element = etree.Element('testcase', name=full_test_name,
-                                classname=classname,
-                                # Incomplete will not have a time.
-                                time=str(data.time.total),
-                                status=str(data.result))
+            # Create the root element
+            element = etree.Element('testcase', name=full_test_name,
+                                    classname=classname,
+                                    # Incomplete will not have a time.
+                                    time=str(data.time.total),
+                                    status=str(data.result))
+            base.append(element)
 
-        # If this is an incomplete status then none of these values will be
-        # available, nor
-        if data.result != 'incomplete':
-            # Add stdout
-            out = etree.SubElement(element, 'system-out')
-            out.text = data.out
+            # If this is an incomplete status then none of these values will be
+            # available, nor
+            if data.result != 'incomplete':
+                # Add stdout
+                out = etree.SubElement(element, 'system-out')
+                out.text = data.out
 
-            # Prepend command line to stdout
-            out.text = data.command + '\n' + out.text
+                # Prepend command line to stdout
+                out.text = data.command + '\n' + out.text
 
-            # Add stderr
-            err = etree.SubElement(element, 'system-err')
-            err.text = data.err
-            err.text += '\n\npid: {}\nstart time: {}\nend time: {}\n'.format(
-                data.pid, data.time.start, data.time.end)
-            calculate_result()
-        else:
-            etree.SubElement(element, 'failure', message='Incomplete run.')
+                # Add stderr
+                err = etree.SubElement(element, 'system-err')
+                err.text = data.err
+                err.text += ('\n\npid: {}\n'
+                             'start time: {}\nend time: {}\n'.format(
+                                 data.pid, data.time.start, data.time.end))
+                calculate_result()
+            else:
+                etree.SubElement(element, 'failure', message='Incomplete run.')
 
-        f.write(six.text_type(etree.tostring(element).decode('utf-8')))
+        f.write(six.text_type(etree.tostring(base).decode('utf-8')))
 
 
 def _load(results_file):
