@@ -26,21 +26,36 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-import re
+import itertools
 import os
+import re
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 import six
 
-from framework import exceptions
+from framework import exceptions, results, grouptools
+from .piglit_test import PiglitBaseTest, TEST_BIN_DIR
 from .opengl import FastSkipMixin
-from .piglit_test import PiglitBaseTest
+from .base import MultiResultMixin
 
 __all__ = [
     'ShaderTest',
 ]
 
+GENERATED_DIR = os.path.normpath(os.path.join(TEST_BIN_DIR, '../generated_tests'))
 
-class ShaderTest(FastSkipMixin, PiglitBaseTest):
+
+def _make_test_name(path):
+    if 'generated_tests' in path:
+        return grouptools.from_path(os.path.relpath(path, GENERATED_DIR))
+    else:
+        return grouptools.from_path(os.path.relpath(path, TEST_BIN_DIR))
+
+
+class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
     """ Parse a shader test file and return a PiglitTest instance
 
     This function parses a shader test to determine if it's a GL, GLES2 or
@@ -151,6 +166,55 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
 
             if line.startswith('['):
                 break
+
+    def interpret_result(self, result):
+        def get_output(name, generator):
+            sentinal = 'END: {}'.format(name)
+            return '\n'.join(itertools.takewhile(lambda l: l != sentinal, generator))
+
+        def fastforward():
+            def wind(generator):
+                for l in generator:
+                    if l.startswith('START:'):
+                        return l[7:]
+
+            oname = wind(out)
+            ename = wind(err)
+            assert oname == ename, "err and out names don't match!"
+            return oname
+
+        testlist = []
+        resultlist = []
+        out = (l for l in result.out.split('\n'))
+        err = (l for l in result.err.split('\n'))
+
+        # Get the list of tests
+        for l in out:
+            if l.startswith('PIGLIT:'):
+                loaded = json.loads(l[7:])
+                assert loaded[0] == 'enumerate shader tests', \
+                    'Needed enumerated list of tests first'
+                testlist = loaded[1]
+                break
+
+        while testlist:
+            name = fastforward()
+            assert name == testlist[0], 'Missing test {}!'.format(name)
+
+            iresult = results.TestResult(name=_make_test_name(name))
+            iresult.out = get_output(name, out)
+            iresult.err = get_output(name, err)
+            iresult.returncode = result.returncode
+            iresult.pid = result.pid
+            iresult.command = ' '.join([result.command.split()[0], name, '-auto'])
+
+            resultlist.append(super().interpret_result(iresult))
+
+            del testlist[0]
+
+        assert not testlist, 'not all tests run!'
+
+        return resultlist
 
     @PiglitBaseTest.command.getter
     def command(self):

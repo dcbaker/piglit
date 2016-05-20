@@ -255,6 +255,10 @@ class TestResult(object):
             self.result = dict_['result']
         elif 'subtest' in dict_:
             self.subtests.update(dict_['subtest'])
+        elif 'time start' in dict_:
+            self.time.start = float(dict_['time start'])
+        elif 'time end' in dict_:
+            self.time.end = float(dict_['time end'])
 
 
 @compat.python_2_bool_compatible

@@ -368,6 +368,36 @@ class Test(object):
         return not self == other
 
 
+class MultiResultMixin(object):
+    def execute(self, name, log, dmesg):
+        # TODO: time
+        # TODO: dmesg
+        log.start(name)
+
+        # Run the test
+        if options.OPTIONS.execute:
+            try:
+                result = self.run(TestResult())
+            # This is a rare case where a bare exception is okay, since we're
+            # using it to log exceptions
+            except Exception:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exc(file=sys.stderr)
+                # TODO: handle this
+                '''
+                result.result = 'fail'
+                result.exception = "{}{}".format(exc_type, exc_value)
+                result.traceback = "".join(
+                    traceback.format_tb(exc_traceback))
+                '''
+
+            log.log(max(r.result for r in result))
+        else:
+            log.log('dry-run')
+
+        return result
+
+
 class WindowResizeMixin(object):
     """ Mixin class that deals with spurious window resizes
 
