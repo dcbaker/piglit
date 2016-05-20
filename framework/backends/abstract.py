@@ -33,6 +33,7 @@ import contextlib
 import itertools
 import os
 import shutil
+import functools
 
 import six
 
@@ -172,7 +173,7 @@ class FileBackend(Backend):
         self._counter = itertools.count(file_start_count)
         self._write_final = write_compressed
 
-    __INCOMPLETE = TestResult(result=INCOMPLETE)
+    __INCOMPLETE = functools.partial(TestResult, result=INCOMPLETE)
 
     def __fsync(self, file_):
         """ Sync the file to disk
@@ -185,7 +186,7 @@ class FileBackend(Backend):
             os.fsync(file_.fileno())
 
     @abc.abstractmethod
-    def _write(self, f, name, data):
+    def _write(self, f, data):
         """Method that writes a TestResult into a result file."""
 
     @abc.abstractproperty
@@ -209,7 +210,7 @@ class FileBackend(Backend):
         def finish(val):
             tfile = file_ + '.tmp'
             with open(tfile, 'w') as f:
-                self._write(f, name, val)
+                self._write(f, val)
                 self.__fsync(f)
             shutil.move(tfile, file_)
 
@@ -217,7 +218,7 @@ class FileBackend(Backend):
             next(self._counter), self._file_extension))
 
         with open(file_, 'w') as f:
-            self._write(f, name, self.__INCOMPLETE)
+            self._write(f, self.__INCOMPLETE(name=name))
             self.__fsync(f)
 
         yield finish

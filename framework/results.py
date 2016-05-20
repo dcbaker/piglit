@@ -148,11 +148,11 @@ class TestResult(object):
     """An object represting the result of a single test."""
     __slots__ = ['returncode', '_err', '_out', 'time', 'command', 'traceback',
                  'environment', 'subtests', 'dmesg', '__result', 'images',
-                 'exception', 'pid']
+                 'exception', 'pid', 'name']
     err = StringDescriptor('_err')
     out = StringDescriptor('_out')
 
-    def __init__(self, result=None):
+    def __init__(self, result=None, name=None):
         self.returncode = None
         self.time = TimeAttribute()
         self.command = str()
@@ -163,6 +163,7 @@ class TestResult(object):
         self.traceback = None
         self.exception = None
         self.pid = None
+        self.name = name
         if result:
             self.result = result
         else:

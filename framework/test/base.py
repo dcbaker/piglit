@@ -196,7 +196,7 @@ class Test(object):
         dmesg -- a dmesg.BaseDmesg derived class
 
         """
-        result = TestResult()
+        result = TestResult(name=path)
 
         log.start(path)
         # Run the test

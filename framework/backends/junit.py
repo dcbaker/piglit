@@ -121,7 +121,7 @@ class JUnitBackend(FileBackend):
 
         shutil.rmtree(os.path.join(self._dest, 'tests'))
 
-    def _write(self, f, name, data):
+    def _write(self, f, data):
 
         def calculate_result():
             """Set the result."""
@@ -186,7 +186,7 @@ class JUnitBackend(FileBackend):
         # Split the name of the test and the group (what junit refers to as
         # classname), and replace piglits '/' separated groups with '.', after
         # replacing any '.' with '_' (so we don't get false groups).
-        classname, testname = grouptools.splitname(name)
+        classname, testname = grouptools.splitname(data.name)
         classname = classname.split(grouptools.SEPARATOR)
         classname = [junit_escape(e) for e in classname]
         classname = '.'.join(classname)

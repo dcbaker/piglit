@@ -315,6 +315,7 @@ class TestProfile(object):
             with backend.write_test(name) as w:
                 w(test.execute(name, log.get(), self.dmesg))
 
+        '''
         def run_threads(pool, testlist):
             """ Open a pool, close it, and join it """
             pool.imap(test, testlist, chunksize)
@@ -339,6 +340,10 @@ class TestProfile(object):
             # Filter and return the non thread safe tests to the single pool
             run_threads(single, (x for x in six.iteritems(self.test_list)
                                  if not x[1].run_concurrent))
+        '''
+
+        for case in self.test_list.items():
+            test(case)
 
         log.get().summary()
 

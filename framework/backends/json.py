@@ -179,8 +179,8 @@ class JSONBackend(FileBackend):
         shutil.rmtree(os.path.join(self._dest, 'tests'))
 
     @staticmethod
-    def _write(f, name, data):
-        json.dump({name: data}, f, default=piglit_encoder)
+    def _write(f, data):
+        json.dump({data.name: data}, f, default=piglit_encoder)
 
 
 def load_results(filename, compression_):
