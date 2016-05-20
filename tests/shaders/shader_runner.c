@@ -2664,6 +2664,15 @@ setup_ubos(void)
 	}
 }
 
+static void
+free_ubos()
+{
+	if (uniform_block_bos != NULL) {
+		free(uniform_block_bos);
+	}
+	uniform_block_bos = NULL;
+}
+
 static enum piglit_result
 program_must_be_in_use(void)
 {
@@ -3312,6 +3321,7 @@ piglit_display(void)
 		}
 #endif
 	}
+	free_ubos();
 
 	return pass ? PIGLIT_PASS : PIGLIT_FAIL;
 }
