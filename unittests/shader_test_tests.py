@@ -62,7 +62,13 @@ teardown = _setup.teardown
 
 def test_initialize_shader_test():
     """test.shader_test.ShaderTest: class initializes"""
-    testm.ShaderTest('tests/spec/glsl-es-1.00/execution/sanity.shader_test')
+    testm.ShaderTest(['tests/spec/glsl-es-1.00/execution/sanity.shader_test'])
+
+
+def test_initialize_multiple():
+    """test.shader_test.ShaderTest: class initializes with multiple files"""
+    testm.ShaderTest(['tests/spec/glsl-es-1.00/execution/sanity.shader_test',
+                      'tests/spec/glsl-es-1.00/execution/sanity2.shader_test'])
 
 
 def test_parse_gl_test_no_decimal():
@@ -71,7 +77,7 @@ def test_parse_gl_test_no_decimal():
             'GL = 2\n')
     with utils.tempfile(data) as temp:
         with nt.assert_raises(exceptions.PiglitFatalError) as exc:
-            testm.ShaderTest(temp)
+            testm.ShaderTest([temp])
             nt.assert_equal(exc.exception, "No GL version set",
                             msg="A GL version was passed without a decimal, "
                                 "which should have raised an exception, but "
@@ -84,7 +90,7 @@ def test_parse_gles2_test():
             'GL ES >= 2.0\n'
             'GLSL ES >= 1.00\n')
     with utils.tempfile(data) as temp:
-        test = testm.ShaderTest(temp)
+        test = testm.ShaderTest([temp])
 
     nt.assert_equal(
         os.path.basename(test.command[0]), "shader_runner_gles2",
@@ -98,7 +104,7 @@ def test_parse_gles3_test():
             'GL ES >= 3.0\n'
             'GLSL ES >= 3.00\n')
     with utils.tempfile(data) as temp:
-        test = testm.ShaderTest(temp)
+        test = testm.ShaderTest([temp])
 
     nt.assert_equal(
         os.path.basename(test.command[0]), "shader_runner_gles3",
@@ -108,7 +114,7 @@ def test_parse_gles3_test():
 
 def test_add_auto():
     """test.shader_test.ShaderTest: -auto is added to the command"""
-    test = testm.ShaderTest('tests/spec/glsl-es-1.00/execution/sanity.shader_test')
+    test = testm.ShaderTest(['tests/spec/glsl-es-1.00/execution/sanity.shader_test'])
     nt.assert_in('-auto', test.command)
 
 
@@ -120,7 +126,7 @@ def test_find_requirements_gl_requirements():
             'GL_ARB_ham_sandwhich\n')
 
     with utils.tempfile(data) as temp:
-        test = testm.ShaderTest(temp)
+        test = testm.ShaderTest([temp])
 
     nt.eq_(test.gl_required, set(['GL_ARB_ham_sandwhich']))
 
@@ -133,7 +139,7 @@ def test_find_requirements_gl_version():
 
     with mock.patch('framework.test.shader_test.open',
                     mock.mock_open(read_data=data), create=True):
-        test = testm.ShaderTest('null')
+        test = testm.ShaderTest(['null'])
     nt.eq_(test.gl_version, 2.0)
 
 
@@ -145,7 +151,7 @@ def test_find_requirements_gles_version():
 
     with mock.patch('framework.test.shader_test.open',
                     mock.mock_open(read_data=data), create=True):
-        test = testm.ShaderTest('null')
+        test = testm.ShaderTest(['null'])
     nt.eq_(test.gles_version, 2.0)
 
 
@@ -158,7 +164,7 @@ def test_find_requirements_glsl_version():
 
     with mock.patch('framework.test.shader_test.open',
                     mock.mock_open(read_data=data), create=True):
-        test = testm.ShaderTest('null')
+        test = testm.ShaderTest(['null'])
     nt.eq_(test.glsl_version, 1.0)
 
 
@@ -171,7 +177,7 @@ def test_find_requirements_glsl_es_version():
 
     with mock.patch('framework.test.shader_test.open',
                     mock.mock_open(read_data=data), create=True):
-        test = testm.ShaderTest('null')
+        test = testm.ShaderTest(['null'])
     nt.eq_(test.glsl_es_version, 2.0)
 
 
@@ -188,7 +194,7 @@ def test_ignore_shader_runner_directives():
     def test(config):
         with mock.patch('framework.test.shader_test.open',
                         mock.mock_open(read_data=config), create=True):
-            test = testm.ShaderTest('null')
+            test = testm.ShaderTest(['null'])
         nt.eq_(test.gl_required, {'GL_foobar'})
 
     for ignore in should_ignore:

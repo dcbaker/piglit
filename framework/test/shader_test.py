@@ -80,6 +80,7 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
         r'^GLSL\s+(?P<es>ES)?\s*(?P<op>(<|<=|=|>=|>))\s*(?P<ver>\d\.\d+)')
 
     def __init__(self, files):
+        assert isinstance(files, list), 'files must be a list!'
         self.gl_required = set()
 
         first_filename = files[0]
