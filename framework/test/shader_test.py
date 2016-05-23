@@ -36,10 +36,10 @@ except ImportError:
 
 import six
 
-from framework import exceptions, results, grouptools
+from framework import exceptions, results, grouptools, status
 from .piglit_test import PiglitBaseTest, TEST_BIN_DIR
 from .opengl import FastSkipMixin
-from .base import MultiResultMixin
+from .base import MultiResultMixin, TestRunError
 
 __all__ = [
     'ShaderTest',
@@ -53,6 +53,17 @@ def _make_test_name(path):
         return grouptools.from_path(os.path.relpath(path, GENERATED_DIR))
     else:
         return grouptools.from_path(os.path.relpath(path, TEST_BIN_DIR))
+
+
+class RunInterupted(exceptions.PiglitException):
+    def __init__(self, *args, resultlist=None, expected=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        assert resultlist is not None, 'Must set resultlist!'
+        assert expected is not None, 'Must set expected!'
+
+        self.resultlist = resultlist
+        self.expected = expected
 
 
 class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
@@ -168,19 +179,46 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
                 break
 
     def interpret_result(self, result):
+        crashed = result.returncode < 0
+
         def get_output(name, generator):
-            sentinal = 'END: {}'.format(name)
-            return '\n'.join(itertools.takewhile(lambda l: l != sentinal, generator))
+            sentinals = ['END:', 'START:']
+            output = list(itertools.takewhile(
+                lambda l: l not in sentinals, generator))
+
+            if output[-1].startswith('END:'):
+                assert output[-1] == 'END: {}'.format(name), \
+                    'got: "{}" but expected "END: {}"'.format(output[-1], name)
+                return '\n'.join(output)
+            elif output[-1].startswith('START:'):
+                raise exceptions.PiglitInternalError('Unexpected START')
+            else:
+                raise RunInterupted(resultlist=resultlist,
+                                    expected=testlist[0])
 
         def fastforward():
             def wind(generator):
+                if crashed:
+                    raise RunInterupted(resultlist=resultlist,
+                                        expected=testlist[0])
+                lines = []
+
                 for l in generator:
+                    lines.append(l)
                     if l.startswith('START:'):
                         name = l[len('START: '):]
                         assert name is not None, "name cannot be None"
                         return name
-                else:
-                    raise exceptions.PiglitInternalError('No name found')
+                    elif l.startswith('PIGLIT:'):
+                        loaded = json.loads(l[7:])
+                        assert loaded[0] == 'result' and loaded[1] == 'skip', \
+                            'Needed enumerated list of tests first'
+                        raise RunInterupted(resultlist=resultlist,
+                                            expected=testlist[0])
+                    elif l.startswith('END:'):
+                        raise exceptions.PiglitInternalError('Unexpected END')
+
+                raise exceptions.PiglitInternalError('No name found')
 
             oname = wind(out)
             ename = wind(err)
@@ -196,13 +234,17 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
         for l in out:
             if l.startswith('PIGLIT:'):
                 loaded = json.loads(l[7:])
-                assert loaded[0] == 'enumerate shader tests', \
-                    'Needed enumerated list of tests first'
+                if loaded[0] != 'enumerate shader tests':
+                    assert loaded[0] == 'result' and loaded[1] == 'skip', \
+                        'Needed enumerated list of tests first'
+                    raise RunInterupted(resultlist=resultlist,
+                                        expected=self.command[1])
                 testlist = loaded[1]
                 break
 
         while testlist:
             name = fastforward()
+
             assert name == testlist[0], 'Missing test {}!'.format(name)
 
             iresult = results.TestResult(name=_make_test_name(name))
@@ -216,9 +258,49 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
 
             del testlist[0]
 
-        assert not testlist, 'not all tests run!'
+        if not crashed:
+            assert not testlist, 'not all tests run!'
 
         return resultlist
+
+    def run(self, result):
+        resultlist = []
+
+        def keep_trying(result, resultlist, tries):
+            tries += 1
+            try:
+                resultlist.extend(super(ShaderTest, self).run(result))
+            except RunInterupted as e:
+                # If the run was interupted, extend the resultlist with the
+                # tests that did work, then mark the test that stoped the run
+                # as crash, and remove it from the list of tests to run, then
+                # try again.
+                print('Tried: {} times'.format(tries))
+
+                resultlist.extend(e.resultlist)
+                resultlist.append(
+                    results.TestResult(
+                        result=status.CRASH if result.returncode < 0 else status.SKIP,
+                        name=_make_test_name(e.expected)))
+                resultlist[-1].returncode = result.returncode
+                resultlist[-1].command = ' '.join(self.command[:2] + ['-auto'])
+
+                result = results.TestResult()
+                # Remove already run tests from the command, as well as the
+                # -auto wich the getter will re-add
+                newcmd = [self._command[0]] + \
+                    self._command[1 + len(resultlist):-1]
+
+                # If the test that failed was the last one, don't retry
+                if len(newcmd) == 1:
+                    return resultlist
+
+                self._command = newcmd
+                keep_trying(result, resultlist, tries)
+
+            return resultlist
+
+        return keep_trying(result, resultlist, 0)
 
     @PiglitBaseTest.command.getter
     def command(self):

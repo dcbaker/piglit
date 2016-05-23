@@ -270,7 +270,7 @@ lookup_enum_string(const struct string_to_enum *table, const char **line,
 		}
 	}
 	fprintf(stderr, "Bad %s at: %s\n", error_desc, *line);
-	piglit_report_result(PIGLIT_FAIL);
+	piglit_report_intermediate_result(PIGLIT_FAIL);
 	return 0;
 }
 
@@ -664,7 +664,7 @@ process_comparison(const char *src, enum comparison *cmp)
 	strncpy(buf, src, sizeof(buf));
 	buf[sizeof(buf) - 1] = '\0';
 	printf("invalid comparison in test script:\n%s\n", buf);
-	piglit_report_result(PIGLIT_FAIL);
+	piglit_report_intermediate_result(PIGLIT_FAIL);
 
 	/* Won't get here. */
 	return NULL;
@@ -703,7 +703,7 @@ parse_version_comparison(const char *line, enum comparison *cmp,
 	line = eat_whitespace(line);
 	if (*line != '\n') {
 		printf("Unexpected characters following version comparison\n");
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	/* This hack is so that we can tell the difference between GL versions
@@ -925,7 +925,7 @@ process_geometry_layout(const char *line)
 		geometry_layout_vertices_out = x;
 	} else {
 		printf("Could not parse geometry layout line: %s\n", line);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 }
 
@@ -1277,7 +1277,7 @@ parse_required_config(struct requirement_parse_results *results,
 
 	if (line == NULL) {
 		printf("could not read file \"%s\"\n", script_name);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	while (line[0] != '\0') {
@@ -1335,13 +1335,13 @@ parse_required_config(struct requirement_parse_results *results,
 
 	if (!in_requirement_section) {
 		printf("[require] section missing\n");
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	if (results->found_glsl && results->glsl_version.es && !results->found_gl) {
 		printf("%s", "The test specifies a requirement for GLSL ES, "
 		       "but specifies no GL requirement\n.");
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 }
 
@@ -1460,7 +1460,7 @@ static void
 check_unsigned_support(void)
 {
 	if (gl_version.num < 30 && !piglit_is_extension_supported("GL_EXT_gpu_shader4"))
-		piglit_report_result(PIGLIT_SKIP);
+		piglit_report_intermediate_result(PIGLIT_SKIP);
 }
 
 /**
@@ -1472,7 +1472,7 @@ static void
 check_double_support(void)
 {
 	if (gl_version.num < 40 && !piglit_is_extension_supported("GL_ARB_gpu_shader_fp64"))
-		piglit_report_result(PIGLIT_SKIP);
+		piglit_report_intermediate_result(PIGLIT_SKIP);
 }
 
 /**
@@ -1483,7 +1483,7 @@ static void
 check_shader_subroutine_support(void)
 {
 	if (gl_version.num < 40 && !piglit_is_extension_supported("GL_ARB_shader_subroutine"))
-		piglit_report_result(PIGLIT_SKIP);
+		piglit_report_intermediate_result(PIGLIT_SKIP);
 }
 
 /**
@@ -1521,7 +1521,7 @@ set_ubo_uniform(char *name, const char *type, const char *line, int ubo_array_in
 			i--;
 			if (name[i] != '[') {
 				printf("cannot parse uniform \"%s\"\n", name);
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 			name[i] = 0;
 		}
@@ -1532,7 +1532,7 @@ set_ubo_uniform(char *name, const char *type, const char *line, int ubo_array_in
 	glGetUniformIndices(prog, 1, (const char **)&name, &uniform_index);
 	if (uniform_index == GL_INVALID_INDEX) {
 		printf("cannot get index of uniform \"%s\"\n", name);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	glGetActiveUniformsiv(prog, 1, &uniform_index,
@@ -1661,7 +1661,7 @@ set_ubo_uniform(char *name, const char *type, const char *line, int ubo_array_in
 		}
 	} else {
 		printf("unknown uniform type \"%s\" for \"%s\"\n", type, name);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	glUnmapBuffer(GL_UNIFORM_BUFFER);
@@ -1698,7 +1698,7 @@ set_uniform(const char *line, int ubo_array_index)
 		if (loc < 0) {
 			printf("cannot get location of uniform \"%s\"\n",
 			       name);
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
         }
 
@@ -1886,7 +1886,7 @@ set_uniform(const char *line, int ubo_array_index)
 
 	strcpy_to_space(name, type);
 	printf("unknown uniform type \"%s\"\n", name);
-	piglit_report_result(PIGLIT_FAIL);
+	piglit_report_intermediate_result(PIGLIT_FAIL);
 
 	return;
 }
@@ -1988,7 +1988,7 @@ set_subroutine_uniform(const char *line)
 	ptype = get_shader_from_string(type, &sidx);
 	if (ptype == 0) {
 		printf("illegal type in subroutine uniform\n");
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	glGetIntegerv(GL_CURRENT_PROGRAM, (GLint *) &prog);
@@ -1999,26 +1999,26 @@ set_subroutine_uniform(const char *line)
 
 		if (num_subuniform_locations[sidx] == 0) {
 			printf("illegal subroutine uniform specified\n");
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 
 		subuniform_locations[sidx] = calloc(num_subuniform_locations[sidx], sizeof(GLuint));
 		if (!subuniform_locations[sidx])
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	loc = glGetSubroutineUniformLocation(prog, ptype, name);
 	if (loc < 0) {
 		printf("cannot get location of subroutine uniform \"%s\"\n",
 		       name);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	idx = glGetSubroutineIndex(prog, ptype, subname);
 	if (idx == GL_INVALID_INDEX) {
 		printf("cannot get index of subroutine uniform \"%s\"\n",
 		       subname);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	subuniform_locations[sidx][loc] = idx;
@@ -2085,7 +2085,7 @@ active_uniform(const char *line)
 
 		if (!piglit_check_gl_error(GL_NO_ERROR)) {
 			fprintf(stderr, "glGetActiveUniform error\n");
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 
 		if (strcmp(name, name_buf) != 0)
@@ -2136,7 +2136,7 @@ active_uniform(const char *line)
 
 		if (!piglit_check_gl_error(GL_NO_ERROR)) {
 			fprintf(stderr, "glGetActiveUniformsiv error\n");
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 
 		if (got != expected) {
@@ -2149,14 +2149,14 @@ active_uniform(const char *line)
 		}
 
 		if (!pass)
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 
 		return;
 	}
 
 
 	fprintf(stderr, "No active uniform named \"%s\"\n", name);
-	piglit_report_result(PIGLIT_FAIL);
+	piglit_report_intermediate_result(PIGLIT_FAIL);
 	return;
 }
 
@@ -2275,7 +2275,7 @@ active_program_interface(const char *line)
 
 		if (!piglit_check_gl_error(GL_NO_ERROR)) {
 			fprintf(stderr, "glGetProgramResourceName error\n");
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 
 		if (strcmp(name, name_buf) != 0)
@@ -2302,7 +2302,7 @@ active_program_interface(const char *line)
 
 		if (!piglit_check_gl_error(GL_NO_ERROR)) {
 			fprintf(stderr, "glGetProgramResourceiv error\n");
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 
 		if (got != expected) {
@@ -2315,13 +2315,13 @@ active_program_interface(const char *line)
 		}
 
 		if (!pass)
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 
 		return;
 	}
 
 	fprintf(stderr, "No active resource named \"%s\"\n", name);
-	piglit_report_result(PIGLIT_FAIL);
+	piglit_report_intermediate_result(PIGLIT_FAIL);
 	return;
 }
 
@@ -2336,7 +2336,7 @@ set_parameter(const char *line)
 		       type, &index, &f[0], &f[1], &f[2], &f[3]);
 	if (count != 6) {
 		fprintf(stderr, "Couldn't parse parameter command:\n%s\n", line);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	if (string_match("env_vp", type)) {
@@ -2349,7 +2349,7 @@ set_parameter(const char *line)
 		glProgramLocalParameter4fvARB(GL_FRAGMENT_PROGRAM_ARB, index, f);
 	} else {
 		fprintf(stderr, "Unknown parameter type `%s'\n", type);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 }
 
@@ -2369,7 +2369,7 @@ set_patch_parameter(const char *line)
 		count = sscanf(line, "%d", &i);
 		if (count != 1) {
 			fprintf(stderr, "Couldn't parse patch parameter command:\n%s\n", line0);
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 		glPatchParameteri(GL_PATCH_VERTICES, i);
 	} else if (string_match("default level outer ", line)) {
@@ -2377,7 +2377,7 @@ set_patch_parameter(const char *line)
 		count = sscanf(line, "%f %f %f %f", &f[0], &f[1], &f[2], &f[3]);
 		if (count != 4) {
 			fprintf(stderr, "Couldn't parse patch parameter command:\n%s\n", line0);
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 		glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, f);
 	} else if (string_match("default level inner ", line)) {
@@ -2385,16 +2385,16 @@ set_patch_parameter(const char *line)
 		count = sscanf(line, "%f %f", &f[0], &f[1]);
 		if (count != 2) {
 			fprintf(stderr, "Couldn't parse patch parameter command:\n%s\n", line0);
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 		glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, f);
 	} else {
 		fprintf(stderr, "Couldn't parse patch parameter command:\n%s\n", line);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 #else
 	printf("patch parameters are only available in desktop GL\n");
-	piglit_report_result(PIGLIT_SKIP);
+	piglit_report_intermediate_result(PIGLIT_SKIP);
 #endif
 }
 
@@ -2407,7 +2407,7 @@ set_provoking_vertex(const char *line)
 		glProvokingVertexEXT(GL_LAST_VERTEX_CONVENTION_EXT);
 	} else {
 		fprintf(stderr, "Unknown provoking vertex parameter `%s'\n", line);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 }
 
@@ -2506,7 +2506,7 @@ decode_drawing_mode(const char *mode_str)
 	}
 
 	printf("unknown drawing mode \"%s\"\n", mode_str);
-	piglit_report_result(PIGLIT_FAIL);
+	piglit_report_intermediate_result(PIGLIT_FAIL);
 
 	/* Should not be reached, but return 0 to avoid compiler warning */
 	return 0;
@@ -2602,7 +2602,7 @@ handle_texparameter(const char *line)
 		return;
 #else
 		printf("lod_bias feature is only available in desktop GL\n");
-		piglit_report_result(PIGLIT_SKIP);
+		piglit_report_intermediate_result(PIGLIT_SKIP);
 #endif
 	} else if (string_match("max_level ", line)) {
 		line += strlen("max_level ");
@@ -2621,7 +2621,7 @@ handle_texparameter(const char *line)
 		strings = swizzle_modes;
 	} else {
 		fprintf(stderr, "unknown texture parameter in `%s'\n", line);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	value = lookup_enum_string(strings, &line, parameter_name);
@@ -2841,7 +2841,7 @@ piglit_display(void)
 				  &x, &d[0], &d[1], &d[2], &d[3]) == 5) {
 			if (x < 0 || x >= gl_max_clip_planes) {
 				printf("clip plane id %d out of range\n", x);
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 			glClipPlane(GL_CLIP_PLANE0 + x, d);
 		} else if (sscanf(line,
@@ -2899,21 +2899,21 @@ piglit_display(void)
 			program_must_be_in_use();
 			if (first < 0) {
 				printf("draw arrays 'first' must be >= 0\n");
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			} else if (vbo_present &&
 				   (size_t) first >= num_vbo_rows) {
 				printf("draw arrays 'first' must be < %lu\n",
 				       (unsigned long) num_vbo_rows);
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 			if (count <= 0) {
 				printf("draw arrays 'count' must be > 0\n");
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			} else if (vbo_present &&
 				   count > num_vbo_rows - (size_t) first) {
 				printf("draw arrays cannot draw beyond %lu\n",
 				       (unsigned long) num_vbo_rows);
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 			bind_vao_if_supported();
 			glDrawArrays(mode, first, count);
@@ -2940,13 +2940,13 @@ piglit_display(void)
 					       GL_TEXTURE_2D, tex_num, 0);
 			if (!piglit_check_gl_error(GL_NO_ERROR)) {
 				fprintf(stderr, "glFramebufferTexture2D error\n");
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 
 			status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (status != GL_FRAMEBUFFER_COMPLETE) {
 				fprintf(stderr, "incomplete fbo (status 0x%x)\n", status);
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 
 			glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &render_width);
@@ -2968,13 +2968,13 @@ piglit_display(void)
 					     tex_num, 0);
 			if (!piglit_check_gl_error(GL_NO_ERROR)) {
 				fprintf(stderr, "glFramebufferTexture error\n");
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 
 			status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			if (status != GL_FRAMEBUFFER_COMPLETE) {
 				fprintf(stderr, "incomplete fbo (status 0x%x)\n", status);
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 
 			glGetTexLevelParameteriv(GL_TEXTURE_2D_ARRAY, 0, GL_TEXTURE_WIDTH, &render_width);
@@ -3020,7 +3020,7 @@ piglit_display(void)
 				  "probe atomic counter %d %s %d",
 				  &x, s, &y) == 3) {
 			if (!probe_atomic_counter(x, s, y)) {
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 		} else if (sscanf(line, "probe ssbo uint %d %d %s 0x%x",
 				  &x, &y, s, &z) == 4) {
@@ -3122,7 +3122,7 @@ piglit_display(void)
 			if (num_scanned < 3) {
 				fprintf(stderr,
 					"invalid texture rgbw command!\n");
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 
 			if (num_scanned >= 4) {
@@ -3144,7 +3144,7 @@ piglit_display(void)
 			if (num_scanned < 6) {
 				fprintf(stderr,
 					"invalid texture integer command!\n");
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			}
 
 			int_fmt = piglit_get_gl_enum_from_name(s);
@@ -3277,7 +3277,7 @@ piglit_display(void)
 			link_error_expected = true;
 			if (link_ok) {
 				printf("shader link error expected, but it was successful!\n");
-				piglit_report_result(PIGLIT_FAIL);
+				piglit_report_intermediate_result(PIGLIT_FAIL);
 			} else {
 				fprintf(stderr, "Failed to link:\n%s\n", prog_err_info);
 			}
@@ -3292,7 +3292,7 @@ piglit_display(void)
 		} else if ((line[0] != '\n') && (line[0] != '\0')
 			   && (line[0] != '#')) {
 			printf("unknown command \"%s\"\n", line);
-			piglit_report_result(PIGLIT_FAIL);
+			piglit_report_intermediate_result(PIGLIT_FAIL);
 		}
 
 		free((void*) line);
@@ -3365,7 +3365,7 @@ recreate_gl_context(char *exec_arg, int param_argc, char **param_argv)
 
 	if (!argv) {
 		fprintf(stderr, "%s: malloc failed.\n", __func__);
-		piglit_report_result(PIGLIT_FAIL);
+		piglit_report_intermediate_result(PIGLIT_FAIL);
 	}
 
 	argv[0] = exec_arg;
@@ -3518,7 +3518,7 @@ piglit_init(int argc, char **argv)
 			fflush(stderr);
 
 			curtime = time(NULL);
-			printf("PIGLIT: {\"time start\": %ld}\n", curtime);
+			printf("PIGLIT: [\"time start\", %ld]\n", curtime);
 
 			memcpy(piglit_tolerance, default_piglit_tolerance,
 			       sizeof(piglit_tolerance));
@@ -3567,7 +3567,7 @@ piglit_init(int argc, char **argv)
 
 			/* Clear GL states to defaults. */
 			glClearColor(0, 0, 0, 0);
-			glClearDepth(1);
+			glClearDepthf(1.0);
 			glBindFramebuffer(GL_FRAMEBUFFER, piglit_winsys_fbo);
 			glActiveTexture(GL_TEXTURE0);
 			glUseProgram(0);
@@ -3584,16 +3584,14 @@ piglit_init(int argc, char **argv)
 				glDisable(GL_CLIP_PLANE0+7);
 			}
 
-			if (es)
-				glEnable(GL_PROGRAM_POINT_SIZE);
-			else if (gl_version.num >= 20 ||
-				 piglit_is_extension_supported("GL_ARB_vertex_program"))
+			if ((!es && gl_version.num >= 20) ||
+			    piglit_is_extension_supported("GL_ARB_vertex_program"))
 				glDisable(GL_PROGRAM_POINT_SIZE);
 
 			for (int i = 0; i < 16; i++)
 				glDisableVertexAttribArray(i);
 
-			if (!piglit_is_core_profile) {
+			if (!piglit_is_core_profile && !piglit_is_gles()) {
 				glMatrixMode(GL_PROJECTION);
 				glLoadIdentity();
 				glMatrixMode(GL_MODELVIEW);
@@ -3643,7 +3641,7 @@ piglit_init(int argc, char **argv)
 
 			/* print end time for test */
 			curtime = time(NULL);
-			printf("PIGLIT: {\"time end\": %ld}\n", curtime);
+			printf("PIGLIT: [\"time end\", %ld]\n", curtime);
 
 			/* print end scissor */
 			printf("END: %s\n", filename);
@@ -3656,5 +3654,5 @@ piglit_init(int argc, char **argv)
 
 	result = init_test(argv[1]);
 	if (result != PIGLIT_PASS)
-		piglit_report_result(result);
+		piglit_report_intermediate_result(result);
 }

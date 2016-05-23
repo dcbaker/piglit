@@ -243,7 +243,7 @@ class TestResult(object):
 
         return inst
 
-    def update(self, dict_):
+    def update(self, state):
         """Update the results and subtests fields from a piglit test.
 
         Native piglit tests output their data as valid json, and piglit uses
@@ -251,14 +251,14 @@ class TestResult(object):
         dictionary data and updates itself.
 
         """
-        if 'result' in dict_:
-            self.result = dict_['result']
-        elif 'subtest' in dict_:
-            self.subtests.update(dict_['subtest'])
-        elif 'time start' in dict_:
-            self.time.start = float(dict_['time start'])
-        elif 'time end' in dict_:
-            self.time.end = float(dict_['time end'])
+        if state[0] == 'result':
+            self.result = state[1]
+        elif state[0] == 'subtest':
+            self.subtests.update(state[1])
+        elif state[0] == 'time start':
+            self.time.start = float(state[1])
+        elif state[0] == 'time end':
+            self.time.end = float(state[1])
 
 
 @compat.python_2_bool_compatible

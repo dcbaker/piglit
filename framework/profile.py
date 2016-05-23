@@ -315,7 +315,6 @@ class TestProfile(object):
             with backend.write_test(name) as w:
                 w(test.execute(name, log.get(), self.dmesg))
 
-        '''
         def run_threads(pool, testlist):
             """ Open a pool, close it, and join it """
             pool.imap(test, testlist, chunksize)
@@ -326,6 +325,7 @@ class TestProfile(object):
         # multiprocessing compatible API
         #
         # The default value of pool is the number of virtual processor cores
+        '''
         single = multiprocessing.dummy.Pool(1)
         multi = multiprocessing.dummy.Pool()
 
@@ -341,7 +341,6 @@ class TestProfile(object):
             run_threads(single, (x for x in six.iteritems(self.test_list)
                                  if not x[1].run_concurrent))
         '''
-
         for case in self.test_list.items():
             test(case)
 
