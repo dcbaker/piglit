@@ -145,6 +145,7 @@ static bool vbo_present = false;
 static bool link_ok = false;
 static bool prog_in_use = false;
 static bool sso_in_use = false;
+static bool enumerated = false;
 static GLchar *prog_err_info = NULL;
 static GLuint vao = 0;
 static GLuint fbo = 0;
@@ -3495,12 +3496,15 @@ piglit_init(int argc, char **argv)
 	 * comma. So we print the first element, and then ", <n>" for each
 	 * successive element to ensure this rule is met.
 	 */
-	printf("PIGLIT: [\"enumerate shader tests\", [");
-	printf("\"%s\"", argv[1]);
-	for (unsigned i = 2; i < argc; i++) {
-		printf(", \"%s\"", argv[i]);
+	if (!enumerated) {
+		printf("PIGLIT: [\"enumerate shader tests\", [");
+		printf("\"%s\"", argv[1]);
+		for (unsigned i = 2; i < argc; i++) {
+			printf(", \"%s\"", argv[i]);
+		}
+		printf("]]\n");
+		enumerated = true;
 	}
-	printf("]]\n");
 	fflush(stdout);
 
 	/* Automatic mode can run multiple tests per session. */
@@ -3511,21 +3515,19 @@ piglit_init(int argc, char **argv)
 			const char  *filename = argv[i];
 			time_t curtime;
 
-			/* print opening scissor */
-			printf("START: %s\n", filename);
-			fflush(stdout);
-			fprintf(stderr, "START: %s\n", filename);
-			fflush(stderr);
-
-			curtime = time(NULL);
-			printf("PIGLIT: [\"time start\", %ld]\n", curtime);
-
 			memcpy(piglit_tolerance, default_piglit_tolerance,
 			       sizeof(piglit_tolerance));
 
 			/* Re-initialize the GL context if a different GL config is required. */
 			if (!validate_current_gl_context(filename))
 				recreate_gl_context(argv[0], argc - i, argv + i);
+
+			/* print opening scissor */
+			printf("START: %s\n", filename);
+			fprintf(stderr, "START: %s\n", filename);
+
+			curtime = time(NULL);
+			printf("PIGLIT: [\"time start\", %ld]\n", curtime);
 
 			/* Clear global variables to defaults. */
 			test_start = NULL;
@@ -3645,10 +3647,12 @@ piglit_init(int argc, char **argv)
 
 			/* print end scissor */
 			printf("END: %s\n", filename);
-			fflush(stdout);
 			fprintf(stderr, "END: %s\n", filename);
+
+			fflush(stdout);
 			fflush(stderr);
 		}
+
 		exit(0);
 	}
 
