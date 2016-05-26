@@ -1945,8 +1945,10 @@ static void
 free_subroutine_uniforms(void)
 {
 	int sidx;
-	for (sidx = 0; sidx < 4; sidx++)
+	for (sidx = 0; sidx < SHADER_TYPES; sidx++) {
 	    free(subuniform_locations[sidx]);
+	    subuniform_locations[sidx] = NULL;
+	}
 }
 
 static void
