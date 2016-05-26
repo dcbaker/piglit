@@ -338,6 +338,15 @@ version_string(struct component_version *v)
 	return v->_string;
 }
 
+static bool
+status_to_bool(enum piglit_result r)
+{
+	if (r == PIGLIT_PASS) {
+		return true;
+	} else {
+		return false;
+	}
+}
 
 static const char *
 target_to_short_name(GLenum target)
@@ -2850,18 +2859,18 @@ piglit_display(void)
 		} else if (sscanf(line,
 				  "compute %d %d %d",
 				  &x, &y, &z) == 3) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			glMemoryBarrier(GL_ALL_BARRIER_BITS);
 			glDispatchCompute(x, y, z);
 			glMemoryBarrier(GL_ALL_BARRIER_BITS);
 		} else if (string_match("draw rect tex", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			program_subroutine_uniforms();
 			get_floats(line + 13, c, 8);
 			piglit_draw_rect_tex(c[0], c[1], c[2], c[3],
 					     c[4], c[5], c[6], c[7]);
 		} else if (string_match("draw rect ortho patch", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			program_subroutine_uniforms();
 			get_floats(line + 21, c, 4);
 
@@ -2870,7 +2879,7 @@ piglit_display(void)
 						2.0 * (c[2] / piglit_width),
 						2.0 * (c[3] / piglit_height), true);
 		} else if (string_match("draw rect ortho", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			program_subroutine_uniforms();
 			get_floats(line + 15, c, 4);
 
@@ -2879,18 +2888,18 @@ piglit_display(void)
 					 2.0 * (c[2] / piglit_width),
 					 2.0 * (c[3] / piglit_height));
 		} else if (string_match("draw rect patch", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			get_floats(line + 15, c, 4);
 			piglit_draw_rect_custom(c[0], c[1], c[2], c[3], true);
 		} else if (string_match("draw rect", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			program_subroutine_uniforms();
 			get_floats(line + 9, c, 4);
 			piglit_draw_rect(c[0], c[1], c[2], c[3]);
 		} else if (string_match("draw instanced rect", line)) {
 			int primcount;
 
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			sscanf(line + 19, "%d %f %f %f %f",
 			       &primcount,
 			       c + 0, c + 1, c + 2, c + 3);
@@ -2899,7 +2908,7 @@ piglit_display(void)
 			GLenum mode = decode_drawing_mode(s);
 			int first = x;
 			size_t count = (size_t) y;
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			if (first < 0) {
 				printf("draw arrays 'first' must be >= 0\n");
 				piglit_report_intermediate_result(PIGLIT_FAIL);
@@ -3264,10 +3273,10 @@ piglit_display(void)
 		} else if (string_match("texparameter ", line)) {
 			handle_texparameter(line + strlen("texparameter "));
 		} else if (string_match("uniform", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			set_uniform(line + 7, ubo_array_index);
 		} else if (string_match("subuniform", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 			check_shader_subroutine_support();
 			set_subroutine_uniform(line + 10);
 		} else if (string_match("parameter ", line)) {
@@ -3285,7 +3294,7 @@ piglit_display(void)
 				fprintf(stderr, "Failed to link:\n%s\n", prog_err_info);
 			}
 		} else if (string_match("link success", line)) {
-			program_must_be_in_use();
+			pass &= status_to_bool(program_must_be_in_use());
 		} else if (string_match("ubo array index ", line)) {
 			get_ints(line + strlen("ubo array index "), &ubo_array_index, 1);
 		} else if (string_match("active uniform ", line)) {
@@ -3302,7 +3311,7 @@ piglit_display(void)
 	}
 
 	if (!link_ok && !link_error_expected) {
-		program_must_be_in_use();
+		pass &= status_to_bool(program_must_be_in_use());
 	}
 
 	piglit_present_results();
