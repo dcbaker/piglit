@@ -3644,11 +3644,6 @@ piglit_init(int argc, char **argv)
 			/* print end time for test */
 			curtime = time(NULL);
 			printf("PIGLIT: [\"time end\", %ld]\n", curtime);
-
-			/* print end scissor */
-			printf("END: %s\n", filename);
-			fprintf(stderr, "END: %s\n", filename);
-
 			fflush(stdout);
 			fflush(stderr);
 		}

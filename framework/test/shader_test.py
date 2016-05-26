@@ -26,6 +26,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import collections
 import itertools
 import os
 import re
@@ -37,33 +38,103 @@ except ImportError:
 import six
 
 from framework import exceptions, results, grouptools, status
-from .piglit_test import PiglitBaseTest, TEST_BIN_DIR
+from .piglit_test import PiglitBaseTest
 from .opengl import FastSkipMixin
-from .base import MultiResultMixin, TestRunError
+from .base import MultiResultMixin
 
 __all__ = [
     'ShaderTest',
 ]
 
-GENERATED_DIR = os.path.normpath(os.path.join(TEST_BIN_DIR, '../generated_tests'))
-
 
 def _make_test_name(path):
     if 'generated_tests' in path:
-        return grouptools.from_path(os.path.relpath(path, GENERATED_DIR))
+        return grouptools.from_path(os.path.relpath(path, 'generated_tests'))
     else:
-        return grouptools.from_path(os.path.relpath(path, TEST_BIN_DIR))
+        return grouptools.from_path(os.path.relpath(path, 'tests'))
+
+
+def _is_start(value):
+    return value.startswith('START:')
+
+
+def _not_start(value):
+    return not value.startswith('START:')
 
 
 class RunInterupted(exceptions.PiglitException):
-    def __init__(self, *args, resultlist=None, expected=None, **kwargs):
+    def __init__(self, *args, finished=None, todo=None, **kwargs):
         super().__init__(*args, **kwargs)
 
-        assert resultlist is not None, 'Must set resultlist!'
-        assert expected is not None, 'Must set expected!'
+        assert finished is not None, 'Must set finished tests!'
+        assert todo is not None, 'Must set todo tests!'
+        self.finished = finished
+        self.todo = todo
 
-        self.resultlist = resultlist
-        self.expected = expected
+
+class OutputIterator(object):
+    """A collections.deque-like object that also provides a next method.
+
+    This class does not provide the entire collecitons.deque interface, only
+    the append and pop methods (including the left variants), and a
+
+    """
+    def __init__(self, output):
+        self.__queue = collections.deque(output.split('\n'))
+        self.__empty = False
+
+    @property
+    def empty(self):
+        return self.__empty
+
+    def append(self, obj):
+        self.__queue.append(obj)
+
+    def appendleft(self, obj):
+        self.__queue.appendleft(obj)
+
+    def pop(self):
+        return self.__queue.pop()
+
+    def popleft(self):
+        return self.__queue.popleft()
+
+    def __next__(self):
+        try:
+            return self.popleft()
+        except IndexError:
+            self.__empty = True
+            raise StopIteration
+
+    def __iter__(self):
+        while not self.__empty:
+            yield next(self)
+
+    def takewhile(self, pred):
+        """Equivalent to itertools.takewhile, but maintains value that fails.
+
+        This works almost just like itertools.takewhile, except that it puts
+        the value that fails the predicate back on the deque instead of
+        throwing it away.
+
+        """
+        for each in self:
+            if pred(each):
+                yield each
+            else:
+                self.appendleft(each)
+                break
+
+    def dropwhile(self, pred):
+        """Equivalent to itertools.dropwhile, but maintains value that fails.
+
+        Just like the takewhile method, but drops instead.
+
+        """
+        for each in self:
+            if not pred(each):
+                self.appendleft(each)
+                break
 
 
 class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
@@ -80,7 +151,6 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
         r'^GLSL\s+(?P<es>ES)?\s*(?P<op>(<|<=|=|>=|>))\s*(?P<ver>\d\.\d+)')
 
     def __init__(self, files):
-        assert isinstance(files, list), 'files must be a list!'
         self.gl_required = set()
 
         first_filename = files[0]
@@ -118,7 +188,8 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
         super(ShaderTest, self).__init__([prog] + files, run_concurrent=True)
 
         # This needs to be run after super or gl_required will be reset
-        self.__find_requirements(lines)
+        # TODO: how to handle this for multiple files?
+        #self.__find_requirements(lines)
 
     def __find_gl(self, lines, filename):
         """Find the OpenGL API to use."""
@@ -180,95 +251,80 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
                 break
 
     def interpret_result(self, result):
-        crashed = result.returncode < 0
-
-        def get_output(name, generator):
-            sentinals = ['END:', 'START:']
-            output = list(itertools.takewhile(
-                lambda l: l not in sentinals, generator))
-
-            if output[-1].startswith('END:'):
-                assert output[-1] == 'END: {}'.format(name), \
-                    'got: "{}" but expected "END: {}"'.format(output[-1], name)
-                return '\n'.join(output)
-            elif output[-1].startswith('START:'):
-                raise exceptions.PiglitInternalError('Unexpected START')
-            else:
-                raise RunInterupted(resultlist=resultlist,
-                                    expected=testlist[0])
-
-        def fastforward():
-            def wind(generator):
-                if crashed:
-                    raise RunInterupted(resultlist=resultlist,
-                                        expected=testlist[0])
-                lines = []
-
-                for l in generator:
-                    lines.append(l)
-                    if l.startswith('START:'):
-                        name = l[len('START: '):]
-                        assert name is not None, "name cannot be None"
-                        return name
-                    elif l.startswith('PIGLIT:'):
-                        loaded = json.loads(l[7:])
-                        assert loaded[0] == 'result' and loaded[1] == 'skip', \
-                            'Needed enumerated list of tests first'
-                        raise RunInterupted(resultlist=resultlist,
-                                            expected=testlist[0])
-                    elif l.startswith('END:'):
-                        raise exceptions.PiglitInternalError('Unexpected END')
-
-                raise exceptions.PiglitInternalError('No name found')
-
-            oname = wind(out)
-            ename = wind(err)
-            assert oname == ename, "err and out names don't match!"
-            return oname
-
-        testlist = []
         resultlist = []
-        out = (l for l in result.out.split('\n'))
-        err = (l for l in result.err.split('\n'))
+        out = OutputIterator(result.out)
+        err = OutputIterator(result.err)
 
-        # Get the list of tests
-        for l in out:
-            if l.startswith('PIGLIT:'):
-                loaded = json.loads(l[7:])
-                if loaded[0] != 'enumerate shader tests':
-                    assert loaded[0] == 'result' and loaded[1] == 'skip', \
-                        'Needed enumerated list of tests first'
-                    raise RunInterupted(resultlist=resultlist,
-                                        expected=self.command[1])
-                testlist = loaded[1]
+        # Fast forward until we get to the enumerated list of shader tests
+        # (hopefully anyway), and then read that in.
+        out.dropwhile(lambda x: not x.startswith('PIGLIT:'))
+        command, testlist = json.loads(next(out)[7:])
+
+        # In the event what we got wasn't 'enumerate shader tests', then
+        # hopefully it's a ['result', 'skip'], which means something went wront
+        # in waffle. Mark the
+        if command != 'enumerate shader tests':
+            assert command == 'result' and testlist == 'skip', \
+                'Expected shader test list but got {}'.format(command)
+
+            iresult = results.TestResult(
+                name=_make_test_name(result.command.split()[1]))
+            iresult.out = result.out
+            iresult.err = result.err
+            iresult.returncode = 0
+            resultlist.append(super(ShaderTest, self).interpret_result(iresult))
+
+            raise RunInterupted(
+                finished=resultlist,
+                todo=[c for c in result.command.split()[2:]
+                      if c not in ['-auto', '-fbo']])
+
+        # While there is still a testlist, read through the output generating a
+        # result for each result in the output.
+        while testlist:
+            try:
+                name = next(out)[len('START: '):]
+                ename = next(err)[len('START: '):]
+            except StopIteration:
                 break
 
-        while testlist:
-            name = fastforward()
-
-            assert name == testlist[0], 'Missing test {}!'.format(name)
+            assert name == ename, \
+                'names dont match!\nout "{}"\nerr "{}"'.format(name, ename)
+            assert name == testlist[0], \
+                'Unexpected order of tests. expected "{}", but got "{}"'.format(
+                    testlist[0], name)
 
             iresult = results.TestResult(name=_make_test_name(name))
-            iresult.out = get_output(name, out)
-            iresult.err = get_output(name, err)
-            iresult.returncode = result.returncode
-            iresult.pid = result.pid
-            iresult.command = ' '.join([result.command.split()[0], name, '-auto'])
-
-            resultlist.append(super().interpret_result(iresult))
+            iresult.out = '\n'.join(out.takewhile(_not_start))
+            iresult.err = '\n'.join(err.takewhile(_not_start))
+            iresult.returncode = 0
+            resultlist.append(iresult)
 
             del testlist[0]
 
-        if not crashed:
-            assert not testlist, 'not all tests run!'
+        # TODO: what do we do for a > 0 returncode?
+        # TODO: windows....
+        # If the returncode is < 0 then assume that the last test was the one
+        # that crashed, and set it's returncode as such.
+        if result.returncode < 0:
+            resultlist[-1].returncode = result.returncode
 
-        return resultlist
+        # If the testlist isn't empty that means that the run was interupted,
+        # raise a special kind of exception that will be cuaght in the custom
+        # run method.
+        if testlist:
+            raise RunInterupted(
+                finished=[super(ShaderTest, self).interpret_result(r)
+                          for r in resultlist],
+                todo=testlist[len(resultlist):])
+
+        return [super(ShaderTest, self).interpret_result(r) for r in resultlist]
 
     def run(self, result):
         resultlist = []
 
-        def keep_trying(result, resultlist, tries):
-            tries += 1
+        def keep_trying(result, resultlist):
+            """Keep trying to run the test until all the tests finish."""
             try:
                 resultlist.extend(super(ShaderTest, self).run(result))
             except RunInterupted as e:
@@ -276,34 +332,18 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
                 # tests that did work, then mark the test that stoped the run
                 # as crash, and remove it from the list of tests to run, then
                 # try again.
-                print('Tried: {} times'.format(tries))
+                resultlist.extend(e.finished)
 
-                resultlist.extend(e.resultlist)
-                resultlist.append(
-                    results.TestResult(
-                        result=status.CRASH if result.returncode < 0 else status.SKIP,
-                        name=_make_test_name(e.expected)))
-                resultlist[-1].returncode = result.returncode
-                resultlist[-1].command = ' '.join(self.command[:2] + ['-auto'])
-
-                result = results.TestResult()
-                # Remove already run tests from the command, as well as the
-                # -auto wich the getter will re-add
-                newcmd = [self._command[0]] + \
-                    self._command[1 + len(resultlist):-1]
-
-                # If the test that failed was the last one, don't retry
-                if len(newcmd) == 1:
-                    return resultlist
-
-                self._command = newcmd
-                keep_trying(result, resultlist, tries)
+                if e.todo:
+                    result = results.TestResult()
+                    self._command = [self._command[0]] + e.todo
+                    return keep_trying(result, resultlist)
 
             return resultlist
 
-        return keep_trying(result, resultlist, 0)
+        return keep_trying(result, resultlist)
 
-    @PiglitBaseTest.command.getter
+    @PiglitBaseTest.command.getter  # pylint: disable=no-member
     def command(self):
         """ Add -auto to the test command """
         return self._command + ['-auto']

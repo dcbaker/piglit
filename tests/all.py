@@ -4,12 +4,13 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import collections
 import itertools
 import os
 import platform
-import collections
+import sys
 
-from six.moves import range
+from six.moves import range, zip_longest
 
 from framework import grouptools
 from framework.profile import TestProfile
@@ -210,6 +211,12 @@ def power_set(s):
         result.append(p + [s[-1]])
     return result
 
+
+def grouper(iterable, n):
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=None)
+
+
 ######
 # Collecting all tests
 profile = TestProfile()  # pylint: disable=invalid-name
@@ -246,8 +253,14 @@ for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
 
 for group in shader_files:
     files = shader_files[group]
-    assert group not in profile.test_list, group
-    profile.test_list[group] = ShaderTest(files)
+    # Don't allow the size to be greater than recursionlimit
+    if len(files) > sys.getrecursionlimit():
+        for i, x in enumerate(grouper(files, sys.getrecursionlimit())):
+            profile.test_list['{}-{}'.format(group, i)] = \
+                ShaderTest([t for t in x if t is not None])
+    else:
+        assert group not in profile.test_list, group
+        profile.test_list[group] = ShaderTest(files)
 
 # Collect and add all asmparsertests
 for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:

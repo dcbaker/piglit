@@ -325,7 +325,6 @@ class TestProfile(object):
         # multiprocessing compatible API
         #
         # The default value of pool is the number of virtual processor cores
-        '''
         single = multiprocessing.dummy.Pool(1)
         multi = multiprocessing.dummy.Pool()
 
@@ -340,9 +339,6 @@ class TestProfile(object):
             # Filter and return the non thread safe tests to the single pool
             run_threads(single, (x for x in six.iteritems(self.test_list)
                                  if not x[1].run_concurrent))
-        '''
-        for case in self.test_list.items():
-            test(case)
 
         log.get().summary()
 
