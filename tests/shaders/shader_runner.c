@@ -1679,7 +1679,7 @@ set_ubo_uniform(char *name, const char *type, const char *line, int ubo_array_in
 	return true;
 }
 
-static void
+static bool
 set_uniform(const char *line, int ubo_array_index)
 {
 	char name[512];
@@ -1701,64 +1701,64 @@ set_uniform(const char *line, int ubo_array_index)
 		GLuint prog;
 
 		if (set_ubo_uniform(name, type, line, ubo_array_index))
-			return;
+			return false;
 
 		glGetIntegerv(GL_CURRENT_PROGRAM, (GLint *) &prog);
 		loc = glGetUniformLocation(prog, name);
 		if (loc < 0) {
 			printf("cannot get location of uniform \"%s\"\n",
 			       name);
-			piglit_report_intermediate_result(PIGLIT_FAIL);
+			return false;
 		}
         }
 
 	if (string_match("float", type)) {
 		get_floats(line, f, 1);
 		glUniform1fv(loc, 1, f);
-		return;
+		return true;
 	} else if (string_match("int", type)) {
 		get_ints(line, ints, 1);
 		glUniform1iv(loc, 1, ints);
-		return;
+		return true;
 	} else if (string_match("uint", type)) {
 		check_unsigned_support();
 		get_uints(line, uints, 1);
 		glUniform1uiv(loc, 1, uints);
-		return;
+		return true;
 	} else if (string_match("double", type)) {
 		check_double_support();
 		get_doubles(line, d, 1);
 		glUniform1dv(loc, 1, d);
-		return;
+		return true;
 	} else if (string_match("vec", type)) {
 		switch (type[3]) {
 		case '2':
 			get_floats(line, f, 2);
 			glUniform2fv(loc, 1, f);
-			return;
+			return true;
 		case '3':
 			get_floats(line, f, 3);
 			glUniform3fv(loc, 1, f);
-			return;
+			return true;
 		case '4':
 			get_floats(line, f, 4);
 			glUniform4fv(loc, 1, f);
-			return;
+			return true;
 		}
 	} else if (string_match("ivec", type)) {
 		switch (type[4]) {
 		case '2':
 			get_ints(line, ints, 2);
 			glUniform2iv(loc, 1, ints);
-			return;
+			return true;
 		case '3':
 			get_ints(line, ints, 3);
 			glUniform3iv(loc, 1, ints);
-			return;
+			return true;
 		case '4':
 			get_ints(line, ints, 4);
 			glUniform4iv(loc, 1, ints);
-			return;
+			return true;
 		}
 	} else if (string_match("uvec", type)) {
 		check_unsigned_support();
@@ -1766,15 +1766,15 @@ set_uniform(const char *line, int ubo_array_index)
 		case '2':
 			get_uints(line, uints, 2);
 			glUniform2uiv(loc, 1, uints);
-			return;
+			return true;
 		case '3':
 			get_uints(line, uints, 3);
 			glUniform3uiv(loc, 1, uints);
-			return;
+			return true;
 		case '4':
 			get_uints(line, uints, 4);
 			glUniform4uiv(loc, 1, uints);
-			return;
+			return true;
 		}
 	} else if (string_match("dvec", type)) {
 		check_double_support();
@@ -1782,15 +1782,15 @@ set_uniform(const char *line, int ubo_array_index)
 		case '2':
 			get_doubles(line, d, 2);
 			glUniform2dv(loc, 1, d);
-			return;
+			return true;
 		case '3':
 			get_doubles(line, d, 3);
 			glUniform3dv(loc, 1, d);
-			return;
+			return true;
 		case '4':
 			get_doubles(line, d, 4);
 			glUniform4dv(loc, 1, d);
-			return;
+			return true;
 		}
 	} else if (string_match("mat", type) && type[3] != '\0') {
 		char cols = type[3];
@@ -1801,45 +1801,45 @@ set_uniform(const char *line, int ubo_array_index)
 			case '2':
 				get_floats(line, f, 4);
 				glUniformMatrix2fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			case '3':
 				get_floats(line, f, 6);
 				glUniformMatrix2x3fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			case '4':
 				get_floats(line, f, 8);
 				glUniformMatrix2x4fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			}
 		case '3':
 			switch (rows) {
 			case '2':
 				get_floats(line, f, 6);
 				glUniformMatrix3x2fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			case '3':
 				get_floats(line, f, 9);
 				glUniformMatrix3fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			case '4':
 				get_floats(line, f, 12);
 				glUniformMatrix3x4fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			}
 		case '4':
 			switch (rows) {
 			case '2':
 				get_floats(line, f, 8);
 				glUniformMatrix4x2fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			case '3':
 				get_floats(line, f, 12);
 				glUniformMatrix4x3fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			case '4':
 				get_floats(line, f, 16);
 				glUniformMatrix4fv(loc, 1, GL_FALSE, f);
-				return;
+				return true;
 			}
 		}
 	} else if (string_match("dmat", type) && type[4] != '\0') {
@@ -1851,54 +1851,52 @@ set_uniform(const char *line, int ubo_array_index)
 			case '2':
 				get_doubles(line, d, 4);
 				glUniformMatrix2dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			case '3':
 				get_doubles(line, d, 6);
 				glUniformMatrix2x3dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			case '4':
 				get_doubles(line, d, 8);
 				glUniformMatrix2x4dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			}
 		case '3':
 			switch (rows) {
 			case '2':
 				get_doubles(line, d, 6);
 				glUniformMatrix3x2dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			case '3':
 				get_doubles(line, d, 9);
 				glUniformMatrix3dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			case '4':
 				get_doubles(line, d, 12);
 				glUniformMatrix3x4dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			}
 		case '4':
 			switch (rows) {
 			case '2':
 				get_doubles(line, d, 8);
 				glUniformMatrix4x2dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			case '3':
 				get_doubles(line, d, 12);
 				glUniformMatrix4x3dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			case '4':
 				get_doubles(line, d, 16);
 				glUniformMatrix4dv(loc, 1, GL_FALSE, d);
-				return;
+				return true;
 			}
 		}
 	}
 
 	strcpy_to_space(name, type);
 	printf("unknown uniform type \"%s\"\n", name);
-	piglit_report_intermediate_result(PIGLIT_FAIL);
-
-	return;
+	return false;
 }
 
 static GLenum lookup_shader_type(GLuint idx)
@@ -3274,7 +3272,7 @@ piglit_display(void)
 			handle_texparameter(line + strlen("texparameter "));
 		} else if (string_match("uniform", line)) {
 			pass &= status_to_bool(program_must_be_in_use());
-			set_uniform(line + 7, ubo_array_index);
+			pass &= set_uniform(line + 7, ubo_array_index);
 		} else if (string_match("subuniform", line)) {
 			pass &= status_to_bool(program_must_be_in_use());
 			check_shader_subroutine_support();
@@ -3289,7 +3287,7 @@ piglit_display(void)
 			link_error_expected = true;
 			if (link_ok) {
 				printf("shader link error expected, but it was successful!\n");
-				piglit_report_intermediate_result(PIGLIT_FAIL);
+				pass = false;
 			} else {
 				fprintf(stderr, "Failed to link:\n%s\n", prog_err_info);
 			}

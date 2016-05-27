@@ -254,8 +254,8 @@ for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
 for group in shader_files:
     files = shader_files[group]
     # Don't allow the size to be greater than recursionlimit
-    if len(files) > sys.getrecursionlimit():
-        for i, x in enumerate(grouper(files, sys.getrecursionlimit())):
+    if len(files) > 500:
+        for i, x in enumerate(grouper(files, 500)):
             profile.test_list['{}-{}'.format(group, i)] = \
                 ShaderTest([t for t in x if t is not None])
     else:

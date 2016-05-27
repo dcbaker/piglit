@@ -395,12 +395,12 @@ class Test_interpret_result(object):
             piglit: error: waffle_context_create failed due to WAFFLE_ERROR_UNKNOWN: glXCreateContextAttribsARB failed
             piglit: error: Failed to create waffle_context for OpenGL 4.2 Compatibility Context
             piglit: info: Failed to create any GL context""")
-        command = "bin/shader_runner foo.shader_test bar.shader_test -auto"
+        command = "bin/shader_runner foo.shader_test bar.shader_test oi.shader_test -auto"
 
         fail = False
         resultlist, todo = self._run(out, command=command)
         fail &= self._assert(resultlist[0], out=out, err=err, result='skip')
-        fail &= self._assert_todo(todo, ['bar.shader_test'])
+        fail &= self._assert_todo(todo, ['bar.shader_test', 'oi.shader_test'])
 
         if fail:
             raise utils.TestFailure
@@ -507,6 +507,34 @@ class Test_interpret_result(object):
                              returncode=0)
         fail &= self._assert(resultlist[1], result='crash', out='', err='',
                              returncode=-5)
+        fail &= self._assert_todo(
+            todo, ["tests/spec/glsl-es-1.00/execution/another.shader_test"])
+
+        if fail:
+            raise utils.TestFailure
+
+    def test_crash_middle_2(self):
+        """test.shader_test.interpret_result: handles crashes before last test (2)
+        """
+        out = textwrap.dedent("""\
+			PIGLIT: ["enumerate shader tests", ["tests/spec/glsl-es-1.00/execution/glsl-no-vertex-attribs.shader_test", "tests/spec/glsl-es-1.00/execution/sanity.shader_test", "tests/spec/glsl-es-1.00/execution/another.shader_test"]]
+			START: tests/spec/glsl-es-1.00/execution/glsl-no-vertex-attribs.shader_test
+			PIGLIT: ["time start", 1464049110]
+			PIGLIT: ["result", "pass"]
+			PIGLIT: ["time end", 1464049110]
+			START: tests/spec/glsl-es-1.00/execution/sanity.shader_test
+			PIGLIT: ["time start", 1464049110]""")
+
+        err = textwrap.dedent("""\
+			START: tests/spec/glsl-es-1.00/execution/glsl-no-vertex-attribs.shader_test
+			START: tests/spec/glsl-es-1.00/execution/sanity.shader_test""")
+        fail = False
+
+        resultlist, todo = self._run(out, err, returncode=5)
+        fail &= self._assert(resultlist[0], result='pass', out='', err='',
+                             returncode=0)
+        fail &= self._assert(resultlist[1], result='crash', out='', err='',
+                             returncode=5)
         fail &= self._assert_todo(
             todo, ["tests/spec/glsl-es-1.00/execution/another.shader_test"])
 

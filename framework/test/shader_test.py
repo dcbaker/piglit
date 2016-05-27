@@ -49,9 +49,10 @@ __all__ = [
 
 def _make_test_name(path):
     if 'generated_tests' in path:
-        return grouptools.from_path(os.path.relpath(path, 'generated_tests'))
+        name = grouptools.from_path(os.path.relpath(path, 'generated_tests'))
     else:
-        return grouptools.from_path(os.path.relpath(path, 'tests'))
+        name = grouptools.from_path(os.path.relpath(path, 'tests'))
+    return os.path.splitext(name)[0].lower()
 
 
 def _is_start(value):
@@ -187,6 +188,15 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
 
         super(ShaderTest, self).__init__([prog] + files, run_concurrent=True)
 
+        # Ensure that -auto and -fbo aren't added on the command line, or
+        # remove them if they are.
+        if self._command[-1] in ['-auto', '-fbo']:
+            del self._command[-1]
+        if self._command[-1] in ['-auto', '-fbo']:
+            del self._command[:-1]
+        elif self._command[-2] in ['-auto', '-fbo']:
+            del self._command[:-2]
+
         # This needs to be run after super or gl_required will be reset
         # TODO: how to handle this for multiple files?
         #self.__find_requirements(lines)
@@ -261,23 +271,20 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
         command, testlist = json.loads(next(out)[7:])
 
         # In the event what we got wasn't 'enumerate shader tests', then
-        # hopefully it's a ['result', 'skip'], which means something went wront
+        # hopefully it's a ['result', 'skip'], which means something went wrong
         # in waffle. Mark the
         if command != 'enumerate shader tests':
-            assert command == 'result' and testlist == 'skip', \
+            assert command == 'result', \
                 'Expected shader test list but got {}'.format(command)
 
-            iresult = results.TestResult(
-                name=_make_test_name(result.command.split()[1]))
+            iresult = results.TestResult(name=_make_test_name(self._command[1]))
             iresult.out = result.out
             iresult.err = result.err
             iresult.returncode = 0
-            resultlist.append(super(ShaderTest, self).interpret_result(iresult))
+            iresult.result = testlist
+            resultlist.append(iresult)
 
-            raise RunInterupted(
-                finished=resultlist,
-                todo=[c for c in result.command.split()[2:]
-                      if c not in ['-auto', '-fbo']])
+            raise RunInterupted(finished=resultlist, todo=self._command[2:])
 
         # While there is still a testlist, read through the output generating a
         # result for each result in the output.
@@ -321,6 +328,9 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
         return [super(ShaderTest, self).interpret_result(r) for r in resultlist]
 
     def run(self, result):
+        expected = len(self._command[1:])
+        assert len(self._command) > 1, 'No files specified!'
+
         resultlist = []
 
         def keep_trying(result, resultlist):
@@ -337,11 +347,22 @@ class ShaderTest(MultiResultMixin, FastSkipMixin, PiglitBaseTest):
                 if e.todo:
                     result = results.TestResult()
                     self._command = [self._command[0]] + e.todo
+                    assert len(self._command) > 1, 'No files specified!'
                     return keep_trying(result, resultlist)
 
             return resultlist
 
-        return keep_trying(result, resultlist)
+        def _run(result, resultlist):
+            keep_trying(result, resultlist)
+
+            if len(resultlist) != expected:
+                command = self._command[1:]
+                self._command = [self._command[0]] + command[len(resultlist):]
+                assert len(self._command) > 1, 'No files specified!'
+                return _run(result, resultlist)
+            return resultlist
+
+        return _run(result, resultlist)
 
     @PiglitBaseTest.command.getter  # pylint: disable=no-member
     def command(self):
