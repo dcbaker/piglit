@@ -398,3 +398,10 @@ class TestTestDictReorder(object):
         order = ['x', 'f', 'e']
         self.list.reorder(order)
         utils.asserts.list_eq(self.list.keys(), order)
+
+    @utils.nose.not_raises(exceptions.PiglitFatalError)
+    def test_reorder_no_error(self):
+        """profile.TestDict.reorder: don't fail when non-existant test is passed and allow_missing=True"""
+        order = ['x', 'f', 'e']
+        self.list.reorder(order, allow_missing=True)
+        utils.asserts.list_eq(self.list.keys(), ['f', 'e'])

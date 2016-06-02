@@ -168,19 +168,20 @@ class TestDict(collections.MutableMapping):
             if not callable_((k, v)):
                 del self[k]
 
-    def reorder(self, order):
+    def reorder(self, order, allow_missing=False):
         """Reorder the TestDict to match the order of the provided list."""
         new = collections.OrderedDict()
-        try:
-            for k in order:
+        for k in order:
+            try:
                 new[k] = self.__container[k]
-        except KeyError:
-            # If there is a name in order that isn't available in self there
-            # will be a KeyError, this is expected. In this case fail
-            # gracefully and report the error to the user.
-            raise exceptions.PiglitFatalError(
-                'Cannot reorder test: "{}", '
-                'it is not in the profile.'.format(k))
+            except KeyError:
+                if not allow_missing:
+                    # If there is a name in order that isn't available in self
+                    # there will be a KeyError, this is expected. In this case
+                    # fail gracefully and report the error to the user.
+                    raise exceptions.PiglitFatalError(
+                        'Cannot reorder test: "{}", '
+                        'it is not in the profile.'.format(k))
         self.__container = new
 
     @contextlib.contextmanager
@@ -353,7 +354,7 @@ class TestProfile(object):
             # match the testlist. This still allows additional filters to be
             # run afterwards.
             self.test_list.filter(lambda i: i[0] in self.forced_test_list)
-            self.test_list.reorder(self.forced_test_list)
+            self.test_list.reorder(self.forced_test_list, allow_missing=True)
 
         # Filter out unwanted tests
         self.test_list.filter(check_all)
