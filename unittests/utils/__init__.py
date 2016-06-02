@@ -1,1 +1,1 @@
-from . import nose, piglit
+from . import nose, piglit, asserts
