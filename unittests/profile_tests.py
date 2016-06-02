@@ -366,3 +366,35 @@ def test_testdict_update_reassignment():
     td2['test1'] = test2
 
     td1.update(td2)
+
+
+class TestTestDictReorder(object):
+    """Tests for TestDict.reorder."""
+    def __init__(self):
+        self.list = profile.TestDict()
+        self.list['a'] = utils.piglit.Test(['foo'])
+        self.list['b'] = utils.piglit.Test(['foo'])
+        self.list['c'] = utils.piglit.Test(['foo'])
+        self.list['d'] = utils.piglit.Test(['foo'])
+        self.list['e'] = utils.piglit.Test(['foo'])
+        self.list['f'] = utils.piglit.Test(['foo'])
+        self.list['g'] = utils.piglit.Test(['foo'])
+
+    def test_reorder_all(self):
+        """profile.TestDict.reorder: reorder when keys match"""
+        order = ['g', 'f', 'e', 'd', 'c', 'b', 'a']
+        self.list.reorder(order)
+        utils.asserts.list_eq(self.list.keys(), order)
+
+    def test_reorder_some(self):
+        """profile.TestDict.reorder: reroder when only some keys are provided"""
+        order = ['g', 'f', 'e']
+        self.list.reorder(order)
+        utils.asserts.list_eq(self.list.keys(), order)
+
+    @nt.raises(exceptions.PiglitFatalError)
+    def test_reorder_error(self):
+        """profile.TestDict.reorder: fail when non-existant test is passed and allow_missing=False"""
+        order = ['x', 'f', 'e']
+        self.list.reorder(order)
+        utils.asserts.list_eq(self.list.keys(), order)
