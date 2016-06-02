@@ -34,8 +34,10 @@ except ImportError:
 import nose.tools as nt
 
 from . import utils
-from framework import grouptools, dmesg, profile, exceptions, options, exceptions
+from framework import grouptools, dmesg, profile, exceptions, options
 from framework.test import GleanTest
+
+# pylint: disable=invalid-name,line-too-long,protected-access
 
 # Don't print sys.stderr to the console
 sys.stderr = sys.stdout
@@ -157,7 +159,7 @@ class TestPrepareTestListMatches(object):
 
     def test_matches_env_exclude(self):
         """profile.TestProfile.prepare_test_list: 'not path in env.exclude_tests'"""
-        self.opts.exclude_tests.add(grouptools.join('group3', 'test5'))
+        self.opts.exclude_tests.add(grouptools.join('group3', 'test5'))  # pylint: disable=no-member
 
         baseline = copy.deepcopy(self.data)
         del baseline[grouptools.join('group3', 'test5')]
