@@ -271,18 +271,11 @@ def run(input_):
             'Cannot overwrite existing folder without the -o/--overwrite '
             'option being set.')
 
-    results = framework.results.TestrunResult()
-
-    # Set results.name
-    if args.name is not None:
-        results.name = args.name
-    else:
-        results.name = path.basename(args.results_path)
-
     backend = backends.get_backend(args.backend)(
         args.results_path,
         junit_suffix=args.junit_suffix)
-    backend.initialize(_create_metadata(args, results.name))
+    backend.initialize(_create_metadata(
+        args, args.name or path.basename(args.results_path)))
 
     profile = framework.profile.merge_test_profiles(args.test_profile)
     profile.results_dir = args.results_path
@@ -292,7 +285,8 @@ def run(input_):
             # Strip newlines
             profile.forced_test_list = list([t.strip() for t in test_list])
 
-    results.time_elapsed.start = time.time()
+    timer = framework.results.TimeAttribute()
+    timer.start = time.time()
     # Set the dmesg type
     if args.dmesg:
         profile.dmesg = args.dmesg
@@ -302,8 +296,8 @@ def run(input_):
 
     profile.run(args.log_level, backend)
 
-    results.time_elapsed.end = time.time()
-    backend.finalize({'time_elapsed': results.time_elapsed})
+    timer.end = time.time()
+    backend.finalize({'time_elapsed': timer})
 
     print('Thank you for running Piglit!\n'
           'Results have been written to ' + args.results_path)
