@@ -27,5 +27,5 @@ import collections
 
 Registry = collections.namedtuple(
     'Registry',
-    ['extensions', 'backend', 'load', 'meta']
+    ['extensions', 'backend', 'load']
 )

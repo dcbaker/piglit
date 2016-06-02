@@ -55,7 +55,6 @@ def _notimplemented_setup():
         extensions=['.test_backend'],
         backend=None,
         load=None,
-        meta=None,
     )
 
 
@@ -118,7 +117,6 @@ def test_load():
         extensions=['.test_extension'],
         backend=None,
         load=lambda x, y: [x],  # y is for a compression value
-        meta=None,
     )
 
     file_path = 'foo.test_extension'
@@ -150,7 +148,6 @@ def test_load_resume():
         extensions=['.test_backend'],
         backend=None,
         load=lambda x, y: x,
-        meta=None,
     )
     os.mkdir('tests')
     name = os.path.join('tests', '0.test_backend')
@@ -171,35 +168,6 @@ def test_load_notimplemented():
         f.write('foo')
 
     backends.load(file_path)
-
-
-def test_set_meta():
-    """backends.set_meta(): Works as expected."""
-    backends.BACKENDS['test_backend'] = backends.register.Registry(
-        extensions=None,
-        backend=None,
-        load=None,
-        meta=lambda x: x.append('bar'),
-    )
-
-    test = ['foo']
-
-    backends.set_meta('test_backend', test)
-    nt.assert_list_equal(test, ['foo', 'bar'])
-
-
-@nt.raises(backends.BackendError)
-def test_set_meta_no_backened():
-    """backends.set_meta: raises an error if there is no meta function."""
-    backends.set_meta('foo', {})
-
-
-@nt.raises(backends.BackendNotImplementedError)
-@nt.with_setup(_notimplemented_setup, _registry_teardown)
-def test_set_meta_notimplemented():
-    """backends.load(): An error is raised if a set_meta isn't properly implmented.
-    """
-    backends.set_meta('test_backend', {})
 
 
 @nt.with_setup(_notimplemented_setup, _registry_teardown)

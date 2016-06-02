@@ -176,22 +176,3 @@ def load(file_path):
 
     raise BackendError(
         'No module supports file extensions "{}"'.format(extension))
-
-
-def set_meta(backend, result):
-    """Wrapper around meta that gets the right meta function."""
-    try:
-        BACKENDS[backend].meta(result)
-    except KeyError:
-        raise BackendError('No backend {}'.format(backend))
-    except TypeError as e:
-        # Since we initialize non-implemented backends as None, and None isn't
-        # callable then we'll get a TypeError, and we're looking for NoneType
-        # in the message. If we get that we really want a
-        # BackendNotImplementedError
-        if str(e) == "'NoneType' object is not callable":
-            raise BackendNotImplementedError(
-                'meta function for {} not implemented.'.format(backend))
-        else:
-            # Otherwise re-raise the error
-            raise

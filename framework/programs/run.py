@@ -272,7 +272,6 @@ def run(input_):
             'option being set.')
 
     results = framework.results.TestrunResult()
-    backends.set_meta(args.backend, results)
 
     # Set results.name
     if args.name is not None:

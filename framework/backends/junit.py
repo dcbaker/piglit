@@ -323,5 +323,4 @@ REGISTRY = Registry(
     extensions=['.xml'],
     backend=JUnitBackend,
     load=load,
-    meta=lambda x: x,  # The venerable no-op function
 )
