@@ -109,7 +109,7 @@ def test_testprofile_update_test_list():
     profile2.test_list[group1] = utils.piglit.Test(['test3'])
     profile2.test_list[group2] = utils.piglit.Test(['test2'])
 
-    with profile1.allow_reassignment:
+    with profile1.test_list.allow_reassignment:
         profile1.update(profile2)
 
     nt.assert_dict_equal(dict(profile1.test_list), dict(profile2.test_list))
@@ -195,77 +195,77 @@ class TestPrepareTestListMatches(object):
 
 
 @utils.nose.no_error
-def test_testprofile_group_manager_no_name_args_eq_one():
-    """profile.TestProfile.group_manager: no name and len(args) == 1 is valid"""
-    prof = profile.TestProfile()
+def test_testdict_group_manager_no_name_args_eq_one():
+    """profile.TestDict.group_manager: no name and len(args) == 1 is valid"""
+    prof = profile.TestDict()
     with prof.group_manager(utils.piglit.Test, 'foo') as g:
         g(['a'])
 
 
-def test_testprofile_group_manager_no_name_args_gt_one():
-    """profile.TestProfile.group_manager: no name and len(args) > 1 is valid"""
-    prof = profile.TestProfile()
+def test_testprofile_testdict_manager_no_name_args_gt_one():
+    """profile.TestDict.group_manager: no name and len(args) > 1 is valid"""
+    prof = profile.TestDict()
     with prof.group_manager(utils.piglit.Test, 'foo') as g:
         g(['a', 'b'])
 
-    nt.assert_in(grouptools.join('foo', 'a b'), prof.test_list)
+    nt.assert_in(grouptools.join('foo', 'a b'), prof)
 
 
 @utils.nose.no_error
-def test_testprofile_group_manager_name():
-    """profile.TestProfile.group_manager: name plus len(args) > 1 is valid"""
-    prof = profile.TestProfile()
+def test_testdict_group_manager_name():
+    """profile.TestDict.group_manager: name plus len(args) > 1 is valid"""
+    prof = profile.TestDict()
     with prof.group_manager(utils.piglit.Test, 'foo') as g:
         g(['a', 'b'], 'a')
 
 
-def test_testprofile_group_manager_is_added():
-    """profile.TestProfile.group_manager: Tests are added to the profile"""
-    prof = profile.TestProfile()
+def test_testdict_group_manager_is_added():
+    """profile.TestDict.group_manager: Tests are added to the profile"""
+    prof = profile.TestDict()
     with prof.group_manager(utils.piglit.Test, 'foo') as g:
         g(['a', 'b'], 'a')
 
-    nt.assert_in(grouptools.join('foo', 'a'), prof.test_list)
+    nt.assert_in(grouptools.join('foo', 'a'), prof)
 
 
-def test_testprofile_groupmanager_kwargs():
-    """profile.TestProfile.group_manager: Extra kwargs are passed to the Test"""
-    prof = profile.TestProfile()
+def test_testdict_groupmanager_kwargs():
+    """profile.TestDict.group_manager: Extra kwargs are passed to the Test"""
+    prof = profile.TestDict()
     with prof.group_manager(utils.piglit.Test, 'foo') as g:
         g(['a'], run_concurrent=True)
 
-    test = prof.test_list[grouptools.join('foo', 'a')]
+    test = prof[grouptools.join('foo', 'a')]
     nt.assert_equal(test.run_concurrent, True)
 
 
-def test_testprofile_groupmanager_default_args():
-    """profile.TestProfile.group_manager: group_manater kwargs are passed to the Test"""
-    prof = profile.TestProfile()
+def test_testdict_groupmanager_default_args():
+    """profile.TestDict.group_manager: group_manater kwargs are passed to the Test"""
+    prof = profile.TestDict()
     with prof.group_manager(utils.piglit.Test, 'foo', run_concurrent=True) as g:
         g(['a'])
 
-    test = prof.test_list[grouptools.join('foo', 'a')]
+    test = prof[grouptools.join('foo', 'a')]
     nt.assert_equal(test.run_concurrent, True)
 
 
-def test_testprofile_groupmanager_kwargs_overwrite():
-    """profile.TestProfile.group_manager: default_args are overwritten by kwargs"""
-    prof = profile.TestProfile()
+def test_testdict_groupmanager_kwargs_overwrite():
+    """profile.TestDict.group_manager: default_args are overwritten by kwargs"""
+    prof = profile.TestDict()
     with prof.group_manager(utils.piglit.Test, 'foo', run_concurrent=True) as g:
         g(['a'], run_concurrent=False)
 
-    test = prof.test_list[grouptools.join('foo', 'a')]
+    test = prof[grouptools.join('foo', 'a')]
     nt.assert_equal(test.run_concurrent, False)
 
 
-def test_testprofile_groupmanager_name_str():
-    """profile.TestProfile.group_manager: if args is a string it is not joined"""
-    prof = profile.TestProfile()
+def test_testdict_groupmanager_name_str():
+    """profile.TestDict.group_manager: if args is a string it is not joined"""
+    prof = profile.TestDict()
     # Yes, this is really about supporting gleantest anyway.
     with prof.group_manager(GleanTest, 'foo') as g:
         g('abc')
 
-    nt.ok_(grouptools.join('foo', 'abc') in prof.test_list)
+    nt.ok_(grouptools.join('foo', 'abc') in prof)
 
 
 @nt.raises(exceptions.PiglitFatalError)
@@ -322,29 +322,19 @@ def test_testdict_allow_reassignment():
     nt.ok_(test['a'].command == ['bar'])
 
 
-def test_testprofile_allow_reassignment():
-    """profile.TestProfile: allow_reassignment wrapper works"""
-    prof = profile.TestProfile()
-    prof.test_list['a'] = utils.piglit.Test(['foo'])
-    with prof.allow_reassignment:
-        prof.test_list['a'] = utils.piglit.Test(['bar'])
-
-    nt.ok_(prof.test_list['a'].command == ['bar'])
-
-
-def test_testprofile_allow_reassignment_with_groupmanager():
-    """profile.TestProfile: allow_reassignment wrapper works with groupmanager"""
+def test_testdict_allow_reassignment_with_groupmanager():
+    """profile.TestDict: allow_reassignment wrapper works with groupmanager"""
     testname = grouptools.join('a', 'b')
-    prof = profile.TestProfile()
-    prof.test_list[testname] = utils.piglit.Test(['foo'])
+    prof = profile.TestDict()
+    prof[testname] = utils.piglit.Test(['foo'])
     with prof.allow_reassignment:
         with prof.group_manager(utils.piglit.Test, 'a') as g:
             g(['bar'], 'b')
 
-    nt.ok_(prof.test_list[testname].command == ['bar'])
+    nt.ok_(prof[testname].command == ['bar'])
 
 
-def test_testprofile_allow_reassignemnt_stacked():
+def test_testdict_allow_reassignemnt_stacked():
     """profile.profile.TestDict.allow_reassignment: check stacking cornercase
 
     There is an odd corner case in the original (obvious) implementation of this
