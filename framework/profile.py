@@ -153,7 +153,7 @@ class TestDict(collections.MutableMapping):
         yield
         self.__allow_reassignment -= 1
 
-    def filter(self, callable):
+    def filter(self, callable_):
         """Filter tests out of the testdict before running.
 
         This method destructively filters results out of the test test
@@ -165,7 +165,7 @@ class TestDict(collections.MutableMapping):
 
         """
         for k, v in list(six.iteritems(self)):
-            if not callable((k, v)):
+            if not callable_((k, v)):
                 del self[k]
 
     def reorder(self, order):
@@ -179,7 +179,8 @@ class TestDict(collections.MutableMapping):
             # will be a KeyError, this is expected. In this case fail
             # gracefully and report the error to the user.
             raise exceptions.PiglitFatalError(
-                'Cannot reorder test: "{}", it is not in the profile.'.format(k))
+                'Cannot reorder test: "{}", '
+                'it is not in the profile.'.format(k))
         self.__container = new
 
 
@@ -256,12 +257,13 @@ class TestProfile(object):
             return any(r.search(x) for r in re_list)
 
         # The extra argument is needed to match check_all's API
-        def test_matches(path, test):
+        def test_matches(path, test):  # pylint: disable=unused-argument
             """Filter for user-specified restrictions"""
             return ((not options.OPTIONS.include_filter or
                      matches_any_regexp(path, options.OPTIONS.include_filter))
                     and path not in options.OPTIONS.exclude_tests
-                    and not matches_any_regexp(path, options.OPTIONS.exclude_filter))
+                    and not matches_any_regexp(
+                        path, options.OPTIONS.exclude_filter))
 
         filters = self.filters + [test_matches]
 
