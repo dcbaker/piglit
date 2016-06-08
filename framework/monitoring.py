@@ -53,6 +53,16 @@ __all__ = [
 ]
 
 
+class MonitorRuleBroken(exceptions.PiglitInternalError):
+    """Raised when a monitoring rule fails."""
+    def __init__(self, rule, error):
+        super(MonitorRuleBroken, self).__init__(self)
+        self.__rule = rule
+        self.__error = error
+
+    def __str__(self):
+        return 'From rule "{}":\n"{}"'.format(self.__rule, self.__error)
+
 
 class Monitoring(object):
     """Class that initialize and update monitoring classes
@@ -67,7 +77,6 @@ class Monitoring(object):
     # starting piglit: we can resume test execution based on last stopping
     # if we consider that our system is still in good shape (ie not blocking
     # run forever)
-    _abort_error = None
     _monitoring_rules = None
 
     def __init__(self, monitoring_enabled):
@@ -83,16 +92,6 @@ class Monitoring(object):
                     parameters = PIGLIT_CONFIG.required_get(key, 'parameters')
 
                     self.add_rule(key, type, parameters, regex)
-
-    @property
-    def abort_needed(self):
-        """Simply return if _abort_error variable is not empty"""
-        return self._abort_error is not None
-
-    @property
-    def error_message(self):
-        """Simply return _abort_error message"""
-        return self._abort_error
 
     def add_rule(self, key, type, parameters, regex):
         """Add a new monitoring rule
@@ -155,13 +154,10 @@ class Monitoring(object):
             for rule_key, monitoring_rule in six.iteritems(
                     self._monitoring_rules):
                 # Get error message
-                self._abort_error = monitoring_rule.check_monitoring()
+                error = monitoring_rule.check_monitoring()
                 # if error message is not empty, abort is requested
-                if self.abort_needed:
-                    self._abort_error = "From the rule {}:\n{}".format(
-                        rule_key,
-                        self._abort_error)
-                    break
+                if error:
+                    raise MonitorRuleBroken(rule_key, error)
 
 
 @six.add_metaclass(abc.ABCMeta)

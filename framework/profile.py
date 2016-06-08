@@ -39,10 +39,9 @@ import os
 
 import six
 
-from framework import grouptools, exceptions, options
+from framework import grouptools, exceptions, options, monitoring
 from framework.dmesg import get_dmesg
 from framework.log import LogManager
-from framework.monitoring import Monitoring
 from framework.test.base import Test
 
 __all__ = [
@@ -317,7 +316,7 @@ class TestProfile(object):
                      defined rules
 
         """
-        self._monitoring = Monitoring(monitored)
+        self._monitoring = monitoring.Monitoring(monitored)
 
     def _prepare_test_list(self):
         """ Prepare tests for running
@@ -399,23 +398,30 @@ class TestProfile(object):
 
         self._pre_run_hook()
 
-        chunksize = 1
-
         self._prepare_test_list()
         log = LogManager(logger, len(self.test_list))
 
-        def test(pair, this_pool=None):
+        def test(pair):
             """Function to call test.execute from map"""
             name, test = pair
+            error = None
             with backend.write_test(name) as w:
-                test.execute(name, log.get(), self.dmesg, self.monitoring)
+                try:
+                    test.execute(name, log.get(), self.dmesg, self.monitoring)
+                except monitoring.MonitorRuleBroken as e:
+                    error = e
+
                 w(test.result)
-            if self._monitoring.abort_needed:
-                this_pool.terminate()
+
+                if error is not None:
+                    raise error
 
         def run_threads(pool, testlist):
             """ Open a pool, close it, and join it """
-            pool.imap(lambda pair: test(pair, pool), testlist, chunksize)
+            for o in pool.imap(test, testlist, 10):
+                if isinstance(o, Exception):
+                    pool.terminate()
+                    raise o
             pool.close()
             pool.join()
 
@@ -426,24 +432,24 @@ class TestProfile(object):
         single = multiprocessing.dummy.Pool(1)
         multi = multiprocessing.dummy.Pool()
 
-        if options.OPTIONS.concurrent == "all":
-            run_threads(multi, six.iteritems(self.test_list))
-        elif options.OPTIONS.concurrent == "none":
-            run_threads(single, six.iteritems(self.test_list))
-        else:
-            # Filter and return only thread safe tests to the threaded pool
-            run_threads(multi, (x for x in six.iteritems(self.test_list)
-                                if x[1].run_concurrent))
-            # Filter and return the non thread safe tests to the single pool
-            run_threads(single, (x for x in six.iteritems(self.test_list)
-                                 if not x[1].run_concurrent))
+        try:
+            if options.OPTIONS.concurrent == "all":
+                run_threads(multi, six.iteritems(self.test_list))
+            elif options.OPTIONS.concurrent == "none":
+                run_threads(single, six.iteritems(self.test_list))
+            else:
+                # Filter and return only thread safe tests to the threaded pool
+                run_threads(multi, (x for x in six.iteritems(self.test_list)
+                                    if x[1].run_concurrent))
+                # Filter and return the non thread safe tests to the single
+                # pool
+                run_threads(single, (x for x in six.iteritems(self.test_list)
+                                     if not x[1].run_concurrent))
+        except monitoring.MonitorRuleBroken as e:
+            raise exceptions.PiglitAbort(str(e))
 
         log.get().summary()
-
         self._post_run_hook()
-
-        if self._monitoring.abort_needed:
-            raise exceptions.PiglitAbort(self._monitoring.error_message)
 
     def filter_tests(self, function):
         """Filter out tests that return false from the supplied function

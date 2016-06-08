@@ -56,6 +56,7 @@ class TestMonitoring(object):
         self.monitoring = monitoring.Monitoring(False)
 
     @utils.nose.Skip.platform('linux')
+    @utils.nose.not_raises(monitoring.MonitorRuleBroken)
     def test_Monitoring_delete_rule(self):
         """monitoring.Monitoring: add and delete rule."""
 
@@ -71,8 +72,6 @@ class TestMonitoring(object):
                 fp.write(self.error_contents)
                 self.monitoring.check_monitoring()
 
-        nt.assert_equal(self.monitoring.abort_needed, False)
-
     @nt.raises(exceptions.PiglitFatalError)
     def test_Monitoring_add_rule_bad_format(self):
         """monitoring.Monitoring: add non existing type rule."""
@@ -84,6 +83,7 @@ class TestMonitoring(object):
                                      self.regex)
 
     @utils.nose.Skip.platform('linux')
+    @nt.raises(monitoring.MonitorRuleBroken)
     def test_Monitoring_file_error(self):
         """monitoring.Monitoring: error found on a file."""
 
@@ -98,9 +98,8 @@ class TestMonitoring(object):
                 fp.write(self.error_contents)
             self.monitoring.check_monitoring()
 
-        nt.assert_equal(self.monitoring.abort_needed, True)
-
     @utils.nose.Skip.platform('linux')
+    @utils.nose.not_raises(monitoring.MonitorRuleBroken)
     def test_Monitoring_file_no_error(self):
         """monitoring.Monitoring: no error found on a file."""
 
@@ -115,9 +114,8 @@ class TestMonitoring(object):
                 fp.write(self.no_error_contents)
             self.monitoring.check_monitoring()
 
-        nt.assert_equal(self.monitoring.abort_needed, False)
-
     @utils.nose.Skip.platform('linux')
+    @nt.raises(monitoring.MonitorRuleBroken)
     def test_Monitoring_locked_file_error(self):
         """monitoring.Monitoring: error found on a locked file."""
 
@@ -132,9 +130,8 @@ class TestMonitoring(object):
                 fp.write(self.error_contents)
             self.monitoring.check_monitoring()
 
-        nt.assert_equal(self.monitoring.abort_needed, True)
-
     @utils.nose.Skip.platform('linux')
+    @utils.nose.not_raises(monitoring.MonitorRuleBroken)
     def test_Monitoring_locked_file_no_error(self):
         """monitoring.Monitoring: no error found on a locked file."""
 
@@ -149,9 +146,8 @@ class TestMonitoring(object):
                 fp.write(self.no_error_contents)
             self.monitoring.check_monitoring()
 
-        nt.assert_equal(self.monitoring.abort_needed, False)
-
     @utils.nose.Skip.platform('linux')
+    @nt.raises(monitoring.MonitorRuleBroken)
     def test_Monitoring_dmesg_error(self):
         """monitoring.Monitoring: error found on the dmesg."""
         mock_out = mock.Mock(return_value=b'[1.0]This\n[2.0]is\n[3.0]dmesg')
@@ -166,9 +162,8 @@ class TestMonitoring(object):
         with mock.patch('framework.dmesg.subprocess.check_output', mock_out):
             self.monitoring.check_monitoring()
 
-        nt.assert_equal(self.monitoring.abort_needed, True)
-
     @utils.nose.Skip.platform('linux')
+    @utils.nose.not_raises(monitoring.MonitorRuleBroken)
     def test_Monitoring_dmesg_no_error(self):
         """monitoring.Monitoring: no error found on the dmesg."""
         mock_out = mock.Mock(return_value=b'[1.0]This\n[2.0]is\n[3.0]dmesg')
@@ -182,5 +177,3 @@ class TestMonitoring(object):
         mock_out.return_value = b'[4.0]foo\n[5.0] bar'
         with mock.patch('framework.dmesg.subprocess.check_output', mock_out):
             self.monitoring.check_monitoring()
-
-        nt.assert_equal(self.monitoring.abort_needed, False)

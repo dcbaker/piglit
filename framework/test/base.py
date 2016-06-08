@@ -213,11 +213,11 @@ class Test(object):
             # using it to log exceptions
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                traceback.print_exc(file=sys.stderr)
                 self.result.result = 'fail'
                 self.result.exception = "{}{}".format(exc_type, exc_value)
                 self.result.traceback = "".join(
                     traceback.format_tb(exc_traceback))
+                raise
 
             log.log(self.result.result)
         else:
