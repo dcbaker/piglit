@@ -267,18 +267,22 @@ def run(input_):
             'option being set.')
     options.OPTIONS.result_dir = args.results_path
 
-    profile = framework.profile.merge_test_profiles(args.test_profile)
+    testrun = framework.profile.Collection(args.test_profile)
+
     # If a test list is provided then set the forced_test_list value.
     if args.test_list:
         with open(args.test_list) as test_list:
             # Strip newlines
-            profile.forced_test_list = list([t.strip() for t in test_list])
+            forced_list = list([t.strip() for t in test_list])
+        for p in testrun.profiles:
+            p.forced_test_list = forced_list
 
-    profile.options['dmesg'] = args.dmesg
-    profile.options['monitor'] = args.monitored
-    profile.options['concurrency'] = args.concurrency
-    profile.options['exclude_filter'] = core.FilterReList(args.exclude_tests)
-    profile.options['include_filter'] = core.FilterReList(args.include_tests)
+    for p in testrun.profiles:
+        p.options['dmesg'] = args.dmesg
+        p.options['monitor'] = args.monitored
+        p.options['concurrency'] = args.concurrency
+        p.options['exclude_filter'] = core.FilterReList(args.exclude_tests)
+        p.options['include_filter'] = core.FilterReList(args.include_tests)
 
     backend = backends.get_backend(args.backend)(
         args.results_path,
@@ -286,13 +290,12 @@ def run(input_):
     backend.initialize(_create_metadata(
         args,
         args.name or path.basename(args.results_path),
-        profile.options))
+        p.options))
 
     timer = framework.results.TimeAttribute()
     timer.start = time.time()
 
-    profile.run(args.log_level, backend)
-
+    testrun.run(args.log_level, backend)
     timer.end = time.time()
     backend.finalize({'time_elapsed': timer})
 
@@ -343,20 +346,20 @@ def resume(input_):
         if args.no_retry or result.result != 'incomplete':
             options.OPTIONS.exclude_tests.add(name)
 
-    profile = framework.profile.merge_test_profiles(
-        six.iterkeys(results.profiles))
-    profile.results_dir = args.results_path
+
+    testrun = framework.profile.Collection(results.options['profile'])
+    options.OPTIONS.result_dir = args.results_path
     # yes this is a bit of a hack, but it's going away in a subsequient patch
     for p in six.itervalues(results.profiles):
-        profile.options['dmesg'] = p['dmesg']
-        profile.options['monitor'] = p['monitor']
-        profile.options['concurrency'] = p['concurrency']
-        profile.options['exclude_filter'] = core.FilterReList(p['exclude_filter'])
-        profile.options['include_filter'] = core.FilterReList(p['include_filter'])
+        p.options['dmesg'] = p['dmesg']
+        p.options['monitor'] = p['monitor']
+        p.options['concurrency'] = p['concurrency']
+        p.options['exclude_filter'] = core.FilterReList(p['exclude_filter'])
+        p.options['include_filter'] = core.FilterReList(p['include_filter'])
         break
 
     # This is resumed, don't bother with time since it won't be accurate anyway
-    profile.run(results.options['log_level'], backend)
+    testrun.run(results.options['log_level'], backend)
 
     backend.finalize()
 

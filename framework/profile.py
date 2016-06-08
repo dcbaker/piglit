@@ -38,6 +38,7 @@ import multiprocessing.dummy
 import os
 
 import six
+from six.moves import filter  # pylint: disable=redefined-builtin
 
 from framework import grouptools, exceptions, options, monitoring, dmesg
 from framework import core
@@ -45,10 +46,85 @@ from framework.log import LogManager
 from framework.test.base import Test
 
 __all__ = [
+    'Collection',
     'TestProfile',
     'load_test_profile',
-    'merge_test_profiles'
 ]
+
+
+class Collection(object):
+    def __init__(self, profiles):
+        self.profiles = [load_test_profile(p) for p in profiles]
+
+    def run(self, logger, backend):
+        """Run all tests in all profiles."""
+
+        def test(args):
+            """Function to call test.execute from map"""
+            name, test = args
+            error = None
+            with backend.write_test(name) as w:
+                try:
+                    test.execute(name, log.get(), _dmesg, _monitor)
+                except monitoring.MonitorRuleBroken as e:
+                    error = e
+
+                w(test.result)
+
+                if error is not None:
+                    raise error  # pylint: disable=raising-bad-type
+
+        def run_threads(pool, iterable):
+            """ Open a pool, close it, and join it """
+            for o in pool.imap(test, iterable, 10):
+                if isinstance(o, Exception):
+                    pool.terminate()
+                    raise o
+            pool.close()
+            pool.join()
+
+        # Filter all of the profiles before running
+        for p in self.profiles:
+            p.filter()
+
+        num_tests = sum(len(p.test_list) for p in self.profiles)
+
+        if num_tests <= 0:
+            raise exceptions.PiglitFatalError(
+                'There are no tests scheduled to run, aborting.')
+
+        log = LogManager(logger, num_tests)
+
+        # Multiprocessing.dummy is a wrapper around Threading that provides a
+        # multiprocessing compatible API
+        #
+        # The default value of pool is the number of virtual processor cores
+        single = multiprocessing.dummy.Pool(1)
+        multi = multiprocessing.dummy.Pool()
+
+        for profile in self.profiles:
+            _dmesg = dmesg.get_dmesg(profile.options['dmesg'])
+            _monitor = monitoring.Monitoring(profile.options['monitor'])
+            try:
+                if profile.options['concurrency'] == "all":
+                    run_threads(multi, six.iteritems(profile.test_list))
+                elif profile.options['concurrency'] == "none":
+                    run_threads(single, six.iteritems(profile.test_list))
+                else:
+                    # Filter and return only thread safe tests to the threaded
+                    # pool
+                    run_threads(
+                        multi, filter(lambda u: u[1].run_concurrent,
+                                      six.iteritems(profile.test_list)))
+                    # Filter and return the non thread safe tests to the single
+                    # pool
+                    run_threads(
+                        single, filter(lambda u: not u[1].run_concurrent,
+                                       six.iteritems(profile.test_list)))
+            except monitoring.MonitorRuleBroken as e:
+                raise exceptions.PiglitAbort(str(e))
+
+        log.get().summary()
 
 
 class TestDict(collections.MutableMapping):
@@ -279,7 +355,6 @@ class TestProfile(object):
         self.test_list = TestDict()
         self.forced_test_list = []
         self.filters = []
-        # Sets a default of a Dummy
         self.results_dir = None
 
         # It would be nice to use an enum for concurrent instead of a string
@@ -291,12 +366,12 @@ class TestProfile(object):
             'exclude_filter': core.ReList,
         }
 
-    def _prepare_test_list(self):
-        """ Prepare tests for running
+    def filter(self):
+        """Filter test list based on input
 
-        Flattens the nested group hierarchy into a flat dictionary using '/'
-        delimited groups by calling self.flatten_group_hierarchy(), then
-        runs it's own filters plus the filters in the self.filters name
+        Create a complex filter using a mixture of the include/exclude filters
+        from the import command line and any filters that the profile itself
+        imposes, then pass that filter to self.test_list.filter
 
         """
         def matches_any_regexp(x, re_list):
@@ -331,10 +406,6 @@ class TestProfile(object):
         # Filter out unwanted tests
         self.test_list.filter(check_all)
 
-        if not self.test_list:
-            raise exceptions.PiglitFatalError(
-                'There are no tests scheduled to run. Aborting run.')
-
     def _pre_run_hook(self):
         """ Hook executed at the start of TestProfile.run
 
@@ -350,81 +421,6 @@ class TestProfile(object):
         set this to do something, as be default it will no-op
         """
         pass
-
-    def run(self, logger, backend):
-        """ Runs all tests using Thread pool
-
-        When called this method will flatten out self.tests into
-        self.test_list, then will prepare a logger, and begin executing tests
-        through it's Thread pools.
-
-        Based on the value of options.OPTIONS.concurrent it will either run all
-        the tests concurrently, all serially, or first the thread safe tests
-        then the serial tests.
-
-        Finally it will print a final summary of the tests
-
-        Arguments:
-        backend -- a results.Backend derived instance
-
-        """
-
-        self._pre_run_hook()
-
-        self._prepare_test_list()
-        log = LogManager(logger, len(self.test_list))
-        dmesg_ = dmesg.get_dmesg(self.options['dmesg'])
-        monitor = monitoring.Monitoring(self.options['monitor'])
-
-        def test(pair):
-            """Function to call test.execute from map"""
-            name, test = pair
-            error = None
-            with backend.write_test(name) as w:
-                try:
-                    test.execute(name, log.get(), dmesg_, monitor)
-                except monitoring.MonitorRuleBroken as e:
-                    error = e
-
-                w(test.result)
-
-                if error is not None:
-                    raise error  # pylint: disable=raising-bad-type
-
-        def run_threads(pool, testlist):
-            """ Open a pool, close it, and join it """
-            for o in pool.imap(test, testlist, 10):
-                if isinstance(o, Exception):
-                    pool.terminate()
-                    raise o
-            pool.close()
-            pool.join()
-
-        # Multiprocessing.dummy is a wrapper around Threading that provides a
-        # multiprocessing compatible API
-        #
-        # The default value of pool is the number of virtual processor cores
-        single = multiprocessing.dummy.Pool(1)
-        multi = multiprocessing.dummy.Pool()
-
-        try:
-            if self.options['concurrency'] == "all":
-                run_threads(multi, six.iteritems(self.test_list))
-            elif self.options['concurrency'] == "none":
-                run_threads(single, six.iteritems(self.test_list))
-            else:
-                # Filter and return only thread safe tests to the threaded pool
-                run_threads(multi, (x for x in six.iteritems(self.test_list)
-                                    if x[1].run_concurrent))
-                # Filter and return the non thread safe tests to the single
-                # pool
-                run_threads(single, (x for x in six.iteritems(self.test_list)
-                                     if not x[1].run_concurrent))
-        except monitoring.MonitorRuleBroken as e:
-            raise exceptions.PiglitAbort(str(e))
-
-        log.get().summary()
-        self._post_run_hook()
 
     def filter_tests(self, function):
         """Filter out tests that return false from the supplied function
@@ -482,30 +478,3 @@ def load_test_profile(filename):
         raise exceptions.PiglitFatalError(
             'There is no test profile called "{}".\n'
             'Check your spelling?'.format(filename))
-
-
-def merge_test_profiles(profiles):
-    """ Helper for loading and merging TestProfile instances
-
-    Takes paths to test profiles as arguments and returns a single merged
-    TestProfile instance.
-
-    Arguments:
-    profiles -- a list of one or more paths to profile files.
-
-    """
-    # What I'd really like is functools.staticdispatch, but that's not really
-    # an option without adding a mess of dependencies. So instead assume that
-    # an Iterator is passed, if that's not true a TypeError will be raised,
-    # then assume that a sequence has been passed, and treat profiles like
-    # that.
-    try:
-        profile = load_test_profile(next(profiles))
-    except TypeError:
-        profile = load_test_profile(profiles[0])
-        profiles = profiles[1:]
-
-    with profile.test_list.allow_reassignment:
-        for p in profiles:
-            profile.update(load_test_profile(p))
-    return profile

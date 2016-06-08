@@ -40,7 +40,7 @@ import os
 import re
 import subprocess
 
-from framework import grouptools, exceptions, core, options
+from framework import grouptools, exceptions, core, options, dmesg
 from framework.profile import TestProfile, Test
 
 __all__ = ['profile']
@@ -175,7 +175,7 @@ def populate_profile():
 
 
 populate_profile()
-profile.dmesg = True
+profile.options['dmesg'] = dmesg.get_dmesg()
 
 # the dmesg property of TestProfile returns a Dmesg object
-profile.dmesg.regex = re.compile(r"(\[drm:|drm_|intel_|i915_)")
+profile.options['dmesg'].regex = re.compile(r"(\[drm:|drm_|intel_|i915_)")
