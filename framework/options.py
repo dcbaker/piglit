@@ -62,6 +62,7 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
         self.valgrind = False
         self.sync = False
         self.exclude_tests = set()
+        self.result_dir = None
 
         # env is used to set some base environment variables that are not going
         # to change across runs, without sending them to os.environ which is

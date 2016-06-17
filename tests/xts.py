@@ -32,6 +32,7 @@ import subprocess
 import itertools
 
 from framework import grouptools, exceptions, core
+from framework.options import OPTIONS
 from framework.profile import TestProfile, Test
 
 __all__ = ['profile']
@@ -48,10 +49,8 @@ class XTSProfile(TestProfile):  # pylint: disable=too-few-public-methods
         results directory
 
         """
-        XTSTest.RESULTS_PATH = self.results_dir
-
         try:
-            os.mkdir(os.path.join(self.results_dir, 'images'))
+            os.mkdir(os.path.join(OPTIONS.result_dir, 'images'))
         except OSError as e:
             # If the exception is not 'directory already exists', raise the
             # exception
@@ -70,8 +69,6 @@ class XTSTest(Test):  # pylint: disable=too-few-public-methods
     testnum -- the number of the test file
 
     """
-    RESULTS_PATH = None
-
     def __init__(self, name, testname, testnum):
         super(XTSTest, self).__init__(
             ['./' + os.path.basename(name), '-i', str(testnum)])
@@ -118,10 +115,10 @@ class XTSTest(Test):  # pylint: disable=too-few-public-methods
                 # subtest with an error would overwrite the previous test's
                 # images).
                 ref_path = os.path.join(
-                    self.RESULTS_PATH, 'images', '{1}-{2}-ref.png'.format(
+                    OPTIONS.result_dir, 'images', '{1}-{2}-ref.png'.format(
                         self.testname, match.group(1)))
                 render_path = os.path.join(
-                    self.RESULTS_PATH, 'images', '{1}-{2}-render.png'.format(
+                    OPTIONS.result_dir, 'images', '{1}-{2}-render.png'.format(
                         self.testname, match.group(1)))
 
                 split = out.splitlines()

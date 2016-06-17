@@ -265,9 +265,9 @@ def run(input_):
         raise exceptions.PiglitFatalError(
             'Cannot overwrite existing folder without the -o/--overwrite '
             'option being set.')
+    options.OPTIONS.result_dir = args.results_path
 
     profile = framework.profile.merge_test_profiles(args.test_profile)
-    profile.results_dir = args.results_path
     # If a test list is provided then set the forced_test_list value.
     if args.test_list:
         with open(args.test_list) as test_list:
