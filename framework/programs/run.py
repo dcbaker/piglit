@@ -185,10 +185,9 @@ def _run_parser(input_):
     return parser.parse_args(unparsed)
 
 
-def _create_metadata(args, name):
+def _create_metadata(args, name, options_):
     """Create and return a metadata dict for Backend.initialize()."""
     opts = dict(options.OPTIONS)
-    opts['profile'] = args.test_profile
     opts['log_level'] = args.log_level
     if args.platform:
         opts['platform'] = args.platform
@@ -196,6 +195,7 @@ def _create_metadata(args, name):
     metadata = {'options': opts}
     metadata['name'] = name
     metadata['system'] = core.collect_system_info()
+    metadata['profiles'] = {p: options_ for p in args.test_profile}
 
     return metadata
 
@@ -271,12 +271,6 @@ def run(input_):
             'Cannot overwrite existing folder without the -o/--overwrite '
             'option being set.')
 
-    backend = backends.get_backend(args.backend)(
-        args.results_path,
-        junit_suffix=args.junit_suffix)
-    backend.initialize(_create_metadata(
-        args, args.name or path.basename(args.results_path)))
-
     profile = framework.profile.merge_test_profiles(args.test_profile)
     profile.results_dir = args.results_path
     # If a test list is provided then set the forced_test_list value.
@@ -284,6 +278,17 @@ def run(input_):
         with open(args.test_list) as test_list:
             # Strip newlines
             profile.forced_test_list = list([t.strip() for t in test_list])
+
+    profile.options['dmesg'] = args.dmesg
+    profile.options['monitor'] = args.monitored
+
+    backend = backends.get_backend(args.backend)(
+        args.results_path,
+        junit_suffix=args.junit_suffix)
+    backend.initialize(_create_metadata(
+        args,
+        args.name or path.basename(args.results_path),
+        profile.options))
 
     timer = framework.results.TimeAttribute()
     timer.start = time.time()

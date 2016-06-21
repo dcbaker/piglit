@@ -285,6 +285,7 @@ class TestProfile(object):
         self.results_dir = None
         self._monitoring = None
         self.monitoring = False
+        self.options = {}
 
     @property
     def dmesg(self):
@@ -519,7 +520,17 @@ def merge_test_profiles(profiles):
     profiles -- a list of one or more paths to profile files.
 
     """
-    profile = load_test_profile(profiles.pop())
+    # What I'd really like is functools.staticdispatch, but that's not really
+    # an option without adding a mess of dependencies. So instead assume that
+    # an Iterator is passed, if that's not true a TypeError will be raised,
+    # then assume that a sequence has been passed, and treat profiles like
+    # that.
+    try:
+        profile = load_test_profile(next(profiles))
+    except TypeError:
+        profile = load_test_profile(profiles[0])
+        profiles = profiles[1:]
+
     with profile.test_list.allow_reassignment:
         for p in profiles:
             profile.update(load_test_profile(p))

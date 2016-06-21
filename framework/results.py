@@ -293,6 +293,7 @@ class TestrunResult(object):
         self.tests = collections.OrderedDict()
         self.totals = collections.defaultdict(Totals)
         self.system = {}
+        self.profiles = {}
 
     def get_result(self, key):
         """Get the result of a test or subtest.
@@ -355,9 +356,8 @@ class TestrunResult(object):
 
         """
         res = cls()
-        for name in ['name', 'uname', 'options', 'glxinfo', 'wglinfo', 'lspci',
-                     'time_elapsed', 'tests', 'totals', 'results_version',
-                     'clinfo']:
+        for name in ['name', 'options', 'time_elapsed', 'tests', 'totals',
+                     'results_version', 'system', 'profiles']:
             value = dict_.get(name)
             if value:
                 setattr(res, name, value)
