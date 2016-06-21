@@ -23,14 +23,16 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 import argparse
-import sys
+import ctypes
+import itertools
 import os
 import os.path as path
-import time
-import ctypes
 import shutil
+import sys
+import time
 
 import six
+from six.moves import zip_longest  # pylint: disable=redefined-builtin
 
 from framework import core, backends, exceptions, options
 import framework.results
@@ -41,31 +43,22 @@ __all__ = ['run',
            'resume']
 
 
-def _default_platform():
-    """ Logic to determine the default platform to use
+def grouper(iterable, size=2, fillvalue=None):
+    """takes size elements at a time from an interable."""
+    return zip_longest(fillvalue=fillvalue, *[iter(iterable)] * size)
 
-    This assumes that the platform can only be set on Linux, it probably works
-    on BSD. This is only relevant if piglit is built with waffle support. When
-    waffle support lands for Windows and if it ever happens for OSX, this will
-    need to be extended.
 
-    On Linux this will try in order,
-    1) An option provided via the -p/--platform option (this is handled in
-       argparse, not in this function)
-    2) PIGLIT_PLATFORM from the environment
-    3) [core]:platform from the config file
-    4) mixed_glx_egl
+def _get_profiles():
+    """Get all of the profiles in test and return them."""
+    possibilities = os.listdir(os.path.abspath(
+        os.path.join(os.path.dirname(__file__), '..', '..', 'tests')))
 
-    """
-    if os.environ.get('PIGLIT_PLATFORM'):
-        return os.environ.get('PIGLIT_PLATFORM')
-    else:
-        plat = core.PIGLIT_CONFIG.safe_get('core', 'platform', 'mixed_glx_egl')
-        if plat not in core.PLATFORMS:
-            raise exceptions.PiglitFatalError(
-                'Platform is not valid\nvalid platforms are: {}'.format(
-                    core.PLATFORMS))
-        return plat
+    for filename in possibilities:
+        name, ext = os.path.splitext(filename)
+        if ext != '.py' or name.startswith('_'):
+            continue
+
+        yield name
 
 
 def _default_backend():
@@ -86,6 +79,7 @@ def _default_backend():
 def _run_parser(input_):
     """ Parser for piglit run command """
     unparsed = parsers.parse_config(input_)[1]
+    profiles = list(_get_profiles())
 
     # Set the parent of the config to add the -f/--config message
     parser = argparse.ArgumentParser(parents=[parsers.CONFIG])
@@ -97,53 +91,10 @@ def _run_parser(input_):
                         action="store_false",
                         dest="execute",
                         help="Do not execute the tests")
-    parser.add_argument("-t", "--include-tests",
-                        default=[],
-                        action="append",
-                        metavar="<regex>",
-                        help="Run only matching tests "
-                             "(can be used more than once)")
-    parser.add_argument("-x", "--exclude-tests",
-                        default=[],
-                        action="append",
-                        metavar="<regex>",
-                        help="Exclude matching tests "
-                             "(can be used more than once)")
     parser.add_argument('-b', '--backend',
                         default=_default_backend(),
                         choices=backends.BACKENDS.keys(),
                         help='select a results backend to use')
-    conc_parser = parser.add_mutually_exclusive_group()
-    conc_parser.add_argument('-c', '--all-concurrent',
-                             action="store_const",
-                             default="some",
-                             const="all",
-                             dest="concurrency",
-                             help="Run all tests concurrently")
-    conc_parser.add_argument("-1", "--no-concurrency",
-                             action="store_const",
-                             default="some",
-                             const="none",
-                             dest="concurrency",
-                             help="Disable concurrent test runs")
-    parser.add_argument("-p", "--platform",
-                        choices=core.PLATFORMS,
-                        default=_default_platform(),
-                        help="Name of windows system passed to waffle")
-    parser.add_argument("--valgrind",
-                        action="store_true",
-                        help="Run tests in valgrind's memcheck")
-    parser.add_argument("--dmesg",
-                        action="store_true",
-                        help="Capture a difference in dmesg before and "
-                             "after each test. Implies -1/--no-concurrency")
-    parser.add_argument("--abort-on-monitored-error",
-                        action="store_true",
-                        dest="monitored",
-                        help="Enable monitoring according the rules defined "
-                             "in piglit.conf, and stop the execution when a "
-                             "monitored error is detected. Exit code 3. "
-                             "Implies -1/--no-concurrency")
     parser.add_argument("-s", "--sync",
                         action="store_true",
                         help="Sync results to disk after every test")
@@ -151,6 +102,14 @@ def _run_parser(input_):
                         type=str,
                         default="",
                         help="suffix string to append to each test name in junit")
+    parser.add_argument('-o', '--overwrite',
+                        dest='overwrite',
+                        action='store_true',
+                        help='If the results_path already exists, delete it')
+    parser.add_argument("results_path",
+                        type=path.realpath,
+                        metavar="<Results Path>",
+                        help="Path to results folder")
     log_parser = parser.add_mutually_exclusive_group()
     log_parser.add_argument('-v', '--verbose',
                             action='store_const',
@@ -165,24 +124,18 @@ def _run_parser(input_):
                             choices=['quiet', 'verbose', 'dummy', 'http'],
                             default='quiet',
                             help="Set the logger verbosity level")
-    parser.add_argument("--test-list",
-                        type=os.path.abspath,
-                        help="A file containing a list of tests to run")
-    parser.add_argument('-o', '--overwrite',
-                        dest='overwrite',
-                        action='store_true',
-                        help='If the results_path already exists, delete it')
-    parser.add_argument("test_profile",
-                        metavar="<Profile path(s)>",
-                        nargs='+',
-                        help="Path to one or more test profiles to run. "
-                             "If more than one profile is provided then they "
-                             "will be merged.")
-    parser.add_argument("results_path",
-                        type=path.realpath,
-                        metavar="<Results Path>",
-                        help="Path to results folder")
-    return parser.parse_args(unparsed)
+
+    grouped = itertools.groupby(unparsed, lambda x: x if x in profiles else None)
+    main_args = parser.parse_args(next(grouped)[1])
+
+    profile_args = [(c1, list(a1) + list(a2)) for (c1, a1), (_, a2) in
+                    grouper(grouped, fillvalue=(None, []))]
+
+    print(main_args)
+    print(profile_args)
+    exit()
+
+    return main_args, profile_args
 
 
 def _create_metadata(args, name, options_):
@@ -235,7 +188,7 @@ def run(input_):
     and piglit run
 
     """
-    args = _run_parser(input_)
+    args, _ = _run_parser(input_)
     _disable_windows_exception_messages()
 
     # If dmesg is requested we must have serial run, this is because dmesg
