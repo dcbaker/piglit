@@ -28,8 +28,10 @@ historically reasons is called "core" in piglit.
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import collections
 import errno
 import os
+import re
 import subprocess
 
 from six.moves import configparser
@@ -43,6 +45,8 @@ __all__ = [
     'collect_system_info',
     'parse_listfile',
 ]
+
+_RETYPE = type(re.compile(''))
 
 PLATFORMS = ["glx", "x11_egl", "wayland", "gbm", "mixed_glx_egl"]
 
@@ -230,3 +234,87 @@ class lazy_property(object):  # pylint: disable=invalid-name,too-few-public-meth
         value = self.__func(instance)
         setattr(instance, self.__func.__name__, value)
         return value
+
+
+class ReList(collections.MutableSequence):
+    """A list-like container that only holds RegexObjects.
+
+    This class behaves identically to a list, except that all objects are
+    forced to be RegexObjects with a flag of re.IGNORECASE (2 if one inspects
+    the object).
+
+    If inputs do not match this object, they will be coerced to becoming such
+    an object, or they assignment will fail.
+
+    """
+    def __init__(self, iterable=None):
+        self._wrapped = []
+        if iterable is not None:
+            self.extend(iterable)
+
+    @staticmethod
+    def __compile(value):
+        """Ensure that the object is properly compiled.
+
+        If the object is not a RegexObject then compile it to one, setting the
+        proper flag. If it is a RegexObject, and the flag is incorrect
+        recompile it to have the proper flags. Otherwise return it.
+
+        """
+        if not isinstance(value, _RETYPE):
+            return re.compile(value, re.IGNORECASE)
+        elif value.flags != re.IGNORECASE:
+            return re.compile(value.pattern, re.IGNORECASE)
+        return value
+
+    def __getitem__(self, index):
+        return self._wrapped[index]
+
+    def __setitem__(self, index, value):
+        self._wrapped[index] = self.__compile(value)
+
+    def __delitem__(self, index):
+        del self._wrapped[index]
+
+    def __len__(self):
+        return len(self._wrapped)
+
+    def insert(self, index, value):
+        self._wrapped.insert(index, self.__compile(value))
+
+    def __eq__(self, other):
+        """Two ReList instances are the same if their wrapped list are equal."""
+        if isinstance(other, ReList):
+            # There doesn't seem to be a better way to do this.
+            return self._wrapped == other._wrapped  # pylint: disable=protected-access
+        raise TypeError('Cannot compare _ReList and non-_ReList object')
+
+    def __ne__(self, other):
+        return not self == other
+
+    def to_json(self):
+        """Allow easy JSON serialization.
+
+        This returns the pattern (the string or unicode used to create the re)
+        of each re object in a list rather than the RegexObject itself. This is
+        critical for JSON serialization, and thanks to the piglit_encoder this
+        is all we need to serialize this class.
+
+        """
+        return [l.pattern for l in self]
+
+
+class FilterReList(ReList):
+    """A version of ReList that handles group madness.
+
+    Groups are printed with '/' as a separator, but internally something else
+    may be used. This version replaces '/' with '.'.
+
+    """
+    def __setitem__(self, index, value):
+        # Replace '/' with '.', this solves the problem of '/' not matching
+        # grouptools.SEPARATOR, but without needing to import grouptools
+        super(FilterReList, self).__setitem__(index, value.replace('/', '.'))
+
+    def insert(self, index, value):
+        super(FilterReList, self).insert(index, value.replace('/', '.'))

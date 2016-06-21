@@ -244,13 +244,8 @@ def run(input_):
         args.concurrency = "none"
 
     # Pass arguments into Options
-    options.OPTIONS.concurrent = args.concurrency
-    options.OPTIONS.exclude_filter = args.exclude_tests
-    options.OPTIONS.include_filter = args.include_tests
     options.OPTIONS.execute = args.execute
     options.OPTIONS.valgrind = args.valgrind
-    options.OPTIONS.dmesg = args.dmesg
-    options.OPTIONS.monitored = args.monitored
     options.OPTIONS.sync = args.sync
 
     # Set the platform to pass to waffle
@@ -281,6 +276,9 @@ def run(input_):
 
     profile.options['dmesg'] = args.dmesg
     profile.options['monitor'] = args.monitored
+    profile.options['concurrency'] = args.concurrency
+    profile.options['exclude_filter'] = core.FilterReList(args.exclude_tests)
+    profile.options['include_filter'] = core.FilterReList(args.include_tests)
 
     backend = backends.get_backend(args.backend)(
         args.results_path,
@@ -292,12 +290,6 @@ def run(input_):
 
     timer = framework.results.TimeAttribute()
     timer.start = time.time()
-    # Set the dmesg type
-    if args.dmesg:
-        profile.dmesg = args.dmesg
-
-    if args.monitored:
-        profile.monitoring = args.monitored
 
     profile.run(args.log_level, backend)
 
@@ -328,13 +320,8 @@ def resume(input_):
     _disable_windows_exception_messages()
 
     results = backends.load(args.results_path)
-    options.OPTIONS.concurrent = results.options['concurrent']
-    options.OPTIONS.exclude_filter = results.options['exclude_filter']
-    options.OPTIONS.include_filter = results.options['include_filter']
     options.OPTIONS.execute = results.options['execute']
     options.OPTIONS.valgrind = results.options['valgrind']
-    options.OPTIONS.dmesg = results.options['dmesg']
-    options.OPTIONS.monitored = results.options['monitored']
     options.OPTIONS.sync = results.options['sync']
 
     core.get_config(args.config_file)
@@ -356,13 +343,17 @@ def resume(input_):
         if args.no_retry or result.result != 'incomplete':
             options.OPTIONS.exclude_tests.add(name)
 
-    profile = framework.profile.merge_test_profiles(results.options['profile'])
+    profile = framework.profile.merge_test_profiles(
+        six.iterkeys(results.profiles))
     profile.results_dir = args.results_path
-    if options.OPTIONS.dmesg:
-        profile.dmesg = options.OPTIONS.dmesg
-
-    if options.OPTIONS.monitored:
-        profile.monitoring = options.OPTIONS.monitored
+    # yes this is a bit of a hack, but it's going away in a subsequient patch
+    for p in six.itervalues(results.profiles):
+        profile.options['dmesg'] = p['dmesg']
+        profile.options['monitor'] = p['monitor']
+        profile.options['concurrency'] = p['concurrency']
+        profile.options['exclude_filter'] = core.FilterReList(p['exclude_filter'])
+        profile.options['include_filter'] = core.FilterReList(p['include_filter'])
+        break
 
     # This is resumed, don't bother with time since it won't be accurate anyway
     profile.run(results.options['log_level'], backend)

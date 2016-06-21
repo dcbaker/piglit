@@ -39,8 +39,8 @@ import os
 
 import six
 
-from framework import grouptools, exceptions, options, monitoring
-from framework.dmesg import get_dmesg
+from framework import grouptools, exceptions, options, monitoring, dmesg
+from framework import core
 from framework.log import LogManager
 from framework.test.base import Test
 
@@ -280,44 +280,16 @@ class TestProfile(object):
         self.forced_test_list = []
         self.filters = []
         # Sets a default of a Dummy
-        self._dmesg = None
-        self.dmesg = False
         self.results_dir = None
-        self._monitoring = None
-        self.monitoring = False
-        self.options = {}
 
-    @property
-    def dmesg(self):
-        """ Return dmesg """
-        return self._dmesg
-
-    @dmesg.setter
-    def dmesg(self, not_dummy):
-        """ Set dmesg
-
-        Arguments:
-        not_dummy -- if Truthy dmesg will try to get a PosixDmesg, if Falsy it
-                     will get a DummyDmesg
-
-        """
-        self._dmesg = get_dmesg(not_dummy)
-
-    @property
-    def monitoring(self):
-        """ Return monitoring """
-        return self._monitoring
-
-    @monitoring.setter
-    def monitoring(self, monitored):
-        """ Set monitoring
-
-        Arguments:
-        monitored -- if Truthy Monitoring will enable monitoring according the
-                     defined rules
-
-        """
-        self._monitoring = monitoring.Monitoring(monitored)
+        # It would be nice to use an enum for concurrent instead of a string
+        self.options = {
+            'dmesg': False,
+            'monitor': False,
+            'concurrency': 'all',
+            'include_filter': core.ReList,
+            'exclude_filter': core.ReList,
+        }
 
     def _prepare_test_list(self):
         """ Prepare tests for running
@@ -333,11 +305,11 @@ class TestProfile(object):
         # The extra argument is needed to match check_all's API
         def test_matches(path, test):  # pylint: disable=unused-argument
             """Filter for user-specified restrictions"""
-            return ((not options.OPTIONS.include_filter or
-                     matches_any_regexp(path, options.OPTIONS.include_filter))
+            return ((not self.options['include_filter'] or
+                     matches_any_regexp(path, self.options['include_filter']))
                     and path not in options.OPTIONS.exclude_tests
                     and not matches_any_regexp(
-                        path, options.OPTIONS.exclude_filter))
+                        path, self.options['exclude_filter']))
 
         filters = self.filters + [test_matches]
 
@@ -401,6 +373,8 @@ class TestProfile(object):
 
         self._prepare_test_list()
         log = LogManager(logger, len(self.test_list))
+        dmesg_ = dmesg.get_dmesg(self.options['dmesg'])
+        monitor = monitoring.Monitoring(self.options['monitor'])
 
         def test(pair):
             """Function to call test.execute from map"""
@@ -408,14 +382,14 @@ class TestProfile(object):
             error = None
             with backend.write_test(name) as w:
                 try:
-                    test.execute(name, log.get(), self.dmesg, self.monitoring)
+                    test.execute(name, log.get(), dmesg_, monitor)
                 except monitoring.MonitorRuleBroken as e:
                     error = e
 
                 w(test.result)
 
                 if error is not None:
-                    raise error
+                    raise error  # pylint: disable=raising-bad-type
 
         def run_threads(pool, testlist):
             """ Open a pool, close it, and join it """
@@ -434,9 +408,9 @@ class TestProfile(object):
         multi = multiprocessing.dummy.Pool()
 
         try:
-            if options.OPTIONS.concurrent == "all":
+            if self.options['concurrency'] == "all":
                 run_threads(multi, six.iteritems(self.test_list))
-            elif options.OPTIONS.concurrent == "none":
+            elif self.options['concurrency'] == "none":
                 run_threads(single, six.iteritems(self.test_list))
             else:
                 # Filter and return only thread safe tests to the threaded pool
