@@ -288,15 +288,11 @@ class TestrunResult(object):
     """The result of a single piglit run."""
     def __init__(self):
         self.name = None
-        self.uname = None
         self.options = None
-        self.glxinfo = None
-        self.wglinfo = None
-        self.clinfo = None
-        self.lspci = None
         self.time_elapsed = TimeAttribute()
         self.tests = collections.OrderedDict()
         self.totals = collections.defaultdict(Totals)
+        self.system = {}
 
     def get_result(self, key):
         """Get the result of a test or subtest.

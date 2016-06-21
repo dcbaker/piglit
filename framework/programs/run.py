@@ -195,7 +195,7 @@ def _create_metadata(args, name):
 
     metadata = {'options': opts}
     metadata['name'] = name
-    metadata.update(core.collect_system_info())
+    metadata['system'] = core.collect_system_info()
 
     return metadata
 
