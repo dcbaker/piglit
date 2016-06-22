@@ -29,6 +29,7 @@ are represented by a TestProfile or a TestProfile derived object.
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import argparse
 import collections
 import contextlib
 import importlib
@@ -44,6 +45,7 @@ from framework import grouptools, exceptions, options, monitoring, dmesg
 from framework import core
 from framework.log import LogManager
 from framework.test.base import Test
+from framework.programs import parsers
 
 __all__ = [
     'Collection',
@@ -53,8 +55,17 @@ __all__ = [
 
 
 class Collection(object):
-    def __init__(self, profiles):
-        self.profiles = [load_test_profile(p) for p in profiles]
+    def __init__(self, profile_args):
+        self.profiles = []
+        for name, args in profile_args:
+            profile = load_test_profile(name)
+
+            if isinstance(profile_args, dict):
+                profile.restore_options(args)
+            else:
+                profile.set_options(args)
+
+            self.profiles.append(profile)
 
     def run(self, logger, backend):
         """Run all tests in all profiles."""
@@ -362,8 +373,8 @@ class TestProfile(object):
             'dmesg': False,
             'monitor': False,
             'concurrency': 'all',
-            'include_filter': core.ReList,
-            'exclude_filter': core.ReList,
+            'include_filter': core.FilterReList(),
+            'exclude_filter': core.FilterReList(),
         }
 
     def filter(self):
@@ -446,6 +457,35 @@ class TestProfile(object):
         """
         for profile in profiles:
             self.test_list.update(profile.test_list)
+
+    def set_options(self, raw_args):
+        parser = argparse.ArgumentParser(parents=[parsers.PROFILE_PARSER])
+        args = parser.parse_args(raw_args)
+
+        self.options['dmesg'] = args.dmesg
+        self.options['monitor'] = args.monitor
+        self.options['concurrency'] = args.concurrency
+        self.options['include_filter'] = core.FilterReList(args.include_filter)
+        self.options['exclude_filter'] = core.FilterReList(args.exclude_filter)
+
+        # TODO: profile and valgrind...
+
+        if args.test_list:
+            with open(args.test_list, 'w') as f:
+                self.forced_test_list = [t.strip() for t in f]
+
+    def restore_options(self, opts):
+        self.options['dmesg'] = opts['dmesg']
+        self.options['monitor'] = opts['monitor']
+        self.options['concurrency'] = opts['concurrency']
+        self.options['include_filter'] = core.FilterReList(opts['include_filter'])
+        self.options['exclude_filter'] = core.FilterReList(opts['exclude_filter'])
+
+        # TODO: profile and valgrind...
+
+        if opts['test_list']:
+            with open(opts['test_list'], 'w') as f:
+                self.forced_test_list = [t.strip() for t in f]
 
 
 def load_test_profile(filename):

@@ -88,18 +88,20 @@ def _default_platform():
 
 def _make_profile_parser():
     """Make the parser prototye for profiles to inherit from."""
-    per_parser = argparse.ArgumentParser()
+    per_parser = argparse.ArgumentParser(add_help=False)
     per_parser.add_argument(
         "-t", "--include-tests",
         default=[],
         action="append",
         metavar="<regex>",
+        dest="include_filter",
         help="Run only matching tests (can be used more than once)")
     per_parser.add_argument(
         "-x", "--exclude-tests",
         default=[],
         action="append",
         metavar="<regex>",
+        dest="exclude_filter",
         help="Exclude matching tests (can be used more than once)")
     per_parser.add_argument(
         "--test-list",
@@ -117,7 +119,7 @@ def _make_profile_parser():
     per_parser.add_argument(
         "--abort-on-monitored-error",
         action="store_true",
-        dest="monitored",
+        dest="monitor",
         help="Enable monitoring according the rules defined in "
              "piglit.conf, and stop the execution when a monitored error "
              "is detected. Exit code 3. Implies -1/--no-concurrency")

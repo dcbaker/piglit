@@ -128,27 +128,24 @@ def _run_parser(input_):
     grouped = itertools.groupby(unparsed, lambda x: x if x in profiles else None)
     main_args = parser.parse_args(next(grouped)[1])
 
-    profile_args = [(c1, list(a1) + list(a2)) for (c1, a1), (_, a2) in
-                    grouper(grouped, fillvalue=(None, []))]
-
-    print(main_args)
-    print(profile_args)
-    exit()
+    profile_args = []
+    for p, a in grouped:
+        if p is not None:
+            profile_args.append((p, []))
+        else:
+            profile_args[-1][1].extend(list(a))
 
     return main_args, profile_args
 
 
-def _create_metadata(args, name, options_):
+def _create_metadata(args, name, profile_args):
     """Create and return a metadata dict for Backend.initialize()."""
     opts = dict(options.OPTIONS)
     opts['log_level'] = args.log_level
-    if args.platform:
-        opts['platform'] = args.platform
-
     metadata = {'options': opts}
     metadata['name'] = name
     metadata['system'] = core.collect_system_info()
-    metadata['profiles'] = {p: options_ for p in args.test_profile}
+    metadata['profiles'] = {p: a for p, a in profile_args}
 
     return metadata
 
@@ -188,21 +185,12 @@ def run(input_):
     and piglit run
 
     """
-    args, _ = _run_parser(input_)
+    args, profile_args = _run_parser(input_)
     _disable_windows_exception_messages()
-
-    # If dmesg is requested we must have serial run, this is because dmesg
-    # isn't reliable with threaded run
-    if args.dmesg or args.monitored:
-        args.concurrency = "none"
 
     # Pass arguments into Options
     options.OPTIONS.execute = args.execute
-    options.OPTIONS.valgrind = args.valgrind
     options.OPTIONS.sync = args.sync
-
-    # Set the platform to pass to waffle
-    options.OPTIONS.env['PIGLIT_PLATFORM'] = args.platform
 
     # Change working directory to the root of the piglit directory
     piglit_dir = path.dirname(path.realpath(sys.argv[0]))
@@ -220,22 +208,7 @@ def run(input_):
             'option being set.')
     options.OPTIONS.result_dir = args.results_path
 
-    testrun = framework.profile.Collection(args.test_profile)
-
-    # If a test list is provided then set the forced_test_list value.
-    if args.test_list:
-        with open(args.test_list) as test_list:
-            # Strip newlines
-            forced_list = list([t.strip() for t in test_list])
-        for p in testrun.profiles:
-            p.forced_test_list = forced_list
-
-    for p in testrun.profiles:
-        p.options['dmesg'] = args.dmesg
-        p.options['monitor'] = args.monitored
-        p.options['concurrency'] = args.concurrency
-        p.options['exclude_filter'] = core.FilterReList(args.exclude_tests)
-        p.options['include_filter'] = core.FilterReList(args.include_tests)
+    testrun = framework.profile.Collection(profile_args)
 
     backend = backends.get_backend(args.backend)(
         args.results_path,
@@ -243,7 +216,7 @@ def run(input_):
     backend.initialize(_create_metadata(
         args,
         args.name or path.basename(args.results_path),
-        p.options))
+        profile_args))
 
     timer = framework.results.TimeAttribute()
     timer.start = time.time()
@@ -277,12 +250,9 @@ def resume(input_):
 
     results = backends.load(args.results_path)
     options.OPTIONS.execute = results.options['execute']
-    options.OPTIONS.valgrind = results.options['valgrind']
     options.OPTIONS.sync = results.options['sync']
 
     core.get_config(args.config_file)
-
-    options.OPTIONS.env['PIGLIT_PLATFORM'] = results.options['platform']
 
     results.options['env'] = core.collect_system_info()
     results.options['name'] = results.name
@@ -299,17 +269,8 @@ def resume(input_):
         if args.no_retry or result.result != 'incomplete':
             options.OPTIONS.exclude_tests.add(name)
 
-
-    testrun = framework.profile.Collection(results.options['profile'])
     options.OPTIONS.result_dir = args.results_path
-    # yes this is a bit of a hack, but it's going away in a subsequient patch
-    for p in six.itervalues(results.profiles):
-        p.options['dmesg'] = p['dmesg']
-        p.options['monitor'] = p['monitor']
-        p.options['concurrency'] = p['concurrency']
-        p.options['exclude_filter'] = core.FilterReList(p['exclude_filter'])
-        p.options['include_filter'] = core.FilterReList(p['include_filter'])
-        break
+    testrun = framework.profile.Collection(six.iteritems(results.profiles))
 
     # This is resumed, don't bother with time since it won't be accurate anyway
     testrun.run(results.options['log_level'], backend)
