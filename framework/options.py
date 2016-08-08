@@ -181,6 +181,7 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
     monitored -- True if monitoring is desired. This forces concurrency off
     env -- environment variables set for each test before run
     deqp_mustpass -- True to enable the use of the deqp mustpass list feature.
+    process_isolation -- Whether to enforce process isolation. Default: True
     """
 
     include_filter = _ReListDescriptor('_include_filter', type_=_FilterReList)
