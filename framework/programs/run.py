@@ -178,6 +178,14 @@ def _run_parser(input_):
                         help='Run only the tests in the deqp mustpass list '
                              'when running a deqp gles{2,3,31} profile, '
                              'otherwise run all tests.')
+    parser.add_argument('--deqp-mode',
+                        action='store',
+                        choices=['single', 'group'],
+                        default='single',
+                        help='Whether to run a single test per process, or to '
+                             'run a leaf of the test hierarchy as a process. '
+                             'This makes a trade-off between speed and '
+                             'reliability')
     parser.add_argument("test_profile",
                         metavar="<Profile path(s)>",
                         nargs='+',
@@ -259,6 +267,7 @@ def run(input_):
     options.OPTIONS.monitored = args.monitored
     options.OPTIONS.sync = args.sync
     options.OPTIONS.deqp_mustpass = args.deqp_mustpass
+    options.OPTIONS.deqp_mode = args.deqp_mode
 
     # Set the platform to pass to waffle
     options.OPTIONS.env['PIGLIT_PLATFORM'] = args.platform
@@ -346,6 +355,7 @@ def resume(input_):
     options.OPTIONS.monitored = results.options['monitored']
     options.OPTIONS.sync = results.options['sync']
     options.OPTIONS.deqp_mustpass = results.options['deqp_mustpass']
+    options.OPTIONS.deqp_mode = results.options['deqp_mode']
 
     core.get_config(args.config_file)
 

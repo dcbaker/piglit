@@ -181,6 +181,8 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
     monitored -- True if monitoring is desired. This forces concurrency off
     env -- environment variables set for each test before run
     deqp_mustpass -- True to enable the use of the deqp mustpass list feature.
+    deqp_mode -- 'single' for one test per processes or 'group' for one leaf of
+                  tests per process
     """
 
     include_filter = _ReListDescriptor('_include_filter', type_=_FilterReList)
@@ -197,6 +199,7 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
         self.monitored = False
         self.sync = False
         self.deqp_mustpass = False
+        self.deqp_mode = 'single'
 
         # env is used to set some base environment variables that are not going
         # to change across runs, without sending them to os.environ which is
