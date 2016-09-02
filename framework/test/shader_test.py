@@ -27,15 +27,28 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 import io
+import operator
 import re
 
 from framework import exceptions
-from .opengl import FastSkipMixin
+from .opengl import FastSkipMixin, VersionSkip, ExtensionsSkip
 from .piglit_test import PiglitBaseTest
 
 __all__ = [
     'ShaderTest',
 ]
+
+
+_OPS = {
+    '>': operator.gt,
+    '>=': operator.ge,
+    '==': operator.eq,
+    '=': operator.eq,
+    '!=': operator.ne,
+    '<=': operator.le,
+    '<': operator.lt,
+    None: lambda x, y: False,
+}
 
 
 class ShaderTest(FastSkipMixin, PiglitBaseTest):
@@ -126,13 +139,12 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
         super(ShaderTest, self).__init__(
             [prog, filename],
             run_concurrent=True,
-            gl_required=gl_required,
-            # FIXME: the if here is related to an incomplete feature in the
-            # FastSkipMixin
-            gl_version=gl_version if op not in ['<', '<='] else None,
-            gles_version=gles_version if op not in ['<', '<='] else None,
-            glsl_version=glsl_version if sl_op not in ['<', '<='] else None,
-            glsl_es_version=glsl_es_version if sl_op not in ['<', '<='] else None)
+            gl_required=ExtensionsSkip(gl_required),
+            gl_version=VersionSkip(_OPS[op], gl_version, rep=op),
+            gles_version=VersionSkip(_OPS[op], gles_version, rep=op),
+            glsl_version=VersionSkip(_OPS[sl_op], glsl_version, rep=sl_op),
+            glsl_es_version=VersionSkip(_OPS[sl_op], glsl_es_version,
+                                        rep=sl_op))
 
     @PiglitBaseTest.command.getter
     def command(self):

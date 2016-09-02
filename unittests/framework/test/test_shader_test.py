@@ -23,6 +23,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import operator
 import os
 import textwrap
 try:
@@ -120,7 +121,7 @@ class TestConfigParsing(object):
             """))
         test = shader_test.ShaderTest(six.text_type(p))
 
-        assert test.gl_required == {'GL_ARB_ham_sandwhich'}
+        assert test.gl_required.extensions == {'GL_ARB_ham_sandwhich'}
 
     def test_skip_gl_version(self, tmpdir):
         """test.shader_test.ShaderTest: finds gl_version."""
@@ -132,7 +133,7 @@ class TestConfigParsing(object):
             """))
         test = shader_test.ShaderTest(six.text_type(p))
 
-        assert test.gl_version == 2.0
+        assert test.gl_version.version == 2.0
 
     def test_skip_gles_version(self, tmpdir):
         """test.shader_test.ShaderTest: finds gles_version."""
@@ -144,7 +145,7 @@ class TestConfigParsing(object):
             """))
         test = shader_test.ShaderTest(six.text_type(p))
 
-        assert test.gles_version == 2.0
+        assert test.gles_version.version == 2.0
 
     def test_skip_glsl_version(self, tmpdir):
         """test.shader_test.ShaderTest: finds glsl_version."""
@@ -156,7 +157,7 @@ class TestConfigParsing(object):
             """))
         test = shader_test.ShaderTest(six.text_type(p))
 
-        assert test.glsl_version == 1.2
+        assert test.glsl_version.version == 1.2
 
     def test_skip_glsl_es_version(self, tmpdir):
         """test.shader_test.ShaderTest: finds glsl_es_version."""
@@ -168,7 +169,7 @@ class TestConfigParsing(object):
             """))
         test = shader_test.ShaderTest(six.text_type(p))
 
-        assert test.glsl_es_version == 1.0
+        assert test.glsl_es_version.version == 1.0
 
     def test_ignore_directives(self, tmpdir):
         """There are some directives for shader_runner that are not interpreted
@@ -179,7 +180,7 @@ class TestConfigParsing(object):
         p.write(textwrap.dedent("""\
             [require]
             GL >= 3.3
-            GLSL >= 1.50
+            GLSL <= 1.50
             GL_MAX_VERTEX_OUTPUT_COMPONENTS
             GL_MAX_FRAGMENT_UNIFORM_COMPONENTS
             GL_MAX_VERTEX_UNIFORM_COMPONENTS
@@ -188,9 +189,11 @@ class TestConfigParsing(object):
             """))
         test = shader_test.ShaderTest(six.text_type(p))
 
-        assert test.gl_version == 3.3
-        assert test.glsl_version == 1.50
-        assert test.gl_required == {'GL_ARB_foobar'}
+        assert test.gl_version.version == 3.3
+        assert test.gl_version.op == operator.ge
+        assert test.glsl_version.version == 1.50
+        assert test.glsl_version.op == operator.le
+        assert test.gl_required.extensions == {'GL_ARB_foobar'}
 
 
 def test_command_add_auto(tmpdir):

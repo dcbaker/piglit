@@ -31,6 +31,7 @@ import warnings
 import six
 
 from framework import exceptions, core
+from framework import compat
 from framework.options import OPTIONS
 from .base import TestIsSkip
 
@@ -43,6 +44,21 @@ __all__ = [
 # An environment variable that when set to true disables the FastSkipMixin by
 # stubbing it out
 _DISABLED = bool(os.environ.get('PIGLIT_NO_FAST_SKIP', False))
+
+
+@compat.python_2_unicode_compatible
+class FastSkip(exceptions.PiglitInternalError):
+    """Exception class raised when a test should fast skip.
+
+    This is used internally by the FastSkipMixin and is reraised as a
+    TestIsSkip exception.
+    """
+    def __init__(self, msg=''):
+        super(FastSkip, self).__init__()
+        self.msg = msg
+
+    def __str__(self):
+        return self.msg
 
 
 class StopWflinfo(exceptions.PiglitException):
@@ -287,6 +303,96 @@ class WflInfo(object):
         return ret
 
 
+class VersionSkip(object):
+    """Class that implements skip conditions based on versions.
+
+    This class adds support for checking one version against another.
+
+    >>> import operator
+    >>> test = VersionSkip(operator.lt, 3.0, rep='<')
+    >>> test.test(4.0)
+    Traceback (most recent call last):
+        ...
+    framework.test.opengl.FastSkip: ...
+
+    >>> import operator
+    >>> test = VersionSkip(operator.lt, 3.0, rep='<')
+    >>> test.test(1.0)
+
+    Arguments:
+    version -- A numeric type version that is to be compared to.
+    op      -- A callable with the signature that takes two numeric types and
+               returns a bool. Good choices are operator.{lt,gt,etc}
+
+    Keyword Arguments:
+    rep     -- A text representation of the operator. If this is not provided
+               the value of six.text_type will be used.
+    """
+
+    __slots__ = ['version', 'op', 'rep']
+
+    def __init__(self, op, version, rep=None):
+        self.version = version
+        self.op = op
+        self.rep = rep or six.text_type(op)
+
+    def test(self, version):
+        """Test whether the Test should skip.
+
+        Arguments
+        version    -- The maximum supported version.
+
+        Raises:
+        FastSkip   -- If self.op(self.version, version) is truthy.
+        """
+        if (None not in [version, self.version] and
+                not self.op(version, self.version)):
+            raise FastSkip
+
+
+@compat.python_2_bool_compatible
+class ExtensionsSkip(object):
+    """Skip based on supported extensions.
+
+    This class has support for checking extensions.
+
+    >>> test = ExtensionSkip({'foo'})
+    >>> test.test(['bar', 'oof'])
+    Traceback (most recent call last):
+        ...
+    framework.test.opengl.FastSkip: ...
+
+    >>> test = VersionSkip({'foo'})
+    >>> test.test(['foo', 'bar, 'oof'])
+
+    Keyword Arguments:
+    extensions -- An iterable of extensions that are required by the test.
+    """
+
+    __slots__ = ['extensions']
+
+    def __init__(self, extensions=None):
+        self.extensions = extensions or set()
+
+    def test(self, extensions):
+        """Test whether the Test should skip.
+
+        Arguments
+        extensions -- The list of available extensions.
+
+        Raises:
+        FastSkip   -- If self.op(self.version, version) is truthy.
+        """
+        # If there are no requirements it should run, obviously.
+        if extensions:
+            for extension in self.extensions:
+                if extension not in extensions:
+                    raise FastSkip(msg=extension)
+
+    def __bool__(self):
+        return bool(self.extensions)
+
+
 class FastSkipMixin(object):
     """Fast test skipping for OpenGL based suites.
 
@@ -322,7 +428,7 @@ class FastSkipMixin(object):
                  gles_version=None, glsl_version=None, glsl_es_version=None,
                  **kwargs):  # pylint: disable=too-many-arguments
         super(FastSkipMixin, self).__init__(command, **kwargs)
-        self.gl_required = gl_required or set()
+        self.gl_required = gl_required or ExtensionsSkip()
         self.gl_version = gl_version
         self.gles_version = gles_version
         self.glsl_version = glsl_version
@@ -333,50 +439,63 @@ class FastSkipMixin(object):
 
         If no extensions were calculated (if wflinfo isn't installed) then run
         all tests.
-
         """
-        if self.__info.gl_extensions:
-            for extension in self.gl_required:
-                if extension not in self.__info.gl_extensions:
-                    raise TestIsSkip(
-                        'Test requires extension {} '
-                        'which is not available'.format(extension))
+        # Handle extension requirements.
+        if self.gl_required:
+            try:
+                self.gl_required.test(self.__info.gl_extensions)
+            except FastSkip as e:
+                raise TestIsSkip(
+                    'Test requires extension {} '
+                    'which is not available'.format(e.msg))
 
-        # TODO: Be able to handle any operator
-        if (self.__info.gl_version is not None
-                and self.gl_version is not None
-                and self.gl_version > self.__info.gl_version):
-            raise TestIsSkip(
-                'Test requires OpenGL version {}, '
-                'but only {} is available'.format(
-                    self.gl_version, self.__info.gl_version))
+        # Handle OpenGL version.
+        if self.gl_version is not None:
+            try:
+                self.gl_version.test(self.__info.gl_version)
+            except FastSkip:
+                raise TestIsSkip(
+                    'Test requires OpenGL version {} {}, '
+                    'but {} is available'.format(
+                        self.gl_version.op,
+                        self.gl_version.version,
+                        self.__info.gl_version))
 
-        # TODO: Be able to handle any operator
-        if (self.__info.gles_version is not None
-                and self.gles_version is not None
-                and self.gles_version > self.__info.gles_version):
-            raise TestIsSkip(
-                'Test requires OpenGL ES version {}, '
-                'but only {} is available'.format(
-                    self.gles_version, self.__info.gles_version))
+        # Handle OpenGL ES version.
+        if self.gles_version is not None:
+            try:
+                self.gles_version.test(self.__info.gles_version)
+            except FastSkip:
+                raise TestIsSkip(
+                    'Test requires OpenGL ES version {} {}, '
+                    'but {} is available'.format(
+                        self.gles_version.op,
+                        self.gles_version.version,
+                        self.__info.gles_version))
 
-        # TODO: Be able to handle any operator
-        if (self.__info.glsl_version is not None
-                and self.glsl_version is not None
-                and self.glsl_version > self.__info.glsl_version):
-            raise TestIsSkip(
-                'Test requires OpenGL Shader Language version {}, '
-                'but only {} is available'.format(
-                    self.glsl_version, self.__info.glsl_version))
+        # Handle OpenGL SL version.
+        if self.glsl_version is not None:
+            try:
+                self.glsl_version.test(self.__info.glsl_version)
+            except FastSkip:
+                raise TestIsSkip(
+                    'Test requires OpenGL SL version {} {}, '
+                    'but {} is available'.format(
+                        self.glsl_version.op,
+                        self.glsl_version.version,
+                        self.__info.glsl_version))
 
-        # TODO: Be able to handle any operator
-        if (self.__info.glsl_es_version is not None
-                and self.glsl_es_version is not None
-                and self.glsl_es_version > self.__info.glsl_es_version):
-            raise TestIsSkip(
-                'Test requires OpenGL ES Shader Language version {}, '
-                'but only {} is available'.format(
-                    self.glsl_es_version, self.__info.glsl_es_version))
+        # Handle OpenGL ES SL version.
+        if self.glsl_es_version is not None:
+            try:
+                self.glsl_es_version.test(self.__info.glsl_es_version)
+            except FastSkip:
+                raise TestIsSkip(
+                    'Test requires OpenGL ES SL version {} {}, '
+                    'but only {} is available'.format(
+                        self.glsl_es_version.op,
+                        self.glsl_es_version.version,
+                        self.__info.glsl_es_version))
 
         super(FastSkipMixin, self).is_skip()
 
@@ -387,7 +506,7 @@ class FastSkipMixinDisabled(object):
                  **kwargs):  # pylint: disable=too-many-arguments
         # Tests that implement the FastSkipMixin expect to have these values
         # set, so just fill them in with the default values.
-        self.gl_required = set()
+        self.gl_required = None
         self.gl_version = None
         self.gles_version = None
         self.glsl_version = None

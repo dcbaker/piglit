@@ -24,6 +24,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import operator
 import os
 import re
 import io
@@ -31,7 +32,7 @@ import six
 
 from framework import exceptions
 from .base import TestIsSkip
-from .opengl import FastSkipMixin
+from .opengl import FastSkipMixin, VersionSkip, ExtensionsSkip
 from .piglit_test import PiglitBaseTest, TEST_BIN_DIR
 
 __all__ = [
@@ -115,29 +116,31 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
         glsl = config.get('glsl_version')
         if glsl:
             if _is_gles_version(glsl):
-                self.glsl_es_version = float(glsl[:3])
+                self.glsl_es_version = VersionSkip(
+                    operator.ge, float(glsl[:3]), '>=')
             else:
-                self.glsl_version = float(glsl)
+                self.glsl_version = VersionSkip(
+                    operator.ge, float(glsl), '>=')
 
         req = config.get('require_extensions')
         if req:
-            self.gl_required = set(
-                r for r in req.split() if not r.startswith('!'))
+            self.gl_required = ExtensionsSkip(set(
+                r for r in req.split() if not r.startswith('!')))
 
         # If GLES is requested, but piglit was not built with a gles version,
         # then ARB_ES3<ver>_compatibility is required. Add it to
         # self.gl_required
         if self.glsl_es_version and not _HAS_GLES_BIN:
-            if self.glsl_es_version == 1.0:
+            if self.glsl_es_version.version == 1.0:
                 ver = '2'
-            elif self.glsl_es_version == 3.0:
+            elif self.glsl_es_version.version == 3.0:
                 ver = '3'
-            elif self.glsl_es_version == 3.1:
+            elif self.glsl_es_version.version == 3.1:
                 ver = '3_1'
-            elif self.glsl_es_version == 3.2:
+            elif self.glsl_es_version.version == 3.2:
                 ver = '3_2'
             ext = 'ARB_ES{}_compatibility'.format(ver)
-            self.gl_required.add(ext)
+            self.gl_required.extensions.add(ext)
             self._command.append(ext)
 
     @staticmethod
