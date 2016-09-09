@@ -102,6 +102,7 @@ EXTENSIONS = [
     Ext("GL_ARB_shader_subroutine", "150"),
     Ext("GL_ARB_shader_texture_image_samples", "110"),
     Ext("GL_ARB_shader_texture_lod", "110"),
+    Ext("GL_ARB_shader_viewport_layer_array", "410", ['vert', 'geom', 'tese']),
     Ext("GL_ARB_shading_language_420pack", "110"),
     Ext("GL_ARB_shading_language_packing", "110"),
     Ext("GL_ARB_tessellation_shader", "150"),
