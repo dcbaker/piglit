@@ -36,7 +36,8 @@ from framework import core
 from framework import exceptions
 
 
-def setup_module():
+@pytest.fixture(scope='module', autouse=True)
+def config():
     core.PIGLIT_CONFIG = core.PiglitConfig(allow_no_value=True)
     core.get_config()
 
