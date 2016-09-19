@@ -74,7 +74,12 @@ def test_import(name):
     """Try to import tests, if they raise an error skip."""
     # TODO: Figure out what is necissary for each test to run, or catch
     # specific errors as skips rather than any of them.
-    _import(name)
+    try:
+        _import(name)
+    except OSError as e:
+        if e.errno == 2:
+            pytest.skip(
+                'The required binary for {} is not available'.format(name))
 
 
 def test_xts_xtstest():
