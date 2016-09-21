@@ -3582,6 +3582,13 @@ piglit_init(int argc, char **argv)
 	float default_piglit_tolerance[4];
 
 	report_subtests = piglit_strip_arg(&argc, argv, "-report-subtests");
+	if (report_subtests != (argc > 2)) {
+		fprintf(stderr, "Don't use -report-subtests with one test\n");
+		exit(1);
+	} else if (argc < 2) {
+		printf("usage: shader_runner <test.shader_test>\n");
+		exit(1);
+	}
 
 	memcpy(default_piglit_tolerance, piglit_tolerance,
 	       sizeof(piglit_tolerance));
@@ -3614,7 +3621,6 @@ piglit_init(int argc, char **argv)
 	    piglit_is_extension_supported("GL_EXT_geometry_shader4"))
 		glGetIntegerv(GL_MAX_VARYING_COMPONENTS,
 			      &gl_max_varying_components);
-	glGetIntegerv(GL_MAX_CLIP_PLANES, &gl_max_clip_planes);
 #else
 	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_VECTORS,
 		      &gl_max_fragment_uniform_components);
@@ -3625,8 +3631,9 @@ piglit_init(int argc, char **argv)
 	gl_max_fragment_uniform_components *= 4;
 	gl_max_vertex_uniform_components *= 4;
 	gl_max_varying_components *= 4;
-	gl_max_clip_planes = 0;
 #endif
+	glGetIntegerv(GL_MAX_CLIP_PLANES, &gl_max_clip_planes);
+
 	if (gl_version.num >= 20 ||
 	    piglit_is_extension_supported("GL_ARB_vertex_shader"))
 		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS,
@@ -3634,16 +3641,11 @@ piglit_init(int argc, char **argv)
 	else
 		gl_max_vertex_attribs = 16;
 
-	if (argc < 2) {
-		printf("usage: shader_runner <test.shader_test>\n");
-		exit(1);
-	}
-
 	render_width = piglit_width;
 	render_height = piglit_height;
 
 	/* Automatic mode can run multiple tests per session. */
-	if (piglit_automatic) {
+	if (argc > 2) {
 		char testname[4096], *ext;
 		int i, j;
 
@@ -3698,33 +3700,29 @@ piglit_init(int argc, char **argv)
 
 			/* Clear GL states to defaults. */
 			glClearColor(0, 0, 0, 0);
+# if PIGLIT_USE_OPENGL
 			glClearDepth(1);
+# else
+			glClearDepthf(1.0);
+# endif
 			glBindFramebuffer(GL_FRAMEBUFFER, piglit_winsys_fbo);
 			glActiveTexture(GL_TEXTURE0);
 			glUseProgram(0);
 			glDisable(GL_DEPTH_TEST);
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
-			glDisable(GL_CLIP_PLANE0);
-			glDisable(GL_CLIP_PLANE1);
-			glDisable(GL_CLIP_PLANE2);
-			glDisable(GL_CLIP_PLANE3);
-			glDisable(GL_CLIP_PLANE4);
-			glDisable(GL_CLIP_PLANE5);
-			if (es || gl_version.num >= 30) {
-				glDisable(GL_CLIP_PLANE0+6);
-				glDisable(GL_CLIP_PLANE0+7);
+
+			for (int k = 0; k < gl_max_clip_planes; k++) {
+				glDisable(GL_CLIP_PLANE0 + k);
 			}
 
-			if (es)
-				glEnable(GL_PROGRAM_POINT_SIZE);
-			else if (gl_version.num >= 20 ||
-				 piglit_is_extension_supported("GL_ARB_vertex_program"))
+			if (!(es) && (gl_version.num >= 20 ||
+			     piglit_is_extension_supported("GL_ARB_vertex_program")))
 				glDisable(GL_PROGRAM_POINT_SIZE);
 
 			for (int i = 0; i < 16; i++)
 				glDisableVertexAttribArray(i);
 
-			if (!piglit_is_core_profile) {
+			if (!piglit_is_core_profile && !es) {
 				glMatrixMode(GL_PROJECTION);
 				glLoadIdentity();
 				glMatrixMode(GL_MODELVIEW);
@@ -3750,15 +3748,33 @@ piglit_init(int argc, char **argv)
 			if (piglit_is_extension_supported("GL_EXT_provoking_vertex"))
 				glProvokingVertexEXT(GL_LAST_VERTEX_CONVENTION_EXT);
 
-			if (gl_version.num >= (gl_version.es ? 32 : 40) ||
-			    piglit_is_extension_supported(gl_version.es ?
-							  "GL_OES_tessellation_shader" :
-							  "GL_ARB_tessellation_shader")) {
+# if PIGLIT_USE_OPENGL
+			if (gl_version.num >= 40 ||
+			    piglit_is_extension_supported("GL_ARB_tessellation_shader")) {
 				static float ones[] = {1, 1, 1, 1};
 				glPatchParameteri(GL_PATCH_VERTICES, 3);
 				glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, ones);
 				glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, ones);
 			}
+# else
+			/* Ideally one would use the following code:
+			 *
+			 * if (gl_version.num >= 32) {
+			 *         glPatchParameteri(GL_PATCH_VERTICES, 3);
+			 * }
+			 *
+			 * however, that doesn't work with mesa because those
+			 * symbols apparently need to be exported, but that
+			 * breaks non-gles builds.
+			 *
+			 * It seems rather unlikely that an implementation
+			 * would have GLES 3.2 support but not
+			 * OES_tessellation_shader.
+			 */
+			if (piglit_is_extension_supported("GL_OES_tessellation_shader")) {
+				glPatchParameteriOES(GL_PATCH_VERTICES_OES, 3);
+			}
+# endif
 
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
