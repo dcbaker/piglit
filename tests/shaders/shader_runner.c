@@ -3582,10 +3582,7 @@ piglit_init(int argc, char **argv)
 	float default_piglit_tolerance[4];
 
 	report_subtests = piglit_strip_arg(&argc, argv, "-report-subtests");
-	if (report_subtests != (argc > 2)) {
-		fprintf(stderr, "Don't use -report-subtests with one test\n");
-		exit(1);
-	} else if (argc < 2) {
+	if (argc < 2) {
 		printf("usage: shader_runner <test.shader_test>\n");
 		exit(1);
 	}
