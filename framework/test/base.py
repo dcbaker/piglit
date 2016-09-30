@@ -39,7 +39,9 @@ import warnings
 import six
 from six.moves import range
 
-from framework import exceptions, options
+from framework import exceptions
+from framework import options
+from framework import status
 from framework.results import TestResult
 
 # We're doing some special crazy here to make timeouts work on python 2. pylint
@@ -212,7 +214,7 @@ class Test(object):
             except Exception:  # pylint: disable=broad-except
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exc(file=sys.stderr)
-                self.result.result = 'fail'
+                self.result.result = status.EXCEPTION
                 self.result.exception = "{}{}".format(exc_type, exc_value)
                 self.result.traceback = "".join(
                     traceback.format_tb(exc_traceback))
