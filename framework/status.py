@@ -255,6 +255,8 @@ CRASH = Status('crash', 60)
 
 INCOMPLETE = Status('incomplete', 100)
 
+EXCEPTION = Status('exception', 1000)
+
 _STATUS_MAP = {
     'skip': SKIP,
     'pass': PASS,
@@ -266,8 +268,9 @@ _STATUS_MAP = {
     'notrun': NOTRUN,
     'timeout': TIMEOUT,
     'incomplete': INCOMPLETE,
+    'exception': EXCEPTION,
 }
 
 # A tuple (ordered, immutable) of all statuses in this module
 ALL = (PASS, WARN, DMESG_WARN, FAIL, DMESG_FAIL, TIMEOUT, CRASH, INCOMPLETE,
-       SKIP, NOTRUN)
+       EXCEPTION, SKIP, NOTRUN)

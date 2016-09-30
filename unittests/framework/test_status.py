@@ -49,6 +49,7 @@ STATUSES = [
     status.TIMEOUT,
     status.CRASH,
     status.INCOMPLETE,
+    status.EXCEPTION,
 ]
 
 # all statuses except pass are problems
