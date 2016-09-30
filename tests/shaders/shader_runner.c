@@ -3643,7 +3643,7 @@ piglit_init(int argc, char **argv)
 	render_height = piglit_height;
 
 	/* Automatic mode can run multiple tests per session. */
-	if (argc > 2) {
+	if (report_subtests) {
 		char testname[4096], *ext;
 		int i, j;
 
