@@ -2806,6 +2806,7 @@ teardown_ubos(void)
 	glDeleteBuffers(num_uniform_blocks, uniform_block_bos);
 	free(uniform_block_bos);
 	uniform_block_bos = NULL;
+	num_uniform_blocks = 0;
 }
 
 static enum piglit_result
