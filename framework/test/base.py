@@ -209,9 +209,7 @@ class Test(object):
                 self.result.time.end = time.time()
                 self.result = dmesg.update_result(self.result)
                 monitoring.check_monitoring()
-            # This is a rare case where a bare exception is okay, since we're
-            # using it to log exceptions
-            except:
+            except Exception:  # pylint: disable=broad-except
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exc(file=sys.stderr)
                 self.result.result = 'fail'
