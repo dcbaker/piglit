@@ -36,6 +36,10 @@ import itertools
 import multiprocessing
 import multiprocessing.dummy
 import os
+try:
+    import enum
+except ImportError:
+    import enum34 as enum
 
 import six
 
@@ -46,10 +50,18 @@ from framework.monitoring import Monitoring
 from framework.test.base import Test
 
 __all__ = [
+    'ConcurrentMode',
     'TestProfile',
     'load_test_profile',
     'merge_test_profiles'
 ]
+
+
+@enum.unique
+class ConcurrentMode(enum.Enum):
+    none = 0
+    some = 1
+    full = 2
 
 
 class TestDict(collections.MutableMapping):
@@ -488,11 +500,12 @@ def run(profile, logger, backend, concurrency):
     multi = multiprocessing.dummy.Pool()
 
     try:
-        if options.OPTIONS.concurrent == "all":
+        if concurrency is ConcurrentMode.full:
             run_threads(multi, six.iteritems(profile.test_list))
-        elif options.OPTIONS.concurrent == "none":
+        elif concurrency is ConcurrentMode.none:
             run_threads(single, six.iteritems(profile.test_list))
         else:
+            assert concurrency is ConcurrentMode.some
             # Filter and return only thread safe tests to the threaded pool
             run_threads(multi, (x for x in six.iteritems(profile.test_list)
                                 if x[1].run_concurrent))

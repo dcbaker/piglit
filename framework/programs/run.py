@@ -126,15 +126,15 @@ def _run_parser(input_):
     conc_parser = parser.add_mutually_exclusive_group()
     conc_parser.add_argument('-c', '--all-concurrent',
                              action="store_const",
-                             default="some",
-                             const="all",
-                             dest="concurrency",
+                             default=framework.profile.ConcurrentMode.some,
+                             const=framework.profile.ConcurrentMode.full,
+                             dest="concurrent",
                              help="Run all tests concurrently")
     conc_parser.add_argument("-1", "--no-concurrency",
                              action="store_const",
-                             default="some",
-                             const="none",
-                             dest="concurrency",
+                             default=framework.profile.ConcurrentMode.some,
+                             const=framework.profile.ConcurrentMode.none,
+                             dest="concurrent",
                              help="Disable concurrent test runs")
     parser.add_argument("-p", "--platform",
                         choices=core.PLATFORMS,
@@ -222,7 +222,7 @@ def _create_metadata(args, name):
     opts = dict(options.OPTIONS)
     opts['profile'] = args.test_profile
     opts['log_level'] = args.log_level
-    opts['concurrent'] = args.concurrent
+    opts['concurrent'] = args.concurrent.name
     if args.platform:
         opts['platform'] = args.platform
 
@@ -274,7 +274,7 @@ def run(input_):
     # If dmesg is requested we must have serial run, this is because dmesg
     # isn't reliable with threaded run
     if args.dmesg or args.monitored:
-        args.concurrency = "none"
+        args.concurrent = framework.profile.ConcurrentMode.none
 
     # Pass arguments into Options
     options.OPTIONS.exclude_filter = args.exclude_tests
@@ -407,7 +407,7 @@ def resume(input_):
         profile,
         results.options['log_level'],
         backend,
-        results.options['concurrent'])
+        framework.profile.ConcurrentMode[results.options['concurrent']])
 
     backend.finalize()
 
