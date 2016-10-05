@@ -442,7 +442,7 @@ def merge_test_profiles(profiles):
     return profile
 
 
-def run(profile, logger, backend):
+def run(profile, logger, backend, concurrency):
     """Runs all tests using Thread pool.
 
     When called this method will flatten out self.tests into self.test_list,
