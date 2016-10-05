@@ -287,22 +287,6 @@ class TestProfile(object):
             raise exceptions.PiglitFatalError(
                 'There are no tests scheduled to run. Aborting run.')
 
-    def _pre_run_hook(self):
-        """ Hook executed at the start of TestProfile.run
-
-        To make use of this hook one will need to subclass TestProfile, and
-        set this to do something, as be default it will no-op
-        """
-        pass
-
-    def _post_run_hook(self):
-        """ Hook executed at the end of TestProfile.run
-
-        To make use of this hook one will need to subclass TestProfile, and
-        set this to do something, as be default it will no-op
-        """
-        pass
-
     def run(self, logger, backend):
         """ Runs all tests using Thread pool
 
@@ -320,8 +304,6 @@ class TestProfile(object):
         backend -- a results.Backend derived instance
 
         """
-
-        self._pre_run_hook()
 
         chunksize = 1
 
@@ -371,8 +353,6 @@ class TestProfile(object):
             # then die. Pressing C-c again will kill immediately.
             log.get().summary()
             raise
-
-        self._post_run_hook()
 
         if self._monitoring.abort_needed:
             raise exceptions.PiglitAbort(self._monitoring.error_message)
