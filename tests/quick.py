@@ -6,12 +6,14 @@ from __future__ import (
 
 from framework import grouptools
 from framework.test import (GleanTest, PiglitGLTest)
-from tests.all import profile
+from tests.all import profile as _profile
 
 __all__ = ['profile']
 
 # See the note in all.py about this warning
 # pylint: disable=bad-continuation
+
+profile = _profile.copy()  # pylint: disable=invalid-name
 
 GleanTest.GLOBAL_PARAMS += ["--quick"]
 
