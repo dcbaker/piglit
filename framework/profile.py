@@ -54,7 +54,6 @@ __all__ = [
     'ConcurrentMode',
     'TestProfile',
     'load_test_profile',
-    'merge_test_profiles'
 ]
 
 
@@ -310,21 +309,6 @@ class TestProfile(object):
         """
         self.filters.append(function)
 
-    def update(self, *profiles):
-        """ Updates the contents of this TestProfile instance with another
-
-        This method overwrites key:value pairs in self with those in the
-        provided profiles argument. This allows multiple TestProfiles to be
-        called in the same run; which could be used to run piglit and external
-        suites at the same time.
-
-        Arguments:
-        profiles -- one or more TestProfile-like objects to be merged.
-
-        """
-        for profile in profiles:
-            self.test_list.update(profile.test_list)
-
     @contextlib.contextmanager
     def group_manager(self, test_class, group, prefix=None, **default_args):
         """A context manager to make working with flat groups simple.
@@ -453,24 +437,7 @@ def load_test_profile(filename):
             'Check your spelling?'.format(filename))
 
 
-def merge_test_profiles(profiles):
-    """ Helper for loading and merging TestProfile instances
-
-    Takes paths to test profiles as arguments and returns a single merged
-    TestProfile instance.
-
-    Arguments:
-    profiles -- a list of one or more paths to profile files.
-
-    """
-    profile = load_test_profile(profiles.pop())
-    with profile.allow_reassignment:
-        for p in profiles:
-            profile.update(load_test_profile(p))
-    return profile
-
-
-def run(profile, logger, backend, concurrency):
+def run(profiles, logger, backend, concurrency):
     """Runs all tests using Thread pool.
 
     When called this method will flatten out self.tests into self.test_list,
@@ -484,29 +451,49 @@ def run(profile, logger, backend, concurrency):
     Finally it will print a final summary of the tests.
 
     Arguments:
-    profile -- a Profile ojbect.
-    logger  -- a log.LogManager instance.
-    backend -- a results.Backend derived instance.
+    profiles -- a list of Profile instances.
+    logger   -- a log.LogManager instance.
+    backend  -- a results.Backend derived instance.
     """
     chunksize = 1
 
-    profile.prepare_test_list()
-    log = LogManager(logger, len(profile.test_list))
+    for p in profiles:
+        p.prepare_test_list()
+    log = LogManager(logger, sum(len(p.test_list) for p in profiles))
 
-    def test(pair, this_pool=None):
+    def test(name, test, profile, this_pool=None):
         """Function to call test.execute from map"""
-        name, test = pair
         with backend.write_test(name) as w:
             test.execute(name, log.get(), profile.dmesg, profile.monitoring)
             w(test.result)
         if profile.monitoring.abort_needed:
             this_pool.terminate()
 
-    def run_threads(pool, testlist):
+    def run_threads(pool, profile, filterby=None):
         """ Open a pool, close it, and join it """
-        pool.imap(lambda pair: test(pair, pool), testlist, chunksize)
+        iterable = six.iteritems(profile.test_list)
+        if filterby:
+            iterable = (x for x in iterable if filterby(x))
+
+        pool.imap(lambda pair: test(pair[0], pair[1], profile, pool),
+                  iterable, chunksize)
         pool.close()
         pool.join()
+
+    def run_profile(profile):
+        """Run an individual profile."""
+        if concurrency is ConcurrentMode.full:
+            run_threads(multi, profile)
+        elif concurrency is ConcurrentMode.none:
+            run_threads(single, profile)
+        else:
+            assert concurrency is ConcurrentMode.some
+            # Filter and return only thread safe tests to the threaded pool
+            run_threads(multi, profile, lambda x: x[1].run_concurrent)
+
+            # Filter and return the non thread safe tests to the single
+            # pool
+            run_threads(single, profile, lambda x: not x[1].run_concurrent)
 
     # Multiprocessing.dummy is a wrapper around Threading that provides a
     # multiprocessing compatible API
@@ -516,21 +503,11 @@ def run(profile, logger, backend, concurrency):
     multi = multiprocessing.dummy.Pool()
 
     try:
-        if concurrency is ConcurrentMode.full:
-            run_threads(multi, six.iteritems(profile.test_list))
-        elif concurrency is ConcurrentMode.none:
-            run_threads(single, six.iteritems(profile.test_list))
-        else:
-            assert concurrency is ConcurrentMode.some
-            # Filter and return only thread safe tests to the threaded pool
-            run_threads(multi, (x for x in six.iteritems(profile.test_list)
-                                if x[1].run_concurrent))
-            # Filter and return the non thread safe tests to the single
-            # pool
-            run_threads(single, (x for x in six.iteritems(profile.test_list)
-                                 if not x[1].run_concurrent))
+        for p in profiles:
+            run_profile(p)
     finally:
         log.get().summary()
 
-    if profile.monitoring.abort_needed:
-        raise exceptions.PiglitAbort(profile.monitoring.error_message)
+    for p in profiles:
+        if p.monitoring.abort_needed:
+            raise exceptions.PiglitAbort(p.monitoring.error_message)
