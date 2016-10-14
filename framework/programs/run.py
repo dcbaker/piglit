@@ -23,12 +23,13 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 import argparse
-import sys
+import ctypes
 import os
 import os.path as path
-import time
-import ctypes
+import re
 import shutil
+import sys
+import time
 
 import six
 
@@ -222,6 +223,8 @@ def _create_metadata(args, name):
     opts['profile'] = args.test_profile
     opts['log_level'] = args.log_level
     opts['concurrent'] = args.concurrent.name
+    opts['include_filter'] = args.include_tests
+    opts['exclude_filter'] = args.exclude_tests
     if args.platform:
         opts['platform'] = args.platform
 
@@ -276,8 +279,6 @@ def run(input_):
         args.concurrent = profile.ConcurrentMode.none
 
     # Pass arguments into Options
-    options.OPTIONS.exclude_filter = args.exclude_tests
-    options.OPTIONS.include_filter = args.include_tests
     options.OPTIONS.execute = args.execute
     options.OPTIONS.valgrind = args.valgrind
     options.OPTIONS.dmesg = args.dmesg
@@ -334,6 +335,12 @@ def run(input_):
         for p in profiles:
             p.monitoring = args.monitored
 
+    for p in profiles:
+        if args.exclude_tests:
+            p.filters.append(profile.RegexFilter(args.exclude_tests))
+        if args.include_tests:
+            p.filters.append(profile.RegexFilter(args.include_tests))
+
     time_elapsed = time.time()
 
     profile.run(profiles, args.log_level, backend, args.concurrent)
@@ -365,8 +372,6 @@ def resume(input_):
     _disable_windows_exception_messages()
 
     results = backends.load(args.results_path)
-    options.OPTIONS.exclude_filter = results.options['exclude_filter']
-    options.OPTIONS.include_filter = results.options['include_filter']
     options.OPTIONS.execute = results.options['execute']
     options.OPTIONS.valgrind = results.options['valgrind']
     options.OPTIONS.dmesg = results.options['dmesg']
@@ -406,7 +411,14 @@ def resume(input_):
         if options.OPTIONS.monitored:
             p.monitoring = options.OPTIONS.monitored
 
-        p.filters.append(lambda n, _: n not in exclude_tests)
+        if exclude_tests:
+            p.filters.append(lambda n, _: n not in exclude_tests)
+        if results.options['exclude_filter']:
+            p.filters.append(
+                profile.RegexFilter(results.options['exclude_filter']))
+        if results.options['include_filter']:
+            p.filters.append(
+                profile.RegexFilter(results.options['include_filter']))
 
     # This is resumed, don't bother with time since it won't be accurate anyway
     profile.run(

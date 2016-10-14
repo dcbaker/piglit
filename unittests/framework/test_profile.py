@@ -23,11 +23,6 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-import copy
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 
 import pytest
 import six
@@ -100,86 +95,6 @@ class TestTestProfile(object):
         profile_.dmesg = True
         profile_.dmesg = False
         assert isinstance(profile_.dmesg, dmesg.DummyDmesg)
-
-    class TestPrepareTestList(object):
-        """Create tests for TestProfile.prepare_test_list filtering."""
-
-        @classmethod
-        def setup_class(cls):
-            cls.opts = None
-            cls.data = None
-            cls.__patcher = mock.patch('framework.profile.options.OPTIONS',
-                                       new_callable=options._Options)
-
-        def setup(self):
-            """Setup each test."""
-            self.data = profile.TestDict()
-            self.data[grouptools.join('group1', 'test1')] = \
-                utils.Test(['thingy'])
-            self.data[grouptools.join('group1', 'group3', 'test2')] = \
-                utils.Test(['thing'])
-            self.data[grouptools.join('group3', 'test5')] = \
-                utils.Test(['other'])
-            self.data[grouptools.join('group4', 'Test9')] = \
-                utils.Test(['is_caps'])
-            self.opts = self.__patcher.start()
-
-        def teardown(self):
-            self.__patcher.stop()
-
-        def test_matches_filter_mar_1(self):
-            """profile.TestProfile.prepare_test_list: 'not env.filter or
-            matches_any_regex()' env.filter is False.
-
-            Nothing should be filtered.
-            """
-            profile_ = profile.TestProfile()
-            profile_.test_list = self.data
-            profile_.prepare_test_list()
-
-            assert dict(profile_.test_list) == dict(self.data)
-
-        def test_matches_filter_mar_2(self):
-            """profile.TestProfile.prepare_test_list: 'not env.filter or
-            matches_any_regex()' mar is False.
-            """
-            self.opts.include_filter = ['test5']
-
-            profile_ = profile.TestProfile()
-            profile_.test_list = self.data
-            profile_.prepare_test_list()
-
-            baseline = {
-                grouptools.join('group3', 'test5'): utils.Test(['other'])}
-
-            assert dict(profile_.test_list) == baseline
-
-        def test_matches_exclude_mar(self):
-            """profile.TestProfile.prepare_test_list: 'not
-            matches_any_regexp()'.
-            """
-            self.opts.exclude_filter = ['test5']
-
-            baseline = copy.deepcopy(self.data)
-            del baseline[grouptools.join('group3', 'test5')]
-
-            profile_ = profile.TestProfile()
-            profile_.test_list = self.data
-            profile_.prepare_test_list()
-
-            assert dict(profile_.test_list) == dict(baseline)
-
-        def test_matches_include_caps(self):
-            """profile.TestProfile.prepare_test_list: matches capitalized
-            tests.
-            """
-            self.opts.exclude_filter = ['test9']
-
-            profile_ = profile.TestProfile()
-            profile_.test_list = self.data
-            profile_.prepare_test_list()
-
-            assert grouptools.join('group4', 'Test9') not in profile_.test_list
 
     class TestGroupManager(object):
         """Tests for TestProfile.group_manager."""

@@ -37,6 +37,7 @@ import itertools
 import multiprocessing
 import multiprocessing.dummy
 import os
+import re
 try:
     import enum
 except ImportError:
@@ -44,7 +45,7 @@ except ImportError:
 
 import six
 
-from framework import grouptools, exceptions, options
+from framework import grouptools, exceptions
 from framework.dmesg import get_dmesg
 from framework.log import LogManager
 from framework.monitoring import Monitoring
@@ -52,6 +53,7 @@ from framework.test.base import Test
 
 __all__ = [
     'ConcurrentMode',
+    'RegexFilter',
     'TestProfile',
     'load_test_profile',
 ]
@@ -62,6 +64,25 @@ class ConcurrentMode(enum.Enum):
     none = 0
     some = 1
     full = 2
+
+
+class RegexFilter(object):
+    """An object to be passed to TestProfile.filter.
+
+    Arguments:
+    filters -- a list of regex compiled objects.
+    """
+
+    def __init__(self, filters):
+        self.filters = [re.compile(f) for f in filters]
+
+    def __call__(self, name, _):  # pylint: disable=invalid-name
+        # This needs to match the signature (name, test), since it doesn't need
+        # the test instance use _.
+
+        # if self.filters == [], then any() will return False, the opposite of
+        # what we want!
+        return not any(r.search(name) for r in self.filters)
 
 
 class TestDict(collections.MutableMapping):
@@ -264,22 +285,10 @@ class TestProfile(object):
         runs it's own filters plus the filters in the self.filters name
 
         """
-        def matches_any_regexp(x, re_list):
-            return any(r.search(x) for r in re_list)
-
-        # The extra argument is needed to match check_all's API
-        def test_matches(path, test):
-            """Filter for user-specified restrictions"""
-            return ((not options.OPTIONS.include_filter or
-                     matches_any_regexp(path, options.OPTIONS.include_filter))
-                    and not matches_any_regexp(path, options.OPTIONS.exclude_filter))
-
-        filters = self.filters + [test_matches]
-
         def check_all(item):
             """ Checks group and test name against all filters """
             path, test = item
-            for f in filters:
+            for f in self.filters:
                 if not f(path, test):
                     return False
             return True
