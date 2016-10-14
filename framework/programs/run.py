@@ -33,8 +33,7 @@ import shutil
 import six
 
 from framework import core, backends, exceptions, options
-import framework.results
-import framework.profile
+from framework import profile
 from . import parsers
 
 __all__ = ['run',
@@ -126,14 +125,14 @@ def _run_parser(input_):
     conc_parser = parser.add_mutually_exclusive_group()
     conc_parser.add_argument('-c', '--all-concurrent',
                              action="store_const",
-                             default=framework.profile.ConcurrentMode.some,
-                             const=framework.profile.ConcurrentMode.full,
+                             default=profile.ConcurrentMode.some,
+                             const=profile.ConcurrentMode.full,
                              dest="concurrent",
                              help="Run all tests concurrently")
     conc_parser.add_argument("-1", "--no-concurrency",
                              action="store_const",
-                             default=framework.profile.ConcurrentMode.some,
-                             const=framework.profile.ConcurrentMode.none,
+                             default=profile.ConcurrentMode.some,
+                             const=profile.ConcurrentMode.none,
                              dest="concurrent",
                              help="Disable concurrent test runs")
     parser.add_argument("-p", "--platform",
@@ -274,7 +273,7 @@ def run(input_):
     # If dmesg is requested we must have serial run, this is because dmesg
     # isn't reliable with threaded run
     if args.dmesg or args.monitored:
-        args.concurrent = framework.profile.ConcurrentMode.none
+        args.concurrent = profile.ConcurrentMode.none
 
     # Pass arguments into Options
     options.OPTIONS.exclude_filter = args.exclude_tests
@@ -312,7 +311,7 @@ def run(input_):
     backend.initialize(_create_metadata(
         args, args.name or path.basename(args.results_path)))
 
-    profiles = [framework.profile.load_test_profile(p) for p in args.test_profile]
+    profiles = [profile.load_test_profile(p) for p in args.test_profile]
     for p in profiles:
         p.results_dir = args.results_path
 
@@ -337,7 +336,7 @@ def run(input_):
 
     time_elapsed = time.time()
 
-    framework.profile.run(profiles, args.log_level, backend, args.concurrent)
+    profile.run(profiles, args.log_level, backend, args.concurrent)
 
     time_elapsed = time.time() - time_elapsed
     backend.finalize({'time_elapsed': time_elapsed})
@@ -395,7 +394,7 @@ def resume(input_):
         if args.no_retry or result.result != 'incomplete':
             options.OPTIONS.exclude_tests.add(name)
 
-    profiles = [framework.profile.load_test_profile(p)
+    profiles = [profile.load_test_profile(p)
                 for p in results.options['profile']]
     for p in profiles:
         p.results_dir = args.results_path
@@ -407,11 +406,11 @@ def resume(input_):
             p.monitoring = options.OPTIONS.monitored
 
     # This is resumed, don't bother with time since it won't be accurate anyway
-    framework.profile.run(
+    profile.run(
         profiles,
         results.options['log_level'],
         backend,
-        framework.profile.ConcurrentMode[results.options['concurrent']])
+        profile.ConcurrentMode[results.options['concurrent']])
 
     backend.finalize()
 
