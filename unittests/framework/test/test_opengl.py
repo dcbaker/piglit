@@ -26,9 +26,9 @@ from __future__ import (
 import subprocess
 import textwrap
 try:
-    from unittest import mock
-except ImportError:
     import mock
+except ImportError:
+    from unittest import mock
 
 import pytest
 
@@ -38,6 +38,16 @@ from framework.test.base import TestIsSkip as _TestIsSkip
 from .. import utils
 
 # pylint: disable=no-self-use,attribute-defined-outside-init,protected-access
+
+
+@pytest.yield_fixture(scope='module', autouse=True)
+def _mock_registry():
+    with mock.patch('framework.test.base.REGISTRY', new_callable=dict):
+        yield
+
+
+class FastSkipTest(opengl.FastSkipMixin, utils.UTest):
+    pass
 
 
 def _has_wflinfo():
@@ -408,18 +418,16 @@ class TestFastSkipMixin(object):  # pylint: disable=too-many-public-methods
         with mock.patch('framework.test.opengl.FastSkip.info', _mock_wflinfo):
             yield
 
-    class _Test(opengl.FastSkipMixin, utils.Test):
-        pass
-
     def test_api(self):
         """Tests that the api works.
 
         Since you're not suppoed to be able to pass gl and gles version, this
         uses two seperate constructor calls.
         """
-        self._Test(['foo'], gl_required={'foo'}, gl_version=3, glsl_version=2)
-        self._Test(['foo'], gl_required={'foo'}, gles_version=3,
-                   glsl_es_version=2)
+        FastSkipTest(['foo'], gl_required={'foo'}, gl_version=3,
+                     glsl_version=2)
+        FastSkipTest(['foo'], gl_required={'foo'}, gles_version=3,
+                     glsl_es_version=2)
 
 
 class TestFastSkip(object):
@@ -607,15 +615,13 @@ class TestFastSkipMixinDisabled(object):
         with mock.patch('framework.test.opengl.FastSkip.info', _mock_wflinfo):
             yield
 
-    class _Test(opengl.FastSkipMixin, utils.Test):
-        pass
-
     def test_api(self):
         """Tests that the api works.
 
         Since you're not suppoed to be able to pass gl and gles version, this
         uses two seperate constructor calls.
         """
-        self._Test(['foo'], gl_required={'foo'}, gl_version=3, glsl_version=2)
-        self._Test(['foo'], gl_required={'foo'}, gles_version=3,
-                   glsl_es_version=2)
+        FastSkipTest(['foo'], gl_required={'foo'}, gl_version=3,
+                     glsl_version=2)
+        FastSkipTest(['foo'], gl_required={'foo'}, gles_version=3,
+                     glsl_es_version=2)

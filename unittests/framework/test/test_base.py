@@ -29,6 +29,11 @@ try:
     import subprocess32 as subprocess
 except ImportError:
     import subprocess
+try:
+    import mock
+except ImportError:
+    from unittest import mock
+
 
 import pytest
 import six
@@ -44,6 +49,12 @@ from ..test_status import PROBLEMS
 from .. import skip
 
 # pylint: disable=invalid-name,no-self-use,protected-access
+
+
+@pytest.yield_fixture(scope="class", autouse=True)
+def _mock_registry():
+    with mock.patch("framework.test.base.REGISTRY", new_callable=dict):
+        yield
 
 
 class _Test(base.Test):
@@ -324,12 +335,12 @@ class TestValgrindMixin(object):
         opts = mocker.patch('framework.test.base.OPTIONS',
                             new_callable=Options)
 
-        class Test(base.ValgrindMixin, _Test):
+        class ThisTest(base.ValgrindMixin, _Test):
             pass
 
         opts.valgrind = True
 
-        test = Test(['foo'])
+        test = ThisTest(['foo'])
         assert test.command == ['valgrind', '--quiet', '--error-exitcode=1',
                                 '--tool=memcheck', 'foo']
 
@@ -342,10 +353,10 @@ class TestValgrindMixin(object):
                 def run(self):
                     self.interpret_result()
 
-            class Test(base.ValgrindMixin, _NoRunTest):
+            class ThisTest(base.ValgrindMixin, _NoRunTest):
                 pass
 
-            cls.test = Test
+            cls.test = ThisTest
 
         # The ids function here is a bit of a hack to work around the
         # pytest-timeout plugin, which is broken. when 'timeout' is passed as a
@@ -446,7 +457,7 @@ class TestReducedProcessMixin(object):
                     self.result.out = next(self.gen_out)
                     self.result.err = next(self.gen_err)
 
-            class Test(base.ReducedProcessMixin, _Shim, _Test):
+            class ThisTest(base.ReducedProcessMixin, _Shim, _Test):
                 """The actual Class returned by the fixture.
 
                 This class implements the abstract bits from
@@ -471,7 +482,7 @@ class TestReducedProcessMixin(object):
                             self.result.subtests[name] = line[len('RESULT: '):]
                             name = None
 
-            return Test
+            return ThisTest
 
         def test_result(self, test_class):
             """Test result attributes."""
@@ -541,3 +552,23 @@ class TestReducedProcessMixin(object):
             assert test.result.subtests['a'] == status.PASS
             assert test.result.subtests['b'] == status.PASS
             assert test.result.subtests['c'] == status.CRASH
+
+
+class TestRegister(object):
+    """Tests for the Register Metaclass."""
+
+    def test_derived(self):
+        """Derived classes are registered."""
+        class TestDerived(base.Test):
+            def interpret_results(self, *args, **kwargs):
+                pass
+
+        assert 'TestDerived' in base.REGISTRY
+
+    def test_manual(self):
+        """Manually created classes with Register metaclass are registered."""
+        @six.add_metaclass(base.Register)
+        class TestManual(object):
+            pass
+
+        assert 'TestManual' in base.REGISTRY

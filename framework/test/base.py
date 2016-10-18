@@ -118,6 +118,29 @@ __all__ = [
 # PIGLIT_NO_TIMEOUT to anything that bool() will resolve as True
 _SUPPRESS_TIMEOUT = bool(os.environ.get('PIGLIT_NO_TIMEOUT', False))
 
+# A registry of all Test derived classes and Test-like classes. It's used to
+# restore from XML. Use Register metaclass to handle this.
+REGISTRY = {}
+
+
+class Register(type):
+    """A metaclass that auto registers Test derived classes.
+
+    This class is automatically added to classes that descend from Test, the
+    only time a developer needs to use this is to implement a Test class that
+    doesn't derive from Test.
+
+    This class does not allow existing names to be implicitly overwritten.
+    """
+
+    def __new__(mcs, name, bases, attrs):
+        assert name not in REGISTRY, '"{}" already registered!'.format(name)
+
+        newclass = super(Register, mcs).__new__(mcs, name, bases, attrs)
+        REGISTRY[name] = newclass
+
+        return newclass
+
 
 class TestIsSkip(exceptions.PiglitException):
     """Exception raised in is_skip() if the test is a skip."""
@@ -152,7 +175,13 @@ def is_crash_returncode(returncode):
         return returncode < 0
 
 
-@six.add_metaclass(abc.ABCMeta)
+# This might be entirely too clever, but what it does it create a new class
+# derived from Register and abc.ABCMeta, which is necessary to avoid having a
+# TypeError from a metaclass conflict.
+#
+# This must be str(), not six.text_type since python2.x requires a bytes (python
+# 2 str) and python 3 requires a str (python 2 unicode. str() will provide this
+@six.add_metaclass(type(str('_TestMeta'), (abc.ABCMeta, Register), {}))
 class Test(object):
     """ Abstract base class for Test classes
 

@@ -28,10 +28,10 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 
-from framework.test.base import Test as _Test
+from framework.test.base import Test
 
 
-class Test(_Test):
+class UTest(Test):
     """A Test dericed class with a stub interpret_result.
 
     This class provides a way to test the Test class.

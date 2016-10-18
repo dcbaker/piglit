@@ -151,7 +151,6 @@ def iter_deqp_test_cases(case_file):
                     'deqp: {}:{}: ill-formed line'.format(case_file, i))
 
 
-@six.add_metaclass(abc.ABCMeta)
 class DEQPBaseTest(Test):
     __RESULT_MAP = {
         "Pass": "pass",

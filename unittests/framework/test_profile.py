@@ -77,8 +77,8 @@ class TestTestProfile(object):
         @pytest.fixture
         def fixture(self):
             orig = profile.TestProfile()
-            orig.test_list['foo'] = utils.Test(['foo'])
-            orig.test_list['bar'] = utils.Test(['bar'])
+            orig.test_list['foo'] = utils.UTest(['foo'])
+            orig.test_list['bar'] = utils.UTest(['bar'])
             orig.filters = [lambda name, _: name != 'bar']
             orig.forced_test_list = ['foo']
             return orig
@@ -123,8 +123,8 @@ class TestTestProfile(object):
         @pytest.fixture
         def fixture(self):
             orig = profile.TestProfile()
-            orig.test_list['foo'] = utils.Test(['foo'])
-            orig.test_list['bar'] = utils.Test(['bar'])
+            orig.test_list['foo'] = utils.UTest(['foo'])
+            orig.test_list['bar'] = utils.UTest(['bar'])
             orig.filters = [lambda name, _: name != 'bar']
             orig.forced_test_list = ['foo']
             return orig
@@ -180,7 +180,7 @@ class TestTestDict(object):
 
     @pytest.mark.parametrize(
         "arg",
-        [None, utils.Test(['foo']), ['a'], {'a': 1}],
+        [None, utils.UTest(['foo']), ['a'], {'a': 1}],
         ids=six.text_type)
     def test_key_not_string(self, arg):
         """profile.TestDict: If key value isn't a string an exception is raised.
@@ -190,13 +190,13 @@ class TestTestDict(object):
         could come up with.
         """
         with pytest.raises(exceptions.PiglitFatalError):
-            self.test[arg] = utils.Test(['foo'])
+            self.test[arg] = utils.UTest(['foo'])
 
     def test_reassignment(self):
         """reassigning a key raises an exception."""
-        self.test['foo'] = utils.Test(['foo'])
+        self.test['foo'] = utils.UTest(['foo'])
         with pytest.raises(exceptions.PiglitFatalError):
-            self.test['foo'] = utils.Test(['foo', 'bar'])
+            self.test['foo'] = utils.UTest(['foo', 'bar'])
 
     class TestAllowReassignment(object):
         """Tests for TestDict.allow_reassignment."""
@@ -208,15 +208,15 @@ class TestTestDict(object):
         def test_case_insensitve(self, test):
             """reassigning a key raises an exception (capitalization is
             ignored)."""
-            test['foo'] = utils.Test(['foo'])
+            test['foo'] = utils.UTest(['foo'])
             with pytest.raises(exceptions.PiglitFatalError):
-                test['Foo'] = utils.Test(['foo', 'bar'])
+                test['Foo'] = utils.UTest(['foo', 'bar'])
 
         def test_simple(self, test):
             """profile.TestDict.allow_reassignment works."""
-            test['a'] = utils.Test(['foo'])
+            test['a'] = utils.UTest(['foo'])
             with test.allow_reassignment:
-                test['a'] = utils.Test(['bar'])
+                test['a'] = utils.UTest(['bar'])
 
             assert test['a'].command == ['bar']
 
@@ -225,9 +225,9 @@ class TestTestDict(object):
             groupmanager.
             """
             testname = grouptools.join('a', 'b')
-            test[testname] = utils.Test(['foo'])
+            test[testname] = utils.UTest(['foo'])
             with test.allow_reassignment:
-                with test.group_manager(utils.Test, 'a') as g:
+                with test.group_manager(utils.UTest, 'a') as g:
                     g(['bar'], 'b')
 
             assert test[testname].command == ['bar']
@@ -241,11 +241,11 @@ class TestTestDict(object):
             and then returns from the inner one assignment will not be allowed,
             even though one is still inside the first context manager.
             """
-            test['a'] = utils.Test(['foo'])
+            test['a'] = utils.UTest(['foo'])
             with test.allow_reassignment:
                 with test.allow_reassignment:
                     pass
-                test['a'] = utils.Test(['bar'])
+                test['a'] = utils.UTest(['bar'])
 
             assert test['a'].command == ['bar']
 
@@ -258,21 +258,21 @@ class TestTestDict(object):
 
         def test_no_name_args_eq_one(self, inst):
             """no name and len(args) == 1 is valid."""
-            with inst.group_manager(utils.Test, 'foo') as g:
+            with inst.group_manager(utils.UTest, 'foo') as g:
                 g(['a'])
 
             assert grouptools.join('foo', 'a') in inst
 
         def test_no_name_args_gt_one(self, inst):
             """no name and len(args) > 1 is valid."""
-            with inst.group_manager(utils.Test, 'foo') as g:
+            with inst.group_manager(utils.UTest, 'foo') as g:
                 g(['a', 'b'])
 
             assert grouptools.join('foo', 'a b') in inst
 
         def test_name(self, inst):
             """name plus len(args) > 1 is valid."""
-            with inst.group_manager(utils.Test, 'foo') as g:
+            with inst.group_manager(utils.UTest, 'foo') as g:
                 g(['a', 'b'], 'a')
 
             assert grouptools.join('foo', 'a') in inst
@@ -281,7 +281,7 @@ class TestTestDict(object):
             """Extra kwargs passed to the adder function are passed to the
             Test.
             """
-            with inst.group_manager(utils.Test, 'foo') as g:
+            with inst.group_manager(utils.UTest, 'foo') as g:
                 g(['a'], run_concurrent=True)
             test = inst[grouptools.join('foo', 'a')]
 
@@ -290,7 +290,7 @@ class TestTestDict(object):
         def test_context_manager_keyword_args_passed(self, inst):
             """kwargs passed to the context_manager are passed to the Test."""
             with inst.group_manager(
-                    utils.Test, 'foo', run_concurrent=True) as g:  # pylint: disable=bad-continuation
+                    utils.UTest, 'foo', run_concurrent=True) as g:  # pylint: disable=bad-continuation
                     # This is a pylint bug, there's an upstream report
                 g(['a'])
             test = inst[grouptools.join('foo', 'a')]
@@ -300,7 +300,7 @@ class TestTestDict(object):
         def test_adder_kwargs_overwrite_context_manager_kwargs(self, inst):
             """default_args are overwritten by kwargs."""
             with inst.group_manager(
-                    utils.Test, 'foo', run_concurrent=True) as g:  # pylint: disable=bad-continuation
+                    utils.UTest, 'foo', run_concurrent=True) as g:  # pylint: disable=bad-continuation
                     # This is a pylint bug, there's an upstream report
                 g(['a'], run_concurrent=False)
 
