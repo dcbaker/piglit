@@ -154,13 +154,17 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
 
     """
 
-    def __init__(self, filename):
+    def __init__(self, command, run_concurrent=True, **kwargs):
+        kwargs['run_concurrent'] = run_concurrent
+        super(ShaderTest, self).__init__(command, **kwargs)
+
+    @classmethod
+    def parse_file(cls, filename):
         parser = Parser(filename)
         parser.parse()
 
-        super(ShaderTest, self).__init__(
+        return cls(
             [parser.prog, parser.filename],
-            run_concurrent=True,
             gl_required=parser.gl_required,
             gl_version=parser.gl_version,
             gles_version=parser.gles_version,

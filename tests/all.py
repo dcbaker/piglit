@@ -218,7 +218,7 @@ for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
             groupname = grouptools.from_path(os.path.relpath(dirpath, basedir))
             if ext == '.shader_test':
                 if PROCESS_ISOLATION:
-                    test = ShaderTest(os.path.join(dirpath, filename))
+                    test = ShaderTest.parse_file(os.path.join(dirpath, filename))
                 else:
                     shader_tests[groupname].append(os.path.join(dirpath, filename))
                     continue

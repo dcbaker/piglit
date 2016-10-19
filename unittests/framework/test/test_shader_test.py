@@ -93,79 +93,79 @@ class TestConfigParsing(object):
 
             [next section]
             """.format(operator, gles)))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert os.path.basename(test.command[0]) == expected
 
     def test_gles3_bin(self, tmpdir):
-        """test.shader_test.ShaderTest: Identifies GLES3 tests successfully."""
+        """test.shader_test.ShaderTest.parse_file: Identifies GLES3 tests successfully."""
         p = tmpdir.join('test.shader_test')
         p.write(textwrap.dedent("""\
             [require]
             GL ES >= 3.0
             GLSL ES >= 3.00 es
             """))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert os.path.basename(test.command[0]) == "shader_runner_gles3"
 
     def test_skip_gl_required(self, tmpdir):
-        """test.shader_test.ShaderTest: populates gl_requirements properly"""
+        """test.shader_test.ShaderTest.parse_file: populates gl_requirements properly"""
         p = tmpdir.join('test.shader_test')
         p.write(textwrap.dedent("""\
             [require]
             GL >= 3.0
             GL_ARB_ham_sandwhich
             """))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert test.gl_required == {'GL_ARB_ham_sandwhich'}
 
     def test_skip_gl_version(self, tmpdir):
-        """test.shader_test.ShaderTest: finds gl_version."""
+        """test.shader_test.ShaderTest.parse_file: finds gl_version."""
         p = tmpdir.join('test.shader_test')
         p.write(textwrap.dedent("""\
             [require]
             GL >= 2.0
             GL_ARB_ham_sandwhich
             """))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert test.gl_version == 2.0
 
     def test_skip_gles_version(self, tmpdir):
-        """test.shader_test.ShaderTest: finds gles_version."""
+        """test.shader_test.ShaderTest.parse_file: finds gles_version."""
         p = tmpdir.join('test.shader_test')
         p.write(textwrap.dedent("""\
             [require]
             GL ES >= 2.0
             GL_ARB_ham_sandwhich
             """))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert test.gles_version == 2.0
 
     def test_skip_glsl_version(self, tmpdir):
-        """test.shader_test.ShaderTest: finds glsl_version."""
+        """test.shader_test.ShaderTest.parse_file: finds glsl_version."""
         p = tmpdir.join('test.shader_test')
         p.write(textwrap.dedent("""\
             [require]
             GL >= 2.1
             GLSL >= 1.20
             """))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert test.glsl_version == 1.2
 
     def test_skip_glsl_es_version(self, tmpdir):
-        """test.shader_test.ShaderTest: finds glsl_es_version."""
+        """test.shader_test.ShaderTest.parse_file: finds glsl_es_version."""
         p = tmpdir.join('test.shader_test')
         p.write(textwrap.dedent("""\
             [require]
             GL ES >= 2.0
             GLSL ES >= 1.00
             """))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert test.glsl_es_version == 1.0
 
@@ -185,24 +185,28 @@ class TestConfigParsing(object):
             GL_MAX_VARYING_COMPONENTS
             GL_ARB_foobar
             """))
-        test = shader_test.ShaderTest(six.text_type(p))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
 
         assert test.gl_version == 3.3
         assert test.glsl_version == 1.50
         assert test.gl_required == {'GL_ARB_foobar'}
 
 
-def test_command_add_auto(tmpdir):
-    """test.shader_test.ShaderTest: -auto is added to the command."""
-    p = tmpdir.join('test.shader_test')
-    p.write(textwrap.dedent("""\
-        [require]
-        GL ES >= 3.0
-        GLSL ES >= 3.00 es
-        """))
-    test = shader_test.ShaderTest(six.text_type(p))
+class TestShaderTest(object):
+    """Tests for the ShaderTest class."""
 
-    assert '-auto' in test.command
+    def test_command_add_auto(self, tmpdir):
+        """-auto is added to the command.
+        """
+        p = tmpdir.join('test.shader_test')
+        p.write(textwrap.dedent("""\
+            [require]
+            GL ES >= 3.0
+            GLSL ES >= 3.00 es
+            """))
+        test = shader_test.ShaderTest.parse_file(six.text_type(p))
+
+        assert '-auto' in test.command
 
 
 class TestMultiShaderTest(object):
@@ -264,4 +268,3 @@ class TestMultiShaderTest(object):
         assert os.path.basename(actual[0]) == 'shader_runner'
         assert os.path.basename(actual[1]) == 'bar.shader_test'
         assert os.path.basename(actual[2]) == '-auto'
-
