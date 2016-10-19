@@ -25,6 +25,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import copy
 import os
 
 from framework import options
@@ -45,16 +46,16 @@ class GleanTest(Test):
 
     """
     GLOBAL_PARAMS = []
-    _EXECUTABLE = os.path.join(TEST_BIN_DIR, "glean")
 
     def __init__(self, name, **kwargs):
         super(GleanTest, self).__init__(
-            [self._EXECUTABLE, "-o", "-v", "-v", "-v", "-t", "+" + name],
-            **kwargs)
+            ["glean", "-o", "-v", "-v", "-v", "-t", "+" + name], **kwargs)
 
     @Test.command.getter
     def command(self):
-        return super(GleanTest, self).command + self.GLOBAL_PARAMS
+        command = copy.copy(super(GleanTest, self).command)
+        command[0] = os.path.join(TEST_BIN_DIR, command[0])
+        return command + self.GLOBAL_PARAMS
 
     def interpret_result(self):
         if self.result.returncode != 0 or 'FAIL' in self.result.out:
