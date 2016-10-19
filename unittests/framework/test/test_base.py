@@ -33,6 +33,10 @@ try:
     import mock
 except ImportError:
     from unittest import mock
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.cElementTree as etree
 
 
 import pytest
@@ -58,9 +62,15 @@ def _mock_registry():
 
 
 class _Test(base.Test):
-    """Helper with stubbed interpret_results method."""
+    """Helper with abstracted methods stubbed."""
+
     def interpret_result(self):
         super(_Test, self).interpret_result()
+
+    def to_xml(self, name, _elem=None):
+        assert _elem is None
+        _elem = etree.Element('Test', type='_Test', name=name)
+        return super(_Test, self).to_xml(name, _elem)
 
 
 class TestTest(object):
@@ -294,6 +304,19 @@ class TestTest(object):
 
             assert test.result.result is status.FAIL
 
+    class TestToXML(object):
+        """Test the to_xml method."""
+
+        @pytest.fixture(scope='class')
+        def inst(self):
+            return _Test(['foo'], run_concurrent=True).to_xml('name')
+
+        def test_run_concurrent(self, inst):
+            assert inst.find('run_concurrent').text == 'true'
+
+        def test_command(self, inst):
+            comm = inst.find('command')
+            assert comm[0].text == 'foo'
 
 class TestWindowResizeMixin(object):
     """Tests for the WindowResizeMixin class."""

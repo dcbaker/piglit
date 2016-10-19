@@ -481,3 +481,26 @@ def test_add_compatibility_requirement_binary(version, extension, tmpdir,
     # The compat extension was added to the slow skipping (C level)
     # requirements
     assert extension in test.command
+
+
+class TestGLSLParserTest(object):
+    """Tests for the GLSLParserTest class."""
+
+    class TestToXML(object):
+        """Tests for the to_xml method."""
+
+        @pytest.fixture(scope='class')
+        def inst(self):
+            return glsl.GLSLParserTest(
+                ['parsertest', 'file'],
+                gl_required={'foo'},
+                glsl_version=3.2
+            ).to_xml('name')
+
+        def test_type(self, inst):
+            """the Test type is set correctly."""
+            assert inst.attrib['type'] == 'GLSLParserTest'
+
+        def test_name(self, inst):
+            """the Test name is set correctly."""
+            assert inst.attrib['name'] == 'name'

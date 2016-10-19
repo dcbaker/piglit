@@ -35,6 +35,10 @@ import abc
 import copy
 import signal
 import warnings
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.cElementTree as etree
 
 import six
 from six.moves import range
@@ -403,6 +407,24 @@ class Test(object):
 
     def __ne__(self, other):
         return not self == other
+
+    # @abc.abstractmethod
+    def to_xml(self, name, _elem=None):
+        """Serialize this class to XML."""
+        # Since Test is abstract, and type must be set to the leaf classes type
+        # there is no way that this can be correctly called without passing an
+        # elem.
+        assert _elem is not None
+
+        command = etree.SubElement(_elem, 'command', type='array')
+        for each in self._command:
+            e = etree.SubElement(command, 'e')
+            e.text = each
+
+        rc = etree.SubElement(_elem, 'run_concurrent', type='bool')
+        rc.text = 'true' if self.run_concurrent else 'false'
+
+        return _elem
 
 
 class WindowResizeMixin(object):

@@ -107,3 +107,19 @@ def test_crash():
     test.interpret_result()
 
     assert test.result.result is status.CRASH
+
+
+class TestToXML(object):
+    """Tests for the to_xml method."""
+
+    @pytest.fixture(scope='class')
+    def inst(self):
+        return GleanTest('foo').to_xml('name')
+
+    def test_type(self, inst):
+        """the Test type is set correctly."""
+        assert inst.attrib['type'] == 'GleanTest'
+
+    def test_name(self, inst):
+        """the Test name is set correctly."""
+        assert inst.attrib['name'] == 'name'

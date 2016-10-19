@@ -27,6 +27,10 @@ from __future__ import (
 )
 import copy
 import os
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.cElementTree as etree
 
 from framework import options
 from .base import Test, TestIsSkip
@@ -72,3 +76,17 @@ class GleanTest(Test):
                 'but the platform is "{}"'.format(
                     options.OPTIONS.env['PIGLIT_PLATFORM']))
         super(GleanTest, self).is_skip()
+
+    def to_xml(self, name, _elem=None):
+        if _elem is None:
+            _elem = etree.Element('Test', type='GleanTest', name=name)
+
+        _elem = super(GleanTest, self).to_xml(name, _elem)
+
+        # Glean doesn't restore the whole command, just the name
+        _elem.remove(_elem.find('command'))
+
+        n = etree.SubElement(_elem, 'name', type='text')
+        n.text = self._command[-1][1:]
+
+        return _elem

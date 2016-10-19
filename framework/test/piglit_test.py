@@ -33,6 +33,10 @@ try:
     import simplejson as json
 except ImportError:
     import json
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.cElementTree as etree
 
 from framework import core, options
 from .base import Test, WindowResizeMixin, ValgrindMixin, TestIsSkip
@@ -151,6 +155,24 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
                     self.__exclude_platforms, platform))
         super(PiglitGLTest, self).is_skip()
 
+    def to_xml(self, name, _elem=None):
+        if _elem is None:
+            _elem = etree.Element('Test', type='PiglitGLTest', name=name)
+
+        if self.__require_platforms:
+            rp = etree.SubElement(_elem, 'require_platforms', type='array')
+            for each in self.__require_platforms:
+                e = etree.SubElement(rp, 'e')
+                e.text = each
+
+        if self.__exclude_platforms:
+            ep = etree.SubElement(_elem, 'exclude_platforms', type='array')
+            for each in self.__exclude_platforms:
+                e = etree.SubElement(ep, 'e')
+                e.text = each
+
+        return super(PiglitGLTest, self).to_xml(name, _elem)
+
     @PiglitBaseTest.command.getter
     def command(self):
         """ Automatically add -auto and -fbo as appropriate """
@@ -168,3 +190,15 @@ class PiglitCLTest(PiglitBaseTest):  # pylint: disable=too-few-public-methods
     """
     def __init__(self, command, run_concurrent=CL_CONCURRENT, **kwargs):
         super(PiglitCLTest, self).__init__(command, run_concurrent, **kwargs)
+
+    def to_xml(self, name, _elem=None):
+        if _elem is None:
+            _elem = etree.Element('Test', type='PiglitCLTest', name=name)
+
+        _elem = super(PiglitCLTest, self).to_xml(name, _elem)
+
+        # run_concurrent needs to be set at runtime, since it based on runtime
+        # detection. The normal constructor call will handle this.
+        _elem.remove(_elem.find('run_concurrent'))
+
+        return _elem

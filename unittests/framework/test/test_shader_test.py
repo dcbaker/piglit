@@ -208,6 +208,24 @@ class TestShaderTest(object):
 
         assert '-auto' in test.command
 
+    class TestToXML(object):
+        """Tests for the to_xml method."""
+
+        @pytest.fixture(scope='class')
+        def inst(self):
+            return shader_test.ShaderTest(
+                ['sr', 'file'],
+                gl_required={'foo'},
+                glsl_version=3.2).to_xml('name')
+
+        def test_type(self, inst):
+            """the Test type is set correctly."""
+            assert inst.attrib['type'] == 'ShaderTest'
+
+        def test_name(self, inst):
+            """the Test name is set correctly."""
+            assert inst.attrib['name'] == 'name'
+
 
 class TestMultiShaderTest(object):
     """Tests for the MultiShaderTest class."""

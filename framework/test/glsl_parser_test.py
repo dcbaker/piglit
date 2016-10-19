@@ -28,6 +28,10 @@ import os
 import re
 import io
 import six
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.cElementTree as etree
 
 from framework import exceptions
 from .base import TestIsSkip
@@ -287,3 +291,8 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
             gl_required=parsed.gl_required,
             glsl_version=parsed.glsl_version,
             glsl_es_version=parsed.glsl_es_version)
+
+    def to_xml(self, name, _elem=None):
+        if _elem is None:
+            _elem = etree.Element('Test', type='GLSLParserTest', name=name)
+        return super(GLSLParserTest, self).to_xml(name, _elem)

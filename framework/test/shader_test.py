@@ -29,6 +29,10 @@ from __future__ import (
 import io
 import os
 import re
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.cElementTree as etree
 
 from framework import exceptions
 from framework import status
@@ -175,6 +179,11 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
     def command(self):
         """ Add -auto to the test command """
         return self._command + ['-auto']
+
+    def to_xml(self, name, _elem=None):
+        if _elem is None:
+            _elem = etree.Element('Test', type='ShaderTest', name=name)
+        return super(ShaderTest, self).to_xml(name, _elem)
 
 
 class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):

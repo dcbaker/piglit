@@ -35,7 +35,8 @@ import pytest
 from framework import status
 from framework.options import _Options as Options
 from framework.test.base import TestIsSkip as _TestIsSkip
-from framework.test.piglit_test import PiglitBaseTest, PiglitGLTest
+from framework.test.piglit_test import (PiglitBaseTest, PiglitGLTest,
+                                        PiglitCLTest)
 
 # pylint: disable=no-self-use
 
@@ -162,3 +163,67 @@ class TestPiglitGLTest(object):
             mock_options.env['PIGLIT_PLATFORM'] = 'gbm'
             test = PiglitGLTest(['foo'], exclude_platforms=['glx'])
             test.is_skip()
+
+    class TestToXML(object):
+        """Tests for the to_xml method."""
+
+        @pytest.fixture(scope='class')
+        def inst(self):
+            return PiglitGLTest(
+                ['foo'],
+                exclude_platforms=['glx'],
+            ).to_xml('name')
+
+        def test_type(self, inst):
+            """the Test type is set correctly."""
+            assert inst.attrib['type'] == 'PiglitGLTest'
+
+        def test_name(self, inst):
+            """the Test name is set correctly."""
+            assert inst.attrib['name'] == 'name'
+
+        class TestExcludePlatforms(object):
+            """Test passing exclude_platforms."""
+
+            def test(self, inst):
+                e = inst.find('exclude_platforms')
+                assert e[0].text == 'glx'
+
+        class TestRequirePlatforms(object):
+            """Test passing require_platforms."""
+
+            @pytest.fixture(scope='class')
+            def inst(self):
+                return PiglitGLTest(
+                    ['foo'],
+                    require_platforms=['glx'],
+                ).to_xml('name')
+
+            def test(self, inst):
+                e = inst.find('require_platforms')
+                assert e[0].text == 'glx'
+
+
+class TestPiglitCLTest(object):
+    """TEsts for the PiglitCLTest class."""
+
+    class TestToXML(object):
+        """Tests for the to_xml method."""
+
+        @pytest.fixture(scope='class')
+        def inst(self):
+            return PiglitCLTest(
+                ['foo'],
+            ).to_xml('name')
+
+        def test_type(self, inst):
+            """the Test type is set correctly."""
+            assert inst.attrib['type'] == 'PiglitCLTest'
+
+        def test_name(self, inst):
+            """the Test name is set correctly."""
+            assert inst.attrib['name'] == 'name'
+
+        def test_not_run_concurrent(self, inst):
+            """the run_concurrent flag is not serialized."""
+            assert not inst.find('run_concurrent')

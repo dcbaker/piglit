@@ -27,6 +27,10 @@ import errno
 import os
 import subprocess
 import warnings
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.cElementTree as etree
 
 import six
 
@@ -461,6 +465,24 @@ class FastSkipMixin(object):
         self.__skiper.test()
 
         super(FastSkipMixin, self).is_skip()
+
+    def to_xml(self, name, _elem):
+        for each in ['gl_version', 'gles_version', 'glsl_version',
+                     'glsl_es_version']:
+            value = getattr(self, each)
+            if value:
+                el = etree.SubElement(_elem, each, type='float')
+                el.text = six.text_type(value)
+
+        if self.gl_required:
+            el = etree.SubElement(_elem, 'gl_required', type='set')
+            # Ensure that the sort is always the same, which makes diffing
+            # possible.
+            for each in sorted(self.gl_required):
+                e = etree.SubElement(el, 'e')
+                e.text = each
+
+        return super(FastSkipMixin, self).to_xml(name, _elem)
 
 
 class FastSkipDisabled(object):

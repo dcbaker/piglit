@@ -258,6 +258,15 @@ class TestDict(collections.MutableMapping):
         yield
         self.__allow_reassignment -= 1
 
+    def to_xml(self, name):
+        elem = etree.Element('TestProfile', name=name)
+        for name, test in six.iteritems(self):
+            if all(f(name, test) for f in self.filters):
+                elem.append(test.to_xml(name))
+        elem.attrib['test_count'] = six.text_type(len(elem))
+
+        return etree.ElementTree(elem)
+
 
 def _xml_to_bool(elem):
     if elem.text == 'true':
@@ -269,7 +278,8 @@ def _xml_to_bool(elem):
 
 
 def _xml_to_list(elem):
-    return [e.text for e in elem if e.tag == 'e']
+    assert all(e.tag == 'e' for e in elem)
+    return [e.text for e in elem]
 
 
 class TestXML(object):
@@ -279,6 +289,7 @@ class TestXML(object):
         'bool': _xml_to_bool,
         'text': lambda e: six.text_type(e.text),
         'int': lambda e: int(e.text),
+        'float': lambda e: float(e.text),
         'set': lambda e: set(_xml_to_list(e)),
     }
 
@@ -365,20 +376,12 @@ class TestProfile(object):
             if all(f(k, v) for f in self.filters):
                 yield k, v
 
-    def copy(self):
-        """Create a copy of the TestProfile.
+    def to_xml(self, name):
+        elem = etree.Element('TestProfile', name=name)
+        for name, test in self.itertests():
+            elem.append(test.to_xml(name))
 
-        This method creates a copy with references to the original instance
-        (using copy.copy), except for the test_list attribute, which is copied
-        using copy.deepcopy, which is necessary to ensure that filter_tests
-        only affects the right instance. This allows profiles to be
-        "subclassed" by other profiles, without modifying the original.
-        """
-        new = copy.copy(self)
-        new.test_list = copy.deepcopy(self.test_list)
-        new.forced_test_list = copy.copy(self.forced_test_list)
-        new.filters = copy.copy(self.filters)
-        return new
+        return etree.ElementTree(elem)
 
 
 def load_test_profile(filename):
