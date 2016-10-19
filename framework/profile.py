@@ -43,6 +43,10 @@ try:
     import enum
 except ImportError:
     import enum34 as enum
+try:
+    from lxml import etree
+except ImportError:
+    import xml.etree.ElementTree as etree
 
 import six
 
@@ -50,7 +54,7 @@ from framework import grouptools, exceptions
 from framework.dmesg import get_dmesg
 from framework.log import LogManager
 from framework.monitoring import Monitoring
-from framework.test.base import Test
+from framework.test.base import Test, REGISTRY
 
 __all__ = [
     'ConcurrentMode',
@@ -253,6 +257,55 @@ class TestDict(collections.MutableMapping):
         self.__allow_reassignment += 1
         yield
         self.__allow_reassignment -= 1
+
+
+def _xml_to_bool(elem):
+    if elem.text == 'true':
+        return True
+    elif elem.text == 'false':
+        return False
+    raise Exception(
+        'Unexpected value "{}". Expected "true" or "false"'.format(elem.text))
+
+
+def _xml_to_list(elem):
+    return [e.text for e in elem if e.tag == 'e']
+
+
+class TestXML(object):
+
+    __types = {
+        'array': _xml_to_list,
+        'bool': _xml_to_bool,
+        'text': lambda e: six.text_type(e.text),
+        'int': lambda e: int(e.text),
+        'set': lambda e: set(_xml_to_list(e)),
+    }
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def __iter__(self):
+        stack = []
+        for event, elem in etree.iterparse(self.filename,
+                                           events=('start', 'end')):
+            if event == 'start':
+                stack.append(elem)
+            elif event == 'end':
+                if elem.tag == 'Test':
+                    kwargs = {}
+
+                    command = REGISTRY[stack[1].attrib['type']]
+
+                    # Don't include the TestProfile or Test elements
+                    for each in stack[2:]:
+                        if not each.attrib.get('type'):
+                            continue
+                        kwargs[each.tag] = self.__types[each.attrib['type']](each)
+
+                    yield stack[1].attrib['name'], command(**kwargs)
+
+                    del stack[1:]
 
 
 class TestProfile(object):

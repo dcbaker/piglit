@@ -23,6 +23,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import textwrap
 
 import pytest
 import six
@@ -31,6 +32,7 @@ from framework import exceptions
 from framework import grouptools
 from framework import profile
 from framework.test.gleantest import GleanTest
+from . import skip
 from . import utils
 
 # pylint: disable=invalid-name,no-self-use,protected-access
@@ -317,3 +319,31 @@ class TestTestDict(object):
                 g('abc')
 
             assert grouptools.join('foo', 'abc') in inst
+
+
+class TestXML(object):
+
+    @pytest.fixture
+    def inst(self, tmpdir):
+        p = tmpdir.join('p')
+        p.write(textwrap.dedent("""\
+            <TestProfile name="sanity">
+              <Test type="PiglitGLTest" name="spec@!OpenGL 1.0@gl-1.0-readpixsanity">
+                <command type="array">
+                  <e>gl-1.0-readpixsanity</e>
+                </command>
+                <run_concurrent type="bool">true</run_concurrent>
+              </Test>
+            </TestProfile>"""))
+        return profile.TestXML(six.text_type(p))
+
+    class TestIter(object):
+        """Tests for the __iter__ method."""
+
+        def test_basic(self, inst):
+            a = iter(inst)
+            name, value = next(a)
+
+            assert name == 'spec@!OpenGL 1.0@gl-1.0-readpixsanity'
+            assert value.run_concurrent is True
+            assert value._command[0] == 'gl-1.0-readpixsanity'
