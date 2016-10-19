@@ -260,21 +260,11 @@ class Parser(object):
 
 
 class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
-    """A Test derived class specifically for glslparser.
+    """A Test derived class specifically for glslparser."""
 
-    Arguments:
-    filepath -- the path to a glsl_parser_test which must end in .vert,
-                .tesc, .tese, .geom or .frag
-    """
-
-    def __init__(self, filepath):
-        parsed = Parser(filepath)
-        super(GLSLParserTest, self).__init__(
-            parsed.command,
-            run_concurrent=True,
-            gl_required=parsed.gl_required,
-            glsl_version=parsed.glsl_version,
-            glsl_es_version=parsed.glsl_es_version)
+    def __init__(self, command, run_concurrent=True, **kwargs):
+        kwargs['run_concurrent'] = run_concurrent
+        super(GLSLParserTest, self).__init__(command, **kwargs)
 
     def is_skip(self):
         if os.path.basename(self.command[0]) == 'None':
@@ -282,3 +272,18 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
                              'but only an OpenGL ES binary has been built')
 
         super(GLSLParserTest, self).is_skip()
+
+    @classmethod
+    def parse_file(cls, filepath):
+        """Create a GLSLParser test from a file.
+
+        Arguments:
+        filepath -- the path to a glsl_parser_test which must end in .vert,
+                    .tesc, .tese, .geom, .frag, or .comp
+        """
+        parsed = Parser(filepath)
+        return cls(
+            parsed.command,
+            gl_required=parsed.gl_required,
+            glsl_version=parsed.glsl_version,
+            glsl_es_version=parsed.glsl_es_version)

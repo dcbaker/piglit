@@ -224,7 +224,8 @@ for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
                     continue
             elif ext in ['.vert', '.tesc', '.tese', '.geom', '.frag', '.comp']:
                 try:
-                    test = GLSLParserTest(os.path.join(dirpath, filename))
+                    test = GLSLParserTest.parse_file(
+                        os.path.join(dirpath, filename))
                 except GLSLParserNoConfigError:
                     # In the event that there is no config assume that it is a
                     # legacy test, and continue
