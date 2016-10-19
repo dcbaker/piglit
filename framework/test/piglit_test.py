@@ -25,6 +25,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import copy
 import glob
 import os
 import sys
@@ -65,8 +66,12 @@ class PiglitBaseTest(ValgrindMixin, Test):
     def __init__(self, command, run_concurrent=True, **kwargs):
         super(PiglitBaseTest, self).__init__(command, run_concurrent, **kwargs)
 
+    @Test.command.getter  # pylint: disable=no-member
+    def command(self):
+        command = copy.copy(self._command)
         # Prepend TEST_BIN_DIR to the path.
-        self._command[0] = os.path.join(TEST_BIN_DIR, self._command[0])
+        command[0] = os.path.join(TEST_BIN_DIR, command[0])
+        return command
 
     def interpret_result(self):
         out = []
