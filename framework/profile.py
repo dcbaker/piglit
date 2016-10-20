@@ -376,10 +376,16 @@ class TestProfile(object):
             if all(f(k, v) for f in self.filters):
                 yield k, v
 
+    @property
+    def test_count(self):
+        # This is needed to account for skipped tests.
+        return len(self.itertests())
+
     def to_xml(self, name):
         elem = etree.Element('TestProfile', name=name)
         for name, test in self.itertests():
             elem.append(test.to_xml(name))
+        elem.attrib['test_count'] = six.text_type(len(elem))
 
         return etree.ElementTree(elem)
 
@@ -445,8 +451,7 @@ def run(profiles, logger, backend, concurrency):
     # The logger needs to know how many tests are running. Because of filters
     # there's no way to do that without making a concrete list out of the
     # filters profiles.
-    profiles = [(p, list(p.itertests())) for p in profiles]
-    log = LogManager(logger, sum(len(l) for _, l in profiles))
+    log = LogManager(logger, sum(p.test_count for p in profiles))
 
     def test(name, test, profile, this_pool=None):
         """Function to call test.execute from map"""
@@ -495,7 +500,7 @@ def run(profiles, logger, backend, concurrency):
 
     try:
         for p in profiles:
-            run_profile(*p)
+            run_profile(p, p.itertests())
     finally:
         log.get().summary()
 
