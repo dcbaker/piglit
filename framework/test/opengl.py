@@ -410,11 +410,12 @@ class FastSkipMixin(object):
                  gles_version=None, glsl_version=None, glsl_es_version=None,
                  **kwargs):  # pylint: disable=too-many-arguments
         super(FastSkipMixin, self).__init__(command, **kwargs)
-        self.__skiper = FastSkip(gl_required=gl_required,
-                                 gl_version=gl_version,
-                                 gles_version=gles_version,
-                                 glsl_version=glsl_version,
-                                 glsl_es_version=glsl_es_version)
+        self.__skiper = FastSkip(
+            gl_required=gl_required,
+            gl_version=float(gl_version) if gl_version else None,
+            gles_version=float(gles_version) if gles_version else None,
+            glsl_version=float(glsl_version) if glsl_version else None,
+            glsl_es_version=float(glsl_es_version) if glsl_es_version else None)
 
     @property
     def gl_required(self):
