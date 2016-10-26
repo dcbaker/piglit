@@ -1,0 +1,98 @@
+# This is included in the root CMakeLists.txt.
+# The reason this has to be done this way is that piglit currently runs each
+# CMakeList.txt once per API, except for a couple of directories. This means
+# that code that can only be run once cannot be included in them (like this
+# code)
+
+add_custom_target(
+	gen-test-watchlist
+	COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/find_tests.py
+	COMMENT "Watching declarative test files"
+	OUTPUT ${CMAKE_SOURCE_DIR}/tests/declarative-files.list
+)
+
+function(piglit_serialize_profile profile)
+	add_custom_command(
+		OUTPUT ${CMAKE_SOURCE_DIR}/tests/${profile}.profile.xml
+		COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/serialize_profile.py ${CMAKE_SOURCE_DIR}/tests/${profile}.py
+		DEPENDS ${CMAKE_SOURCE_DIR}/tests/serialize_profile.py ${CMAKE_SOURCE_DIR}/tests/${profile}.py ${ARGN}
+	)
+endfunction(piglit_serialize_profile profile)
+
+piglit_serialize_profile(
+	"all" 
+	"${CMAKE_SOURCE_DIR}/tests/all.py"
+	"${CMAKE_SOURCE_DIR}/framework/profile.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/piglit_test.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/base.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/opengl.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/shader_test.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/glsl_parser_test.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/gleantest.py"
+)
+piglit_serialize_profile(
+	"quick"
+	"${CMAKE_SOURCE_DIR}/tests/quick.py"
+	"${CMAKE_SOURCE_DIR}/tests/all.profile.xml"
+)
+piglit_serialize_profile(
+	"shader"
+	"${CMAKE_SOURCE_DIR}/tests/shader.py"
+	"${CMAKE_SOURCE_DIR}/tests/all.profile.xml"
+)
+piglit_serialize_profile(
+	"glslparser"
+	"${CMAKE_SOURCE_DIR}/tests/glslparser.py"
+	"${CMAKE_SOURCE_DIR}/tests/all.profile.xml"
+)
+piglit_serialize_profile(
+	"gpu"
+	"${CMAKE_SOURCE_DIR}/tests/gpu.py"
+	"${CMAKE_SOURCE_DIR}/tests/all.profile.xml"
+)
+piglit_serialize_profile(
+	"cpu"
+	"${CMAKE_SOURCE_DIR}/tests/cpu.py"
+	"${CMAKE_SOURCE_DIR}/tests/all.profile.xml"
+)
+piglit_serialize_profile(
+	"llvmpipe"
+	"${CMAKE_SOURCE_DIR}/tests/llvmpipe.py"
+	"${CMAKE_SOURCE_DIR}/tests/all.profile.xml"
+)
+piglit_serialize_profile(
+	"sanity"
+	"${CMAKE_SOURCE_DIR}/tests/sanity.py"
+	"${CMAKE_SOURCE_DIR}/framework/profile.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/piglit_test.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/base.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/opengl.py"
+)
+
+add_custom_target(
+	gen-opengl-profiles
+	COMMENT "meta-target for OpenGL profile serialization"
+	DEPENDS
+		${CMAKE_SOURCE_DIR}/tests/all.profile.xml
+		${CMAKE_SOURCE_DIR}/tests/quick.profile.xml
+		${CMAKE_SOURCE_DIR}/tests/sanity.profile.xml
+		${CMAKE_SOURCE_DIR}/tests/shader.profile.xml
+		${CMAKE_SOURCE_DIR}/tests/glslparser.profile.xml
+		${CMAKE_SOURCE_DIR}/tests/gpu.profile.xml
+		${CMAKE_SOURCE_DIR}/tests/cpu.profile.xml
+		${CMAKE_SOURCE_DIR}/tests/llvmpipe.profile.xml
+)
+
+add_dependencies(gen-opengl-profiles gen-test-watchlist gen-tests)
+
+add_custom_target(
+	gen-profiles ALL
+	COMMENT "meta-target for profile serialization"
+)
+
+if(${PIGLIT_BUILD_GL_TESTS} OR ${PIGLIT_BUILD_GLES2_TESTS} OR ${PIGLIT_BUILD_GLES3_TESTS})
+	add_dependencies(gen-profiles gen-opengl-profiles)
+endif(${PIGLIT_BUILD_GL_TESTS} OR ${PIGLIT_BUILD_GLES2_TESTS} OR ${PIGLIT_BUILD_GLES3_TESTS})
+
+
+# vim: ft=cmake

@@ -490,6 +490,7 @@ include(cmake/piglit_dispatch.cmake)
 include_directories(src)
 add_subdirectory(cmake/target_api)
 add_subdirectory(generated_tests)
+include(tests/CMakeLists.generic.txt)
 
 
 ##############################################################################
@@ -517,7 +518,7 @@ install (
 install (
 	DIRECTORY tests
 	DESTINATION ${PIGLIT_INSTALL_LIBDIR}
-	FILES_MATCHING REGEX ".*\\.(py|program_test|shader_test|frag|vert|geom|tesc|tese|ktx|cl|txt|inc)$"
+	FILES_MATCHING REGEX ".*\\.(py|program_test|shader_test|frag|vert|geom|tesc|tese|ktx|cl|txt|inc|profile.xml)$"
 	REGEX "CMakeFiles|CMakeLists" EXCLUDE
 )
 

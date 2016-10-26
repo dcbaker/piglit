@@ -5,10 +5,19 @@ from __future__ import (
 )
 
 from framework.test import GLSLParserTest
-from tests.all import profile as _profile
+from tests.quick import profile as _profile
+from tests.quick import make_testlist as _make_testlist
 
-__all__ = ['profile']
+__all__ = [
+    'make_testlist',
+    'profile',
+]
 
 profile = _profile.copy()  # pylint: disable=invalid-name
+profile.xml_list_path = 'tests/glslparser.profile.xml'
 
-profile.filters.append(lambda _, t: isinstance(t, GLSLParserTest))
+
+def make_testlist():
+    tests = _make_testlist()
+    tests.filters.append(lambda _, t: isinstance(t, GLSLParserTest))
+    return tests

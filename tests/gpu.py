@@ -7,13 +7,24 @@ from __future__ import (
 )
 
 from tests.quick import profile as _profile
-from framework.test import GLSLParserTest
+from tests.quick import make_testlist as _make_testlist
+from framework.test.glsl_parser_test import GLSLParserTest
 from framework.test.piglit_test import ASMParserTest
 
-__all__ = ['profile']
+__all__ = [
+    'make_testlist',
+    'profile',
+]
 
 profile = _profile.copy()  # pylint: disable=invalid-name
+profile.xml_list_path = 'tests/gpu.profile.xml'
 
-# Remove all parser tests, as they are compiler tests
-profile.filters.append(
-    lambda p, t: not isinstance(t, (GLSLParserTest, ASMParserTest)))
+
+def make_testlist():
+    tests = _make_testlist()
+
+    # Remove all parser tests, as they are compiler test
+    tests.filters.append(
+        lambda p, t: not isinstance(t, (GLSLParserTest, ASMParserTest)))
+
+    return tests

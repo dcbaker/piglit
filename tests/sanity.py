@@ -7,14 +7,23 @@ from __future__ import (
 )
 
 from framework import grouptools
-from framework.profile import TestProfile
+from framework.profile import XMLProfile, TestDict
 from framework.test import PiglitGLTest
 
-__all__ = ['profile']
+__all__ = [
+    'make_testlist',
+    'profile',
+]
 
-profile = TestProfile()
 
-with profile.test_list.group_manager(
-        PiglitGLTest,
-        grouptools.join('spec', '!OpenGL 1.0')) as g:
-    g(['gl-1.0-readpixsanity'], run_concurrent=True)
+def make_testlist():
+    tests = TestDict()
+    with tests.group_manager(
+            PiglitGLTest,
+            grouptools.join('spec', '!OpenGL 1.0')) as g:
+        g(['gl-1.0-readpixsanity'], run_concurrent=True)
+
+    return tests
+
+
+profile = XMLProfile('tests/sanity.profile.xml')
