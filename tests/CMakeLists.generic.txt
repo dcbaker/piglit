@@ -11,6 +11,13 @@ add_custom_target(
 	OUTPUT ${CMAKE_SOURCE_DIR}/tests/opengl-declarative-files.list
 )
 
+add_custom_target(
+	gen-cl-test-watchlist
+	COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/find_tests.py cl
+	COMMENT "Watching declarative test files"
+	OUTPUT ${CMAKE_SOURCE_DIR}/tests/opencl-declarative-files.list
+)
+
 function(piglit_serialize_profile profile)
 	add_custom_command(
 		OUTPUT ${CMAKE_SOURCE_DIR}/tests/${profile}.profile.xml
@@ -68,6 +75,13 @@ piglit_serialize_profile(
 	"${CMAKE_SOURCE_DIR}/framework/test/base.py"
 	"${CMAKE_SOURCE_DIR}/framework/test/opengl.py"
 )
+piglit_serialize_profile(
+	"cl"
+	"${CMAKE_SOURCE_DIR}/tests/cl.py"
+	"${CMAKE_SOURCE_DIR}/framework/profile.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/piglit_test.py"
+	"${CMAKE_SOURCE_DIR}/framework/test/base.py"
+)
 
 add_custom_target(
 	gen-opengl-profiles
@@ -83,7 +97,15 @@ add_custom_target(
 		${CMAKE_SOURCE_DIR}/tests/llvmpipe.profile.xml
 )
 
+add_custom_target(
+	gen-opencl-profiles
+	COMMENT "meta-target for OpenCL profile serialization"
+	DEPENDS
+		${CMAKE_SOURCE_DIR}/tests/cl.profile.xml
+)
+
 add_dependencies(gen-opengl-profiles gen-gl-test-watchlist gen-gl-tests)
+add_dependencies(gen-opencl-profiles gen-cl-test-watchlist gen-cl-tests)
 
 add_custom_target(
 	gen-profiles ALL
@@ -93,6 +115,10 @@ add_custom_target(
 if(${PIGLIT_BUILD_GL_TESTS} OR ${PIGLIT_BUILD_GLES2_TESTS} OR ${PIGLIT_BUILD_GLES3_TESTS})
 	add_dependencies(gen-profiles gen-opengl-profiles)
 endif(${PIGLIT_BUILD_GL_TESTS} OR ${PIGLIT_BUILD_GLES2_TESTS} OR ${PIGLIT_BUILD_GLES3_TESTS})
+
+if(${PIGLIT_BUILD_CL_TESTS})
+	add_dependencies(gen-profiles gen-opencl-profiles)
+endif(${PIGLIT_BUILD_CL_TESTS})
 
 
 # vim: ft=cmake
