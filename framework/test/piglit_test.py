@@ -220,3 +220,21 @@ class ASMParserTest(PiglitBaseTest):
             _elem = etree.Element('Test', type='ASMParserTest', name=name)
 
         return super(ASMParserTest, self).to_xml(name, _elem)
+
+
+class CLProgramTest(PiglitCLTest):
+    """A Test class for handling cl-program-tester based tests.
+
+    This class provides special handling for paths to make using compiled
+    profiles easier.
+    """
+
+    def __init__(self, filename, **kwargs):
+        super(CLProgramTest, self).__init__(
+            ['cl-program-tester', os.path.relpath(filename, PIGLIT_ROOT)])
+
+    @PiglitCLTest.command.getter
+    def command(self):
+        command = copy.copy(super(CLProgramTest, self).command)
+        command[1] = os.path.abspath(command[1])
+        return command
