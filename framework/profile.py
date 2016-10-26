@@ -65,6 +65,8 @@ __all__ = [
     'run',
 ]
 
+_PIGLIT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
+
 
 @enum.unique
 class ConcurrentMode(enum.Enum):
@@ -109,6 +111,7 @@ class TestDict(collections.MutableMapping):
         # allows stacking of the context manager
         self.__allow_reassignment = 0
         self.__container = collections.OrderedDict()
+        self.filters = []
 
     def __setitem__(self, key, value):
         """Enforce types on set operations.
@@ -294,7 +297,14 @@ class TestXML(object):
     }
 
     def __init__(self, filename):
-        self.filename = filename
+        self.filename = os.path.join(_PIGLIT_ROOT, filename)
+        for _, elem in etree.iterparse(self.filename, events=('start', )):
+            assert elem.tag == 'TestProfile'
+            self.__len = int(elem.attrib['test_count'])
+            break
+
+    def __len__(self):
+        return self.__len
 
     def __iter__(self):
         stack = []
@@ -319,32 +329,52 @@ class TestXML(object):
                     del stack[1:]
 
 
-class TestProfile(object):
-    """Class that holds a list of tests for execution.
+class BaseProfile(object):
+    """A base class for Profiles to share some code."""
 
-    This class represents a single testsuite, it has a mapping (dictionary-like
-    object) of tests attached (TestDict). This is a mapping of <str>:<Test>
-    (python 3 str, python 2 unicode), and the key is delimited by
-    grouptools.SEPARATOR.
-
-    The group_manager method provides a context_manager to make adding test to
-    the test_list easier, by doing more validation and enforcement.
-    >>> t = TestProfile()
-    >>> with t.group_manager(Test, 'foo@bar') as g:
-    ...     g(['foo'])
-
-    This class does not provide a way to execute itself, instead that is
-    handled by the run function in this module, which is able to process and
-    run multiple TestProfile objects at once.
-    """
     def __init__(self):
-        self.test_list = TestDict()
         self.forced_test_list = []
         self.filters = []
         self.options = {
             'dmesg': get_dmesg(False),
             'monitor': Monitoring(False),
         }
+
+    def _filter(self, iterable):
+        for k, v in iterable:
+            if all(f(k, v) for f in self.filters):
+                yield k, v
+
+    def _filter_forced_test_list(self):
+        if self.forced_test_list:
+            opts = collections.OrderedDict()
+            for n in self.forced_test_list:
+                opts[n] = self.test_list[n]
+            return opts
+        return None
+
+
+class TestProfile(BaseProfile):
+    """Class representing a single profile which is a python module.
+
+    This class represents a single testsuite, it has a mapping object that
+    containes <str>:<Test> values. Though it can be indexed into it is meant to
+    be polymorphically interchangable with the XMLProfile which is not
+    indexable, so one must be very careful when using mapping funcitonality.
+    The str is the name of the test using grouptools format, (python 3 str,
+    python2 unicode). Under certain conditions this iterable will be replaced
+    with an actual mapping, if a forced profile or filters are provided it must
+    be converted because there is no other way to know the how many tests will
+    be run otherwise.
+
+    This class does not provide a way to execute itself, instead that is
+    handled by the run function in this module, which is able to process and
+    run multiple TestProfile objects at once.
+    """
+
+    def __init__(self, test_list=None):
+        self.test_list = test_list or TestDict()
+        super(TestProfile, self).__init__()
 
     def copy(self):
         """Create a copy of the TestProfile.
@@ -355,31 +385,64 @@ class TestProfile(object):
         profiles, without modifying the original.
         """
         new = copy.copy(self)
-        new.test_list = copy.deepcopy(self.test_list)
+        new.test_list = copy.copy(self.test_list)
         new.forced_test_list = copy.copy(self.forced_test_list)
         new.filters = copy.copy(self.filters)
         return new
+
+    @property
+    def test_count(self):
+        return len(list(self.itertests()))
 
     def itertests(self):
         """Iterate over tests while filtering.
 
         This iterator is non-destructive.
         """
-        if self.forced_test_list:
-            opts = collections.OrderedDict()
-            for n in self.forced_test_list:
-                opts[n] = self.test_list[n]
-        else:
-            opts = self.test_list  # pylint: disable=redefined-variable-type
+        opts = six.iteritems(self._filter_forced_test_list() or self.test_list)
+        for x in self._filter(opts):
+            yield x
 
-        for k, v in six.iteritems(opts):
-            if all(f(k, v) for f in self.filters):
-                yield k, v
+
+class XMLProfile(BaseProfile):
+    """Class representing a single profile which is serialized to XML.
+
+    This class represents a single testsuite, it has an iterable object that
+    can be reiterated, but not indexed into that rreturns a (str, Test) pair on
+    each iteration of the iterable (python3 str). The str is the name of the
+    test using grouptools format.
+
+    This class does not provide a way to execute itself, instead that is
+    handled by the run function in this module, which is able to process and
+    run multiple TestProfile objects at once.
+    """
+
+    def __init__(self, list_file):
+        self.xml_list_path = list_file
+        super(XMLProfile, self).__init__()
+
+    @property
+    def test_list(self):
+        if not self.filters and not self.forced_test_list:
+            return TestXML(self.xml_list_path)
+        return list(self._filter(TestXML(self.xml_list_path)))
 
     @property
     def test_count(self):
-        # This is needed to account for skipped tests.
-        return len(self.itertests())
+        return len(self.test_list)
+
+    def copy(self):
+        """Create a copy of the TestProfile.
+
+        This method creates a copy with references to the original instance
+        (using copy.copy), except for the test_list attribute, which is copied
+        using copy.deepcopy. This allows profiles to be "subclassed" by other
+        profiles, without modifying the original.
+        """
+        new = copy.copy(self)
+        new.forced_test_list = copy.copy(self.forced_test_list)
+        new.filters = copy.copy(self.filters)
+        return new
 
     def to_xml(self, name):
         elem = etree.Element('TestProfile', name=name)
@@ -388,6 +451,19 @@ class TestProfile(object):
         elem.attrib['test_count'] = six.text_type(len(elem))
 
         return etree.ElementTree(elem)
+
+    def itertests(self):
+        """Iterate over tests while filtering.
+
+        This iterator is non-destructive.
+        """
+        opts = self._filter_forced_test_list()
+        if opts:
+            opts = six.iteritems(opts)
+        else:
+            opts = self.test_list
+        for x in self._filter(opts):
+            yield x
 
 
 def load_test_profile(filename):
@@ -461,8 +537,9 @@ def run(profiles, logger, backend, concurrency):
         if profile.options['monitor'].abort_needed:
             this_pool.terminate()
 
-    def run_threads(pool, profile, test_list, filterby=None):
+    def run_threads(pool, profile, filterby=None):
         """ Open a pool, close it, and join it """
+        test_list = profile.itertests()
         if filterby:
             # Although filterby could be attached to TestProfile as a filter,
             # it would have to be removed when run_threads exits, requiring
@@ -474,22 +551,20 @@ def run(profiles, logger, backend, concurrency):
         pool.close()
         pool.join()
 
-    def run_profile(profile, test_list):
+    def run_profile(profile):
         """Run an individual profile."""
         if concurrency is ConcurrentMode.full:
-            run_threads(multi, profile, test_list)
+            run_threads(multi, profile)
         elif concurrency is ConcurrentMode.none:
-            run_threads(single, profile, test_list)
+            run_threads(single, profile)
         else:
             assert concurrency is ConcurrentMode.some
             # Filter and return only thread safe tests to the threaded pool
-            run_threads(multi, profile, test_list,
-                        lambda x: x[1].run_concurrent)
+            run_threads(multi, profile, lambda x: x[1].run_concurrent)
 
             # Filter and return the non thread safe tests to the single
             # pool
-            run_threads(single, profile, test_list,
-                        lambda x: not x[1].run_concurrent)
+            run_threads(single, profile, lambda x: not x[1].run_concurrent)
 
     # Multiprocessing.dummy is a wrapper around Threading that provides a
     # multiprocessing compatible API
@@ -500,10 +575,10 @@ def run(profiles, logger, backend, concurrency):
 
     try:
         for p in profiles:
-            run_profile(p, p.itertests())
+            run_profile(p)
     finally:
         log.get().summary()
 
-    for p, _ in profiles:
+    for p in profiles:
         if p.options['monitor'].abort_needed:
             raise exceptions.PiglitAbort(p.options['monitor'].error_message)

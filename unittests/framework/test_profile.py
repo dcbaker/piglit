@@ -65,9 +65,9 @@ class TestLoadTestProfile(object):
             profile.load_test_profile('this_module_will_never_ever_exist')
 
     def test_return_type(self):
-        """profile.load_test_profile: returns a TestProfile instance."""
+        """Returns an XMLProfile."""
         assert isinstance(profile.load_test_profile('sanity'),
-                          profile.TestProfile)
+                          profile.XMLProfile)
 
 
 class TestTestProfile(object):
@@ -164,12 +164,6 @@ class TestTestProfile(object):
             # Assert that the fixtures are equivalent, but not the same
             assert fixture.test_list == new.test_list
             assert fixture.test_list is not new.test_list
-
-        def test_prepare_test_list(self, fixture):
-            """The prepare_test_list method doesn't affect both."""
-            new = fixture.copy()
-            new.prepare_test_list()
-            assert new.test_list != fixture.test_list
 
 
 class TestTestDict(object):
@@ -327,7 +321,7 @@ class TestXML(object):
     def inst(self, tmpdir):
         p = tmpdir.join('p')
         p.write(textwrap.dedent("""\
-            <TestProfile name="sanity">
+            <TestProfile name="sanity" test_count="1">
               <Test type="PiglitGLTest" name="spec@!OpenGL 1.0@gl-1.0-readpixsanity">
                 <command type="array">
                   <e>gl-1.0-readpixsanity</e>
