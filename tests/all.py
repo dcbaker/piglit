@@ -19,6 +19,7 @@ from framework.driver_classifier import DriverClassifier
 from framework.test import (PiglitGLTest, GleanTest, PiglitBaseTest,
                             GLSLParserTest, GLSLParserNoConfigError)
 from framework.test.shader_test import ShaderTest, MultiShaderTest
+from framework.test.piglit_test import ASMParserTest
 from .py_modules.constants import TESTS_DIR, GENERATED_TESTS_DIR
 
 __all__ = ['profile']
@@ -266,14 +267,15 @@ for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
         base_group = grouptools.from_path(os.path.join(
             'asmparsertest', os.path.relpath(dirpath, _basedir)))
         type_ = os.path.basename(dirpath)
+        path = os.path.relpath(dirpath, _basedir)
 
         for filename in filenames:
             if not os.path.splitext(filename)[1] == '.txt':
                 continue
 
             group = grouptools.join(base_group, filename)
-            profile.test_list[group] = PiglitGLTest(
-                ['asmparsertest', type_, os.path.join(dirpath, filename)])
+            profile.test_list[group] = ASMParserTest(
+                ['asmparsertest', type_, os.path.join(path, filename)])
 
 # Find and add all apitrace tests.
 classifier = DriverClassifier()

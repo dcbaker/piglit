@@ -8,11 +8,12 @@ from __future__ import (
 
 from tests.quick import profile as _profile
 from framework.test import GLSLParserTest
+from framework.test.piglit_test import ASMParserTest
 
 __all__ = ['profile']
 
 profile = _profile.copy()  # pylint: disable=invalid-name
 
-# Remove all parser tests, as they are compiler test
-profile.filters.append(lambda p, t: not isinstance(t, GLSLParserTest))
-profile.filters.append(lambda n, _: not n.startswith('asmparsertest'))
+# Remove all parser tests, as they are compiler tests
+profile.filters.append(
+    lambda p, t: not isinstance(t, (GLSLParserTest, ASMParserTest)))

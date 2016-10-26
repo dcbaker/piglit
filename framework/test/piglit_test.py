@@ -56,6 +56,8 @@ else:
     TEST_BIN_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__),
                                                  '../../bin'))
 
+PIGLIT_ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
+
 CL_CONCURRENT = (not sys.platform.startswith('linux') or
                  glob.glob('/dev/dri/render*'))
 
@@ -202,3 +204,19 @@ class PiglitCLTest(PiglitBaseTest):  # pylint: disable=too-few-public-methods
         _elem.remove(_elem.find('run_concurrent'))
 
         return _elem
+
+
+class ASMParserTest(PiglitBaseTest):
+    """A Test class for ASMParser tests."""
+
+    @PiglitBaseTest.command.getter
+    def command(self):
+        command = copy.copy(super(ASMParserTest, self).command)
+        command[1] = os.path.join(PIGLIT_ROOT, command[1])
+        return command
+
+    def to_xml(self, name, _elem=None):
+        if _elem is None:
+            _elem = etree.Element('Test', type='ASMParserTest', name=name)
+
+        return super(ASMParserTest, self).to_xml(name, _elem)
