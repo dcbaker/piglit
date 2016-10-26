@@ -34,12 +34,28 @@ profiles if any of those change.
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import argparse
 import os
 
 LOC = os.path.dirname(__file__)
 
 
 def main():
+    """parses args and calls the right mode."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'mode',
+        choices=['gl', 'cl'],
+        help="Choose either OpenGL or OpenCL mode.")
+    args = parser.parse_args()
+
+    if args.mode == 'gl':
+        opengl()
+    elif args.mode == 'cl':
+        opencl()
+
+
+def opengl():
     # Store all tests in a list and sort them before writing, which makes it
     # less likely to cause spurious rebuilds of the profile.xml files, some of
     # which take a long time to build.
@@ -64,7 +80,32 @@ def main():
             elif ext == '.txt.' and not filename.startswith('CMake'):
                 tests.append(os.path.join(dirpath, filename))
 
-    with open(os.path.join(LOC, 'declarative-files.list'), 'w') as f:
+    with open(os.path.join(LOC, 'opengl-declarative-files.list'), 'w') as f:
+        for test in sorted(tests):
+            f.write(test)
+            f.write('\n')
+
+
+def opencl():
+    # Store all tests in a list and sort them before writing, which makes it
+    # less likely to cause spurious rebuilds of the profile.xml files, some of
+    # which take a long time to build.
+    tests = []
+
+    for dirpath, _, filenames in os.walk(LOC):
+        if dirpath.startswith('utils'):
+            continue
+
+        for filename in filenames:
+            ext = os.path.splitext(filename)[1]
+
+            # This will mark a few files that are .frag and .vert that aren't
+            # actually glslparser tests, they're shaders included in C files.
+            # that's fine
+            if ext in ['.cl', '.program_test']:
+                tests.append(os.path.join(dirpath, filename))
+
+    with open(os.path.join(LOC, 'opencl-declarative-files.list'), 'w') as f:
         for test in sorted(tests):
             f.write(test)
             f.write('\n')

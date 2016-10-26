@@ -5,10 +5,10 @@
 # code)
 
 add_custom_target(
-	gen-test-watchlist
-	COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/find_tests.py
+	gen-gl-test-watchlist
+	COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/find_tests.py gl
 	COMMENT "Watching declarative test files"
-	OUTPUT ${CMAKE_SOURCE_DIR}/tests/declarative-files.list
+	OUTPUT ${CMAKE_SOURCE_DIR}/tests/opengl-declarative-files.list
 )
 
 function(piglit_serialize_profile profile)
@@ -83,7 +83,7 @@ add_custom_target(
 		${CMAKE_SOURCE_DIR}/tests/llvmpipe.profile.xml
 )
 
-add_dependencies(gen-opengl-profiles gen-test-watchlist gen-tests)
+add_dependencies(gen-opengl-profiles gen-gl-test-watchlist gen-gl-tests)
 
 add_custom_target(
 	gen-profiles ALL
