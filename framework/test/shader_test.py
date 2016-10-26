@@ -26,6 +26,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import copy
 import io
 import os
 import re
@@ -178,7 +179,10 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
     @PiglitBaseTest.command.getter
     def command(self):
         """ Add -auto to the test command """
-        return self._command + ['-auto']
+        command = copy.copy(super(ShaderTest, self).command)
+        command[1] = os.path.abspath(command[1])
+        command.append('-auto')
+        return command
 
     def to_xml(self, name, _elem=None):
         if _elem is None:

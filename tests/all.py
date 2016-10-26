@@ -213,19 +213,23 @@ shader_tests = collections.defaultdict(list)
 # Find and add all shader tests.
 for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
     for dirpath, _, filenames in os.walk(basedir):
+        path = os.path.relpath(dirpath, basedir)
+        groupname = grouptools.from_path(path)
+        path = os.path.join(os.path.basename(basedir), path)
+
         for filename in filenames:
             testname, ext = os.path.splitext(filename)
-            groupname = grouptools.from_path(os.path.relpath(dirpath, basedir))
             if ext == '.shader_test':
                 if PROCESS_ISOLATION:
-                    test = ShaderTest.parse_file(os.path.join(dirpath, filename))
+                    test = ShaderTest.parse_file(
+                        os.path.join(path, filename))
                 else:
                     shader_tests[groupname].append(os.path.join(dirpath, filename))
                     continue
             elif ext in ['.vert', '.tesc', '.tese', '.geom', '.frag', '.comp']:
                 try:
                     test = GLSLParserTest.parse_file(
-                        os.path.join(dirpath, filename))
+                        os.path.join(path, filename))
                 except GLSLParserNoConfigError:
                     # In the event that there is no config assume that it is a
                     # legacy test, and continue

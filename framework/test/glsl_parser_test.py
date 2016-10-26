@@ -24,14 +24,16 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import copy
 import os
 import re
 import io
-import six
 try:
     from lxml import etree
 except ImportError:
     import xml.etree.cElementTree as etree
+
+import six
 
 from framework import exceptions
 from .base import TestIsSkip
@@ -269,6 +271,13 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
     def __init__(self, command, run_concurrent=True, **kwargs):
         kwargs['run_concurrent'] = run_concurrent
         super(GLSLParserTest, self).__init__(command, **kwargs)
+
+    @PiglitBaseTest.command.getter
+    def command(self):
+        """Make file path absolute."""
+        command = copy.copy(super(GLSLParserTest, self).command)
+        command[1] = os.path.abspath(command[1])
+        return command
 
     def is_skip(self):
         if os.path.basename(self.command[0]) == 'None':
