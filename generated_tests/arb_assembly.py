@@ -1389,7 +1389,7 @@ def get_program_for_instruction(inst, dest, sources, garbage, fragment_program,
                 #     MAD  R0, c[0], c[1].x, c[1]y;
                 #
                 # by only fetcing c[1] into a single temporary register.
-                if not seen_constants.has_key(index):
+                if index not in seen_constants:
                     temp = "R{0}".format(num_constants)
                     program.append([MOV_opcode(False),
                                     "R{0}".format(num_constants),
