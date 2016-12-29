@@ -53,7 +53,7 @@ __all__ = [
 ]
 
 # The current version of the JSON results
-CURRENT_JSON_VERSION = 9
+CURRENT_JSON_VERSION = 10
 
 # The minimum JSON format supported
 MINIMUM_SUPPORTED_VERSION = 7
@@ -312,6 +312,7 @@ def _update_results(results, filepath):
         updates = {
             7: _update_seven_to_eight,
             8: _update_eight_to_nine,
+            9: _update_nine_to_ten,
         }
 
         while results['results_version'] < CURRENT_JSON_VERSION:
@@ -386,6 +387,20 @@ def _update_eight_to_nine(result):
             test['pid'] = []
 
     result['results_version'] = 9
+
+    return result
+
+
+def _update_nine_to_ten(result):
+    """Update json results from version 9 to 10.
+
+    This adds the xfail and xcrash statuses.
+    """
+    for v in six.itervalues(result['totals']):
+        v['expected-fail'] = 0
+        v['expected-crash'] = 0
+
+    result['results_version'] = 10
 
     return result
 

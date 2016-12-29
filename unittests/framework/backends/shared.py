@@ -42,7 +42,7 @@ INITIAL_METADATA = {
 # changes. This does not contain piglit specifc objects, only strings, floats,
 # ints, and Nones (instead of JSON's null)
 JSON = {
-    "results_version": 9,
+    "results_version": 10,
     "time_elapsed": {
         "start": 1469638791.2351687,
         "__type__": "TimeAttribute",
@@ -112,6 +112,8 @@ JSON = {
             "crash": 0,
             "pass": 0,
             "fail": 1,
+            "expected-fail": 0,
+            "expected-crash": 0,
             "dmesg-warn": 0,
             "incomplete": 0,
             "notrun": 0,
@@ -128,7 +130,9 @@ JSON = {
             "dmesg-warn": 0,
             "incomplete": 0,
             "notrun": 0,
-            "dmesg-fail": 0
+            "dmesg-fail": 0,
+            "expected-fail": 0,
+            "expected-crash": 0,
         },
         "spec@!opengl 1.0": {
             '__type__': 'Totals',
@@ -141,7 +145,9 @@ JSON = {
             "dmesg-warn": 0,
             "incomplete": 0,
             "notrun": 0,
-            "dmesg-fail": 0
+            "dmesg-fail": 0,
+            "expected-fail": 0,
+            "expected-crash": 0,
         },
         "root": {
             '__type__': 'Totals',
@@ -154,7 +160,9 @@ JSON = {
             "dmesg-warn": 0,
             "incomplete": 0,
             "notrun": 0,
-            "dmesg-fail": 0
+            "dmesg-fail": 0,
+            "expected-fail": 0,
+            "expected-crash": 0,
         }
     }
 }

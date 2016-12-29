@@ -36,6 +36,8 @@ A tuple representing :
 Status ordering from best to worst:
 
 pass
+xfail
+xcrash
 warn
 dmesg-warn
 fail
@@ -66,6 +68,8 @@ from framework import exceptions, compat
 
 __all__ = ['NOTRUN',
            'PASS',
+           'XFAIL',
+           'XCRASH',
            'FAIL',
            'WARN',
            'CRASH',
@@ -241,6 +245,10 @@ SKIP = NoChangeStatus('skip')
 
 PASS = Status('pass', 0, (1, 1))
 
+XFAIL = Status('expected-fail', 0, (1, 1))
+
+XCRASH = Status('expected-crash', 0, (1, 1))
+
 WARN = Status('warn', 10)
 
 DMESG_WARN = Status('dmesg-warn', 20)
@@ -258,6 +266,8 @@ INCOMPLETE = Status('incomplete', 100)
 _STATUS_MAP = {
     'skip': SKIP,
     'pass': PASS,
+    'expected-fail': XFAIL,
+    'expected-crash': XCRASH,
     'warn': WARN,
     'fail': FAIL,
     'crash': CRASH,
@@ -269,5 +279,5 @@ _STATUS_MAP = {
 }
 
 # A tuple (ordered, immutable) of all statuses in this module
-ALL = (PASS, WARN, DMESG_WARN, FAIL, DMESG_FAIL, TIMEOUT, CRASH, INCOMPLETE,
-       SKIP, NOTRUN)
+ALL = (PASS, XFAIL, XCRASH, WARN, DMESG_WARN, FAIL, DMESG_FAIL, TIMEOUT, CRASH,
+       INCOMPLETE, SKIP, NOTRUN)
