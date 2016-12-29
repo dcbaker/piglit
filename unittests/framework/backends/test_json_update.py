@@ -224,3 +224,142 @@ class TestV8toV9(object):
         jsonschema.validate(
             json.loads(json.dumps(result, default=backends.json.piglit_encoder)),
             schema)
+
+
+class TestV9toV10(object):
+    """Tests for Version 9 to version 10."""
+
+    data = {
+        "results_version": 9,
+        "name": "test",
+        "options": {
+            "profile": ['quick'],
+            "dmesg": False,
+            "verbose": False,
+            "platform": "gbm",
+            "sync": False,
+            "valgrind": False,
+            "filter": [],
+            "concurrent": "all",
+            "test_count": 0,
+            "exclude_tests": [],
+            "exclude_filter": [],
+            "env": {},
+        },
+        "lspci": "stuff",
+        "uname": "more stuff",
+        "glxinfo": "and stuff",
+        "wglinfo": "stuff",
+        "clinfo": "stuff",
+        "tests": {
+            'a@test': {
+                "time": {
+                    'start': 1.2,
+                    'end': 1.8,
+                    '__type__': 'TimeAttribute'
+                },
+                'dmesg': '',
+                'result': 'fail',
+                '__type__': 'TestResult',
+                'command': '/a/command',
+                'traceback': None,
+                'out': '',
+                'environment': 'A=variable',
+                'returncode': 0,
+                'err': '',
+                'pid': [5],
+                'subtests': {
+                    '__type__': 'Subtests',
+                },
+                'exception': None,
+            },
+            'b@test': {
+                "time": {
+                    'start': 1.2,
+                    'end': 1.8,
+                    '__type__': 'TimeAttribute'
+                },
+                'dmesg': '',
+                'result': 'fail',
+                '__type__': 'TestResult',
+                'command': '/a/command',
+                'traceback': None,
+                'out': '',
+                'environment': 'A=variable',
+                'returncode': 0,
+                'err': '',
+                'subtests': {
+                    '__type__': 'Subtests',
+                },
+                'exception': None,
+            }
+        },
+        "time_elapsed": {
+            'start': 1.2,
+            'end': 1.8,
+            '__type__': 'TimeAttribute'
+        },
+        '__type__': 'TestrunResult',
+        'totals': {
+            'a': {
+                'fail': 1,
+                'pass': 0,
+                'crash': 0,
+                'skip': 0,
+                'warn': 0,
+                'dmesg-warn': 0,
+                'dmesg-fail': 0,
+                'timeout': 0,
+                'incomplete': 0,
+                'notrun': 0,
+            },
+            'b': {
+                'fail': 1,
+                'pass': 0,
+                'crash': 0,
+                'skip': 0,
+                'warn': 0,
+                'dmesg-warn': 0,
+                'dmesg-fail': 0,
+                'timeout': 0,
+                'incomplete': 0,
+                'notrun': 0,
+            },
+            'root': {
+                'fail': 2,
+                'pass': 0,
+                'crash': 0,
+                'skip': 0,
+                'warn': 0,
+                'dmesg-warn': 0,
+                'dmesg-fail': 0,
+                'timeout': 0,
+                'incomplete': 0,
+                'notrun': 0,
+            }
+        }
+    }
+
+    @pytest.fixture
+    def result(self, tmpdir):
+        p = tmpdir.join('result.json')
+        p.write(json.dumps(self.data, default=backends.json.piglit_encoder))
+        with p.open('r') as f:
+            return backends.json._update_nine_to_ten(backends.json._load(f))
+
+    def test_totals(self, result):
+        assert 'expected-fail' in result['totals']['root']
+        assert 'expected-crash' in result['totals']['root']
+        assert 'expected-fail' in result['totals']['a']
+        assert 'expected-crash' in result['totals']['a']
+        assert 'expected-fail' in result['totals']['b']
+        assert 'expected-crash' in result['totals']['b']
+
+    def test_valid(self, result):
+        with open(os.path.join(os.path.dirname(__file__), 'schema',
+                               'piglit-10.json'),
+                  'r') as f:
+            schema = json.load(f)
+        jsonschema.validate(
+            json.loads(json.dumps(result, default=backends.json.piglit_encoder)),
+            schema)
