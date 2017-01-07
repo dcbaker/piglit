@@ -49,6 +49,8 @@ _SUMMARY_TEMPLATE = textwrap.dedent("""\
      incomplete: {incomplete}
      dmesg-warn: {dmesg_warn}
      dmesg-fail: {dmesg_fail}
+  expected-fail: {expected_crash}
+ expected-crash: {expected_fail}
         changes: {changes}
           fixes: {fixes}
     regressions: {regressions}
@@ -78,6 +80,8 @@ def _print_summary(results):
         incomplete=status_printer('incomplete'),
         dmesg_warn=status_printer('dmesg-warn'),
         dmesg_fail=status_printer('dmesg-fail'),
+        expected_fail=status_printer('expected-fail'),
+        expected_crash=status_printer('expected-crash'),
         changes=print_template.format(
             *[str(s) for s in results.counts.changes]),
         fixes=print_template.format(
