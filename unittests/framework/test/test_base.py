@@ -1,4 +1,5 @@
-# Copyright (c) 2014, 2016 Intel Corporation
+# encoding=utf-8
+# Copyright © 2014, 2016, 2017 Intel Corporation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +28,10 @@ import copy
 import os
 import textwrap
 try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
     import subprocess32 as subprocess
 except ImportError:
     import subprocess
@@ -35,8 +40,10 @@ import pytest
 import six
 
 from framework import dmesg
+from framework import grouptools
 from framework import log
 from framework import monitoring
+from framework import results
 from framework import status
 from framework.options import _Options as Options
 from framework.test import base
@@ -532,3 +539,136 @@ class TestReducedProcessMixin(object):
             assert test.result.subtests['a'] == status.PASS
             assert test.result.subtests['b'] == status.PASS
             assert test.result.subtests['c'] == status.CRASH
+
+
+class Test_ExpectedStatus(object):
+    """Tests for the _ExpectedStatus helper class."""
+
+    @pytest.fixture(scope='class')
+    def func(self):
+        return base._ExpectedStatus()
+
+    class TestResult(object):
+
+        @pytest.yield_fixture(scope='module', autouse=True)
+        def mock_config(self):
+            """Mock the expected-failures and expected-crashes values."""
+            vals = {
+                'expected-crashes': {'foo': None},
+                'expected-failures': {'bar': None}
+            }
+
+            def _items(name):
+                return six.iteritems(vals[name])
+
+            with mock.patch('framework.test.base.PIGLIT_CONFIG.items', _items):
+                yield
+
+        @pytest.mark.parametrize('input_, expected', [
+            ('pass', 'pass'),
+            ('fail', 'fail'),
+            ('crash', 'crash'),
+            ('warn', 'warn'),
+            ('skip', 'skip'),
+            ('timeout', 'timeout'),
+            ('dmesg-fail', 'dmesg-fail'),
+            ('dmesg-warn', 'dmesg-warn'),
+        ])
+        def test_not_expected(self, input_, expected, func):
+            result = results.TestResult(input_)
+            func('oof', result)
+            assert result.result == expected
+
+        @pytest.mark.parametrize('input_, expected', [
+            ('pass', 'fail'),
+            ('fail', 'expected-fail'),
+            ('crash', 'fail'),
+            ('warn', 'expected-fail'),
+            ('skip', 'skip'),
+            ('dmesg-fail', 'expected-fail'),
+            ('dmesg-warn', 'expected-fail'),
+            ('timeout', 'fail'),
+        ])
+        def test_expected_failure(self, input_, expected, func):
+            result = results.TestResult(input_)
+            func('bar', result)
+            assert result.result == expected
+
+        @pytest.mark.parametrize('input_, expected', [
+            ('pass', 'fail'),
+            ('fail', 'fail'),
+            ('crash', 'expected-crash'),
+            ('warn', 'fail'),
+            ('skip', 'skip'),
+            ('dmesg-fail', 'fail'),
+            ('dmesg-warn', 'fail'),
+            ('timeout', 'expected-crash'),
+        ])
+        def test_expected_crash(self, input_, expected, func):
+            result = results.TestResult(input_)
+            func('foo', result)
+            assert result.result == expected
+
+    class TestSubtest(object):
+
+        @pytest.yield_fixture(scope='module', autouse=True)
+        def mock_config(self):
+            """Mock the expected-failures and expected-crashes values."""
+            vals = {
+                'expected-crashes': {grouptools.join('group', 'foo'): None},
+                'expected-failures': {grouptools.join('group', 'bar'): None}
+            }
+
+            def _items(name):
+                return six.iteritems(vals[name])
+
+            with mock.patch('framework.test.base.PIGLIT_CONFIG.items', _items):
+                yield
+
+        @pytest.mark.parametrize('input_, expected', [
+            ('pass', 'pass'),
+            ('fail', 'fail'),
+            ('crash', 'crash'),
+            ('warn', 'warn'),
+            ('skip', 'skip'),
+            ('timeout', 'timeout'),
+            ('dmesg-fail', 'dmesg-fail'),
+            ('dmesg-warn', 'dmesg-warn'),
+        ])
+        def test_not_expected(self, input_, expected, func):
+            result = results.TestResult()
+            result.subtests['oink'] = input_
+            func('group', result)
+            assert result.subtests['oink'] == expected
+
+        @pytest.mark.parametrize('input_, expected', [
+            ('pass', 'fail'),
+            ('fail', 'expected-fail'),
+            ('crash', 'fail'),
+            ('warn', 'expected-fail'),
+            ('skip', 'skip'),
+            ('dmesg-fail', 'expected-fail'),
+            ('dmesg-warn', 'expected-fail'),
+            ('timeout', 'fail'),
+        ])
+        def test_expected_failure(self, input_, expected, func):
+            result = results.TestResult()
+            result.subtests['bar'] = input_
+            func('group', result)
+            assert result.subtests['bar'] == expected
+
+        @pytest.mark.parametrize('input_, expected', [
+            ('pass', 'fail'),
+            ('fail', 'fail'),
+            ('crash', 'expected-crash'),
+            ('warn', 'fail'),
+            ('skip', 'skip'),
+            ('dmesg-fail', 'fail'),
+            ('dmesg-warn', 'fail'),
+            ('timeout', 'expected-crash'),
+        ])
+        def test_expected_crash(self, input_, expected, func):
+            result = results.TestResult()
+            result.subtests['foo'] = input_
+            func('group', result)
+            assert result.subtests['foo'] == expected

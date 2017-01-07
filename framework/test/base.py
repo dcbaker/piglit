@@ -37,11 +37,13 @@ import signal
 import warnings
 
 import six
-from six.moves import range
+from six.moves import range, configparser
 
 from framework import core
 from framework import exceptions
+from framework import grouptools
 from framework import status
+from framework.core import PIGLIT_CONFIG
 from framework.options import OPTIONS
 from framework.results import TestResult
 
@@ -155,6 +157,90 @@ def is_crash_returncode(returncode):
         return returncode < 0
 
 
+class _ExpectedStatus(object):
+    """Contains expected statuses for tests.
+
+    This is a private helper used by the Backend class.
+    """
+
+    def __init__(self):
+        # Create two sets, one for expected-failures and one for
+        # expected-crashes
+        try:
+            self.failures = {n for n, _ in
+                             PIGLIT_CONFIG.items('expected-failures')}
+        except configparser.NoSectionError:
+            self.failures = set()
+        try:
+            self.crashes = {n for n, _ in
+                            PIGLIT_CONFIG.items('expected-crashes')}
+        except configparser.NoSectionError:
+            self.crashes = set()
+
+    def __expected(self, name):
+        if name in self.failures:
+            return 'failure'
+        elif name in self.crashes:
+            return 'crash'
+        else:
+            return 'pass'
+
+    def _main(self, name, result):
+        expected = self.__expected(name)
+
+        if result.result in {status.FAIL, status.DMESG_FAIL, status.DMESG_WARN,
+                             status.WARN}:
+            if expected == 'failure':
+                result.result = status.XFAIL
+                result.err += '\nWARN: Marking test as expected failure'
+            elif expected == 'crash':
+                result.result = status.FAIL
+                result.err += '\nERROR: Test expected failure, but crashed.'
+        elif result.result in [status.CRASH, status.TIMEOUT]:
+            if expected == 'failure':
+                result.result = status.FAIL
+                result.err += '\nERROR: Test expected crash, but failed.'
+            elif expected == 'crash':
+                result.result = status.XCRASH
+                result.err += '\nWARN: Marking test as expected crash'
+        elif result.result is status.PASS and expected != 'pass':
+            result.result = status.FAIL
+            result.err += '\nERROR: Test expected {}, but passed.'.format(
+                expected)
+
+    def _subtest(self, basename, result):
+        for subtest in six.iterkeys(result.subtests):
+            expected = self.__expected(grouptools.join(basename, subtest))
+
+            if result.subtests[subtest] in {status.FAIL, status.DMESG_FAIL,
+                                            status.DMESG_WARN, status.WARN}:
+                if expected == 'failure':
+                    result.subtests[subtest] = status.XFAIL
+                    result.err += ('\nWARN: Marking subtest {} as expected '
+                                   'failure'.format(subtest))
+                elif expected == 'crash':
+                    result.subtests[subtest] = status.FAIL
+                    result.err += ('\nERROR: Subtest {} expected failure, but '
+                                   'crashed.'.format(subtest))
+            elif result.subtests[subtest] in [status.CRASH, status.TIMEOUT]:
+                if expected == 'failure':
+                    result.subtests[subtest] = status.FAIL
+                    result.err += ('\nERROR: Subtest {} expected crash, but '
+                                   'failed.'.format(subtest))
+                elif expected == 'crash':
+                    result.subtests[subtest] = status.XCRASH
+                    result.err += ('\nWARN: Marking subtest {} as expected '
+                                   'crash'.format(subtest))
+            elif result.subtests[subtest] is status.PASS and expected != 'pass':
+                result.subtests[subtest] = status.FAIL
+                result.err += ('\nERROR: Subtest {} expected {}, but passed.'
+                               .format(subtest, expected))
+
+    def __call__(self, name, result):
+        self._main(name, result)
+        self._subtest(name, result)
+
+
 @six.add_metaclass(abc.ABCMeta)
 class Test(object):
     """ Abstract base class for Test classes
@@ -228,11 +314,19 @@ class Test(object):
         assert self._command
         return self._command
 
+    @core.lazy_property(is_class=True)
+    def _expected_result(self):
+        # This is setup this way to avoid a race between reading the config
+        # and setting valuesi n the _ExpectedStatus constructor. This is
+        # basically a class property that's populated on first run rather than
+        # in the Test.__new__ method
+        return _ExpectedStatus()
+
     @abc.abstractmethod
     def interpret_result(self, name):
         """Convert the raw output of the test into a form piglit understands.
         """
-        pass
+        self._expected_result(name, self.result)  # pylint: disable=too-many-function-args
 
     def run(self, path):
         """
