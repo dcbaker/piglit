@@ -177,6 +177,14 @@ run_test=./%(test_name)s
 ; Default: True
 ;process isolation=True
 
+; Contols whether names in the expcted-failures and expected-crashes are JUnit
+; escaped or in piglit format. If names are in piglit format set this to False,
+; if they are in JUnit format set this to True. It is recomended to use piglit
+; format, this option exists to support legacy setups.
+;
+; Default: False
+;expected status escape=False
+
 [expected-failures]
 ; Provide a list of test names that are expected to fail.  These tests
 ; will be listed as passing in JUnit output when they fail.  Any

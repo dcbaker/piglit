@@ -172,3 +172,31 @@ class Test_ExpectedStatus(object):
             result.subtests['foo'] = input_
             func('group', result)
             assert result.subtests['foo'] == expected
+
+    class TestJUnitEscaped(object):
+
+        @pytest.yield_fixture(scope='module', autouse=True)
+        def mock_config(self):
+            """Mock the expected-failures and expected-crashes values."""
+            vals = {
+                'expected-crashes': {'foo.bar': None},
+                'expected-failures': {},
+            }
+
+            def _items(name):
+                return six.iteritems(vals[name])
+
+            with mock.patch('framework.backends.abstract.PIGLIT_CONFIG.items',
+                            _items):
+                yield
+
+        @pytest.yield_fixture(scope='module', autouse=True)
+        def mock_escaped(self):
+            with mock.patch('framework.backends.abstract.PIGLIT_CONFIG.safe_get',
+                            lambda *_: True):
+                yield
+
+        def test_not_expected(self, func):
+            result = results.TestResult('crash')
+            func(grouptools.join('foo', 'bar'), result)
+            assert result.result == 'expected-crash'

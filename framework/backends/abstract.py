@@ -52,6 +52,17 @@ class _ExpectedStatus(object):
     """
 
     def __init__(self):
+        if PIGLIT_CONFIG.safe_get('core', 'expected status escape', False):
+            # This is a bit of a hack, but importing from junit at the top
+            # level would result in a unresolvable dependency, doing the import
+            # here allows this to work without copying the code. Really this
+            # should be deprecated and removed.
+            from framework.backends.junit import junit_escape
+            self.transform = lambda x: '.'.join(junit_escape(y) for y in
+                                                grouptools.split(x))
+        else:
+            self.transform = lambda x: x
+
         try:
             self.failures = {n for n, _ in
                              PIGLIT_CONFIG.items('expected-failures')}
@@ -123,6 +134,7 @@ class _ExpectedStatus(object):
                                .format(subtest, expected))
 
     def __call__(self, name, result):
+        name = self.transform(name)
         self._main(name, result)
         self._subtest(name, result)
 
