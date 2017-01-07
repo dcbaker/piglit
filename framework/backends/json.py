@@ -196,8 +196,8 @@ class JSONBackend(FileBackend):
         os.unlink(os.path.join(self._dest, 'metadata.json'))
         shutil.rmtree(os.path.join(self._dest, 'tests'))
 
-    @staticmethod
-    def _write(f, name, data):
+    def _write(self, f, name, data):
+        self._eval_expected(name, data)
         json.dump({name: data}, f, default=piglit_encoder)
 
 
@@ -345,7 +345,7 @@ def _update_results(results, filepath):
 
 
 def _write(results, file_):
-    """WRite the values of the results out to a file."""
+    """Write the values of the results out to a file."""
     with write_compressed(file_) as f:
         json.dump(results, f, default=piglit_encoder, indent=INDENT)
 
