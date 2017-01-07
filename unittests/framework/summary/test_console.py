@@ -81,6 +81,8 @@ class TestPrintSummary(object):
             incomplete=template.format('0', '0'),
             dmesg_warn=template.format('0', '0'),
             dmesg_fail=template.format('0', '0'),
+            expected_fail=template.format('0', '0'),
+            expected_crash=template.format('0', '0'),
             changes=template.format('0', '2'),
             fixes=template.format('0', '1'),
             regressions=template.format('0', '0'),
