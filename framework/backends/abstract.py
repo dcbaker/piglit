@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016 Intel Corporation
+# Copyright (c) 2014, 2016, 2017 Intel Corporation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,11 +35,96 @@ import os
 import shutil
 
 import six
+from six.moves import configparser
 
+from framework import grouptools
 from framework import options
-from . import compression
+from framework import status
+from framework.core import PIGLIT_CONFIG
 from framework.results import TestResult
-from framework.status import INCOMPLETE
+from . import compression
+
+
+class _ExpectedStatus(object):
+    """Contains expected statuses for tests.
+
+    This is a private helper used by the Backend class.
+    """
+
+    def __init__(self):
+        try:
+            self.failures = {n for n, _ in
+                             PIGLIT_CONFIG.items('expected-failures')}
+        except configparser.NoSectionError:
+            self.failures = set()
+        try:
+            self.crashes = {n for n, _ in
+                            PIGLIT_CONFIG.items('expected-crashes')}
+        except configparser.NoSectionError:
+            self.crashes = set()
+
+    def __expected(self, name):
+        if name in self.failures:
+            return 'failure'
+        elif name in self.crashes:
+            return 'crash'
+        else:
+            return 'pass'
+
+    def _main(self, name, result):
+        expected = self.__expected(name)
+
+        if result.result in {status.FAIL, status.DMESG_FAIL, status.DMESG_WARN,
+                             status.WARN}:
+            if expected == 'failure':
+                result.result = status.XFAIL
+                result.err += '\nWARN: Marking test as expected failure'
+            elif expected == 'crash':
+                result.result = status.FAIL
+                result.err += '\nERROR: Test expected failure, but crashed.'
+        elif result.result in [status.CRASH, status.TIMEOUT]:
+            if expected == 'failure':
+                result.result = status.FAIL
+                result.err += '\nERROR: Test expected crash, but failed.'
+            elif expected == 'crash':
+                result.result = status.XCRASH
+                result.err += '\nWARN: Marking test as expected crash'
+        elif result.result is status.PASS and expected != 'pass':
+            result.result = status.FAIL
+            result.err += '\nERROR: Test expected {}, but passed.'.format(
+                expected)
+
+    def _subtest(self, basename, result):
+        for subtest in six.iterkeys(result.subtests):
+            expected = self.__expected(grouptools.join(basename, subtest))
+
+            if result.subtests[subtest] in {status.FAIL, status.DMESG_FAIL,
+                                            status.DMESG_WARN, status.WARN}:
+                if expected == 'failure':
+                    result.subtests[subtest] = status.XFAIL
+                    result.err += ('\nWARN: Marking subtest {} as expected '
+                                   'failure'.format(subtest))
+                elif expected == 'crash':
+                    result.subtests[subtest] = status.FAIL
+                    result.err += ('\nERROR: Subtest {} expected failure, but '
+                                   'crashed.'.format(subtest))
+            elif result.subtests[subtest] in [status.CRASH, status.TIMEOUT]:
+                if expected == 'failure':
+                    result.subtests[subtest] = status.FAIL
+                    result.err += ('\nERROR: Subtest {} expected crash, but '
+                                   'failed.'.format(subtest))
+                elif expected == 'crash':
+                    result.subtests[subtest] = status.XCRASH
+                    result.err += ('\nWARN: Marking subtest {} as expected '
+                                   'crash'.format(subtest))
+            elif result.subtests[subtest] is status.PASS and expected != 'pass':
+                result.subtests[subtest] = status.FAIL
+                result.err += ('\nERROR: Subtest {} expected {}, but passed.'
+                               .format(subtest, expected))
+
+    def __call__(self, name, result):
+        self._main(name, result)
+        self._subtest(name, result)
 
 
 @contextlib.contextmanager
@@ -81,7 +166,7 @@ class Backend(object):
 
     """
     @abc.abstractmethod
-    def __init__(self, dest, metadata, **kwargs):
+    def __init__(self, dest, **kwargs):
         """ Generic constructor
 
         This method should setup the container and open any files or conections
@@ -99,6 +184,7 @@ class Backend(object):
                 file, but other backends might want different options
 
         """
+        self._eval_expected = _ExpectedStatus()
 
     @abc.abstractmethod
     def initialize(self, metadata):
@@ -168,11 +254,12 @@ class FileBackend(Backend):
 
     """
     def __init__(self, dest, file_start_count=0, **kwargs):
+        super(FileBackend, self).__init__(dest)
         self._dest = dest
         self._counter = itertools.count(file_start_count)
         self._write_final = write_compressed
 
-    __INCOMPLETE = TestResult(result=INCOMPLETE)
+    __INCOMPLETE = TestResult(result=status.INCOMPLETE)
 
     def __fsync(self, file_):
         """ Sync the file to disk
