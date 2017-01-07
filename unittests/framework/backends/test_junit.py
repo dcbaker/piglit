@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016 Intel Corporation
+# Copyright (c) 2014, 2016, 2017 Intel Corporation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -69,6 +69,28 @@ time end: 4.5
 def mock_compression():
     with mock.patch('framework.backends.compression.get_mode',
                     mock.Mock(return_value='none')):
+        yield
+
+
+@pytest.yield_fixture(autouse=True, scope="module")
+def mock_config():
+    vals = {
+        'expected-failures': {
+            'foo': None,
+            grouptools.join('two', 'foo'): None,
+            grouptools.join('two', 'foof'): None,
+        },
+        'expected-crashes': {
+            'bar': None,
+            grouptools.join('two', 'bar'): None,
+            grouptools.join('two', 'barf'): None,
+        },
+    }
+
+    def _items(name):
+        return six.iteritems(vals[name])
+
+    with mock.patch('framework.backends.abstract.PIGLIT_CONFIG.items', _items):
         yield
 
 
@@ -192,6 +214,82 @@ class TestJUnitBackend(object):
 
 class TestJUnitWriter(object):
     """Tests for the JUnitWriter class."""
+
+    class TestExpected(object):
+
+        @pytest.fixture
+        def pass_(self):
+            result = results.TestResult()
+            result.time.end = 1.2345
+            result.result = 'pass'
+            result.out = 'this is stdout'
+            result.err = 'this is stderr'
+            result.command = 'foo'
+
+            return result
+
+        @pytest.fixture
+        def fail(self):
+            result = results.TestResult()
+            result.time.end = 1.2345
+            result.result = 'fail'
+            result.out = 'this is stdout'
+            result.err = 'this is stderr'
+            result.command = 'foo'
+
+            return result
+
+        @pytest.fixture
+        def crash(self):
+            result = results.TestResult()
+            result.time.end = 1.2345
+            result.result = 'crash'
+            result.out = 'this is stdout'
+            result.err = 'this is stderr'
+            result.command = 'foo'
+
+            return result
+
+        def _write(self, name, result, tmpdir):
+            """Helper to write the test and return the XML."""
+            test = backends.junit.JUnitBackend(six.text_type(tmpdir))
+            test.initialize(shared.INITIAL_METADATA)
+            with test.write_test(name) as t:
+                t(result)
+            test.finalize()
+
+            test_value = etree.parse(six.text_type(tmpdir.join('results.xml')))
+            return test_value.getroot()
+
+        def test_expect_fail_got_pass(self, pass_, tmpdir):
+            test_value = self._write('foo', pass_, tmpdir)
+            assert test_value.find('.//testcase/failure') is not None
+            assert test_value.find('.//testcase/error') is None
+
+        def test_expect_fail_got_fail(self, fail, tmpdir):
+            test_value = self._write('foo', fail, tmpdir)
+            assert test_value.find('.//testcase/failure') is None
+            assert test_value.find('.//testcase/error') is None
+
+        def test_expect_fail_got_crash(self, crash, tmpdir):
+            test_value = self._write('foo', crash, tmpdir)
+            assert test_value.find('.//testcase/failure') is not None
+            assert test_value.find('.//testcase/error') is None
+
+        def test_expect_crash_got_pass(self, pass_, tmpdir):
+            test_value = self._write('bar', pass_, tmpdir)
+            assert test_value.find('.//testcase/error') is None
+            assert test_value.find('.//testcase/failure') is not None
+
+        def test_expect_crash_got_fail(self, fail, tmpdir):
+            test_value = self._write('bar', fail, tmpdir)
+            assert test_value.find('.//testcase/error') is None
+            assert test_value.find('.//testcase/failure') is not None
+
+        def test_expect_crash_got_crash(self, crash, tmpdir):
+            test_value = self._write('bar', crash, tmpdir)
+            assert test_value.find('.//testcase/error') is None
+            assert test_value.find('.//testcase/failure') is None
 
     def test_junit_replace(self, tmpdir):
         """backends.junit.JUnitBackend.write_test: grouptools.SEPARATOR is
@@ -419,3 +517,51 @@ class TestJUnitSubtestWriter(object):
             schema = etree.XMLSchema(file=JUNIT_SCHEMA)  # pylint: disable=no-member
             with open(test_file, 'r') as f:
                 assert schema.validate(etree.parse(f))
+
+    class TestExpected(object):
+
+        @pytest.fixture
+        def result(self):
+            result = results.TestResult()
+            result.time.end = 1.2345
+            result.result = 'pass'
+            result.out = 'this is stdout'
+            result.err = 'this is stderr'
+            result.command = 'foo'
+            result.subtests['foo'] = 'fail'
+            result.subtests['bar'] = 'crash'
+            result.subtests['foof'] = 'pass'
+            result.subtests['barf'] = 'pass'
+
+            return result
+
+        def _write(self, name, result, tmpdir):
+            """Helper to write the test and return the XML."""
+            test = backends.junit.JUnitBackend(six.text_type(tmpdir),
+                                               junit_subtests=True)
+            test.initialize(shared.INITIAL_METADATA)
+            with test.write_test(name) as t:
+                t(result)
+            test.finalize()
+
+            test_value = etree.parse(six.text_type(tmpdir.join('results.xml')))
+            return test_value.getroot()
+
+        def test(self, result, tmpdir):
+            test_value = self._write('two', result, tmpdir)
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="bar"]/failure') is None
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="bar"]/error') is None
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="foo"]/failure') is None
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="foo"]/error') is None
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="barf"]/failure') is not None
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="barf"]/error') is None
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="foof"]/failure') is not None
+            assert test_value.find(
+                './/testsuite/testsuite/testcase[@name="foof"]/error') is None
