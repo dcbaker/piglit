@@ -166,16 +166,34 @@ class _ExpectedStatus(object):
     def __init__(self):
         # Create two sets, one for expected-failures and one for
         # expected-crashes
+        def strip_piglit(name):
+            if name.startswith('piglit'):
+                return name[len('piglit.'):]
+            return name
+
         try:
-            self.failures = {n for n, _ in
+            self.failures = {strip_piglit(n) for n, _ in
                              PIGLIT_CONFIG.items('expected-failures')}
         except configparser.NoSectionError:
             self.failures = set()
         try:
-            self.crashes = {n for n, _ in
+            self.crashes = {strip_piglit(n) for n, _ in
                             PIGLIT_CONFIG.items('expected-crashes')}
         except configparser.NoSectionError:
             self.crashes = set()
+
+        # Create a transform function. This function is used to change the a
+        # piglit name into a JUnit name if using the legacy-junit feature
+        if PIGLIT_CONFIG.safe_get('core', 'expected status escape', False):
+            # This is a bit of a hack, but importing from junit at the top
+            # level would result in a unresolvable dependency, doing the import
+            # here allows this to work without copying the code. Really this
+            # should be deprecated and removed.
+            from framework.backends.junit import junit_escape
+            self.__transform = lambda x: '.'.join(junit_escape(y) for y in
+                                                  grouptools.split(x))
+        else:
+            self.__transform = lambda x: x
 
     def __expected(self, name):
         if name in self.failures:
@@ -237,6 +255,7 @@ class _ExpectedStatus(object):
                                .format(subtest, expected))
 
     def __call__(self, name, result):
+        name = self.__transform(name)
         self._main(name, result)
         self._subtest(name, result)
 
