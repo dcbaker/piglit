@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2016 Intel Corporation
+# Copyright (c) 2014-2017 Intel Corporation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,6 @@ except ImportError:
 import six
 
 from framework import grouptools, results, exceptions
-from framework.core import PIGLIT_CONFIG
 from .abstract import FileBackend
 from .register import Registry
 
@@ -60,10 +59,8 @@ def junit_escape(name):
 class JUnitWriter(object):
     """A class that provides a write mechanism for junit tests."""
 
-    def __init__(self, test_suffix, efail, ecrash):
+    def __init__(self, test_suffix):
         self._test_suffix = test_suffix
-        self._expected_crashes = ecrash
-        self._expected_failures = efail
 
     @staticmethod
     def _make_names(name):
@@ -85,31 +82,15 @@ class JUnitWriter(object):
         return (classname, junit_escape(testname))
 
     @staticmethod
-    def _set_xml_err(element, data, expected_result):
+    def _set_xml_err(element, data):
         """Adds the 'system-err' element."""
         err = etree.SubElement(element, 'system-err')
         err.text = data.err
         err.text += '\n\npid: {}\nstart time: {}\nend time: {}\n'.format(
             data.pid, data.time.start, data.time.end)
 
-        if data.result in ['fail', 'dmesg-warn', 'dmesg-fail']:
-            if expected_result == "failure":
-                err.text += "\n\nWARN: passing test as an expected failure"
-            elif expected_result == 'error':
-                err.text += \
-                    "\n\nERROR: Test should have been crash but was failure"
-        elif data.result in ['crash', 'timeout']:
-            if expected_result == "error":
-                err.text += "\n\nWARN: passing test as an expected crash"
-            elif expected_result == 'failure':
-                err.text += \
-                    "\n\nERROR: Test should have been failure but was crash"
-        elif expected_result != "pass":
-            err.text += "\n\nERROR: This test passed when it "\
-                        "expected {0}".format(expected_result)
-
     @staticmethod
-    def _make_result(element, result, expected_result):
+    def _make_result(element, result):
         """Adds the skipped, failure, or error element."""
         res = None
         # If the result is skip, then just add the skipped message and go on
@@ -117,29 +98,9 @@ class JUnitWriter(object):
             res = etree.SubElement(element, 'failure',
                                    message='Incomplete run.')
         elif result in ['fail', 'dmesg-warn', 'dmesg-fail']:
-            if expected_result == "failure":
-                res = etree.SubElement(element, 'skipped',
-                                       message='expected failure')
-            elif expected_result == 'error':
-                res = etree.SubElement(element, 'failure',
-                                       message='expected crash, but got '
-                                               'failure')
-            else:
-                res = etree.SubElement(element, 'failure')
+            res = etree.SubElement(element, 'failure')
         elif result in ['crash', 'timeout']:
-            if expected_result == "error":
-                res = etree.SubElement(element, 'skipped',
-                                       message='expected crash')
-            elif expected_result == 'failure':
-                res = etree.SubElement(element, 'error',
-                                       message='expected failure, but got '
-                                               'error')
-            else:
-                res = etree.SubElement(element, 'error')
-        elif expected_result != "pass":
-            res = etree.SubElement(element, 'failure',
-                                   message="expected {}, but got {}".format(
-                                       expected_result, result))
+            res = etree.SubElement(element, 'error')
         elif result == 'skip':
             res = etree.SubElement(element, 'skipped')
 
@@ -166,31 +127,14 @@ class JUnitWriter(object):
         # must not have the suffix appended.
         return testname + self._test_suffix
 
-    def _expected_result(self, name):
-        """Get the expected result of the test."""
-        name = name.replace("=", ".").replace(":", ".")
-        expected_result = "pass"
-
-        if name in self._expected_failures:
-            expected_result = "failure"
-            # a test can either fail or crash, but not both
-            assert name not in self._expected_crashes
-
-        if name in self._expected_crashes:
-            expected_result = "error"
-
-        return expected_result
-
     def __call__(self, f, name, data):
         classname, testname = self._make_names(name)
         element = self._make_root(testname, classname, data)
-        expected_result = self._expected_result(
-            '{}.{}'.format(classname, testname).lower())
 
         # If this is an incomplete status then none of these values will be
         # available, nor
         if data.result != 'incomplete':
-            self._set_xml_err(element, data, expected_result)
+            self._set_xml_err(element, data)
 
             # Add stdout
             out = etree.SubElement(element, 'system-out')
@@ -199,7 +143,7 @@ class JUnitWriter(object):
             # Prepend command line to stdout
             out.text = data.command + '\n' + out.text
 
-        self._make_result(element, data.result, expected_result)
+        self._make_result(element, data.result)
 
         f.write(six.text_type(etree.tostring(element).decode('utf-8')))
 
@@ -239,7 +183,7 @@ class JUnitSubtestWriter(JUnitWriter):
         # If this is an incomplete status then none of these values will be
         # available, nor
         if data.result != 'incomplete':
-            self._set_xml_err(element, data, 'pass')
+            self._set_xml_err(element, data)
 
             # Add stdout
             out = etree.SubElement(element, 'system-out')
@@ -253,18 +197,11 @@ class JUnitSubtestWriter(JUnitWriter):
                     elem = element.find('.//testcase[@name="{}"]'.format(
                         self._make_full_test_name(subname)))
                     assert elem is not None
-                    self._make_result(
-                        elem, result,
-                        self._expected_result('{}.{}.{}'.format(
-                            classname, testname, subname).lower()))
+                    self._make_result(elem, result)
             else:
-                self._make_result(element, data.result,
-                                  self._expected_result('{}.{}'.format(
-                                      classname, testname).lower()))
+                self._make_result(element, data.result)
         else:
-            self._make_result(element, data.result,
-                              self._expected_result('{}.{}'.format(
-                                  classname, testname).lower()))
+            self._make_result(element, data.result)
 
         f.write(six.text_type(etree.tostring(element).decode('utf-8')))
 
@@ -282,24 +219,10 @@ class JUnitBackend(FileBackend):
     def __init__(self, dest, junit_suffix='', junit_subtests=False, **options):
         super(JUnitBackend, self).__init__(dest, **options)
 
-        # make dictionaries of all test names expected to crash/fail
-        # for quick lookup when writing results.  Use lower-case to
-        # provide case insensitive matches.
-        expected_failures = {}
-        if PIGLIT_CONFIG.has_section("expected-failures"):
-            for fail, _ in PIGLIT_CONFIG.items("expected-failures"):
-                expected_failures[fail.lower()] = True
-        expected_crashes = {}
-        if PIGLIT_CONFIG.has_section("expected-crashes"):
-            for fail, _ in PIGLIT_CONFIG.items("expected-crashes"):
-                expected_crashes[fail.lower()] = True
-
         if not junit_subtests:
-            self._write = JUnitWriter(
-                junit_suffix, expected_failures, expected_crashes)
+            self._write = JUnitWriter(junit_suffix)
         else:
-            self._write = JUnitSubtestWriter(  # pylint: disable=redefined-variable-type
-                junit_suffix, expected_failures, expected_crashes)
+            self._write = JUnitSubtestWriter(junit_suffix)  # pylint: disable=redefined-variable-type
 
     def initialize(self, metadata):
         """ Do nothing
