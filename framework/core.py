@@ -29,6 +29,7 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 import errno
+import functools
 import os
 import subprocess
 
@@ -211,7 +212,7 @@ def parse_listfile(filename):
         return [os.path.expanduser(i.strip()) for i in file.readlines()]
 
 
-class lazy_property(object):  # pylint: disable=invalid-name,too-few-public-methods
+class _LazyProperty(object):  # pylint: disable=invalid-name,too-few-public-methods
     """Descriptor that replaces the function it wraps with the value generated.
 
     This makes a property that is truly lazy, it is calculated once on demand,
@@ -220,13 +221,33 @@ class lazy_property(object):  # pylint: disable=invalid-name,too-few-public-meth
 
     This works by very cleverly shadowing itself with the calculated value. It
     adds the value to the instance, which pushes itself up the MRO and will
-    never be quired again.
-
+    never be quered again.
     """
-    def __init__(self, func):
+    def __init__(self, is_class, func):
+        self.__is_class = is_class
         self.__func = func
 
     def __get__(self, instance, cls):
         value = self.__func(instance)
-        setattr(instance, self.__func.__name__, value)
+        setattr(cls if self.__is_class else instance,
+                self.__func.__name__, value)
         return value
+
+
+def lazy_property(func=None, is_class=False):
+    """Wrapper around _LazyProperty class to allow use as class property.
+
+    Keyword Arguments:
+    func     -- This is the function that the decorator is wrapping. When using
+                the @decorator format this parameter should not be explictely
+                set.
+    is_class -- A boolean that controls whether the value is meant to be a
+                class value or an instance value. Default: False
+    """
+    # func=None allows the decorator to be used without being called:
+    # @lazy_property
+    # def foo(): ...
+    # Which would otherwise fail.
+    if func is None:
+        return functools.partial(_LazyProperty, is_class)
+    return _LazyProperty(is_class, func)
