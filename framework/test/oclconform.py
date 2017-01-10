@@ -46,7 +46,7 @@ def get_test_section_name(test):
 
 
 class OCLConform(Test):
-    def interpret_result(self):
+    def interpret_result(self, name):
         if self.result.returncode != 0 or 'FAIL' in self.result.out:
             self.result.result = 'fail'
         else:

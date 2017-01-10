@@ -105,7 +105,7 @@ class TestOGLCTest(object):
                 'Total Failed : 0\n'
                 'Total Not run: 0\n'
             )
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.result is status.PASS
 
@@ -121,7 +121,7 @@ class TestOGLCTest(object):
                 'Total Passed : 0\n'
                 'Total Not run: 1\n'
             )
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.result is status.SKIP
 
@@ -131,7 +131,7 @@ class TestOGLCTest(object):
             """
             test = oglconform.OGLCTest('group', 'test')
             test.result.returncode = 0
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.result is status.FAIL
 
@@ -141,7 +141,7 @@ class TestOGLCTest(object):
             """
             test = oglconform.OGLCTest('group', 'test')
             test.result.returncode = -1
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.result is status.CRASH
 
@@ -159,5 +159,5 @@ class TestOGLCTest(object):
         test = oglconform.OGLCTest('group', 'value')
         test.result.out = out
         test.result.returncode = 0
-        test.interpret_result()
+        test.interpret_result('foo')
         assert test.result.result == 'skip'

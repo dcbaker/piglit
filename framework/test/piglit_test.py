@@ -68,7 +68,7 @@ class PiglitBaseTest(ValgrindMixin, Test):
         # Prepend TEST_BIN_DIR to the path.
         self._command[0] = os.path.join(TEST_BIN_DIR, self._command[0])
 
-    def interpret_result(self):
+    def interpret_result(self, name):
         out = []
 
         for each in self.result.out.split('\n'):
@@ -79,7 +79,7 @@ class PiglitBaseTest(ValgrindMixin, Test):
 
         self.result.out = '\n'.join(out)
 
-        super(PiglitBaseTest, self).interpret_result()
+        super(PiglitBaseTest, self).interpret_result(name)
 
 
 class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):

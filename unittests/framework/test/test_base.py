@@ -48,8 +48,8 @@ from .. import skip
 
 class _Test(base.Test):
     """Helper with stubbed interpret_results method."""
-    def interpret_result(self):
-        super(_Test, self).interpret_result()
+    def interpret_result(self, name):
+        super(_Test, self).interpret_result(name)
 
 
 class TestTest(object):
@@ -67,7 +67,7 @@ class TestTest(object):
             mocker.patch.object(t, 'interpret_result',
                                 side_effect=Exception('Test failure'))
 
-            t.run()
+            t.run('path')
 
     @pytest.mark.skipif(six.PY2 and subprocess.__name__ != 'subprocess32',
                         reason='Python 2.7 requires subprocess32 to run this test')
@@ -151,7 +151,7 @@ class TestTest(object):
                 mock_subp = mocker.patch('framework.test.base.subprocess')
                 mock_subp.Popen = proxy
                 mock_subp.TimeoutExpired = subprocess.TimeoutExpired
-                test.run()
+                test.run('foo')
 
                 # Check to see if the Popen has children, even after it should
                 # have received a TimeoutExpired.
@@ -178,7 +178,7 @@ class TestTest(object):
             """
             test = _Test(self.command)
             test.timeout = 1
-            test.run()
+            test.run('foo')
 
         @pytest.mark.slow
         @pytest.mark.timeout(6)
@@ -192,7 +192,7 @@ class TestTest(object):
             """
             test = _Test(self.command)
             test.timeout = 1
-            test.run()
+            test.run('foo')
             assert test.result.result is status.TIMEOUT
 
     class TestExecuteTraceback(object):
@@ -279,7 +279,7 @@ class TestTest(object):
             test.result.returncode = 1
             test.result.out = 'this is some\nstdout'
             test.result.err = 'this is some\nerrors'
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.result is status.FAIL
 
@@ -312,7 +312,7 @@ class TestWindowResizeMixin(object):
             pass
 
         test = Test_(['foo'])
-        test.run()
+        test.run('foo')
         assert test.result.out == 'all good'
 
 
@@ -339,8 +339,8 @@ class TestValgrindMixin(object):
         @classmethod
         def setup_class(cls):
             class _NoRunTest(_Test):
-                def run(self):
-                    self.interpret_result()
+                def run(self, path):
+                    self.interpret_result('foo')
 
             class Test(base.ValgrindMixin, _NoRunTest):
                 pass
@@ -364,7 +364,7 @@ class TestValgrindMixin(object):
 
             test = self.test(['foo'])
             test.result.result = starting
-            test.run()
+            test.run('foo')
             assert test.result.result is status.SKIP
 
         @pytest.mark.parametrize("starting", PROBLEMS,
@@ -379,7 +379,7 @@ class TestValgrindMixin(object):
             test = self.test(['foo'])
             test.result.result = starting
             test.result.returncode = 0
-            test.run()
+            test.run('foo')
             assert test.result.result is starting
 
         def test_passed_valgrind(self, mocker):
@@ -392,7 +392,7 @@ class TestValgrindMixin(object):
             mock_opts.valgrind = True
             test.result.result = status.PASS
             test.result.returncode = 0
-            test.run()
+            test.run('foo')
             assert test.result.result is status.PASS
 
         def test_failed_valgrind(self, mocker):
@@ -405,7 +405,7 @@ class TestValgrindMixin(object):
             test = self.test(['foo'])
             test.result.result = status.PASS
             test.result.returncode = 1
-            test.interpret_result()
+            test.interpret_result('foo')
             assert test.result.result is status.FAIL
 
 
@@ -461,7 +461,7 @@ class TestReducedProcessMixin(object):
                 def _resume(self, cur, **kwargs):  # pylint: disable=unused-argument
                     return self._expected[cur:]
 
-                def interpret_result(self):
+                def interpret_result(self, _):
                     name = None
 
                     for line in self.result.out.split('\n'):
@@ -520,7 +520,7 @@ class TestReducedProcessMixin(object):
             test.gen_rcode = iter([1, 0])
 
             test._run_command()
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.subtests['a'] == status.PASS
             assert test.result.subtests['b'] == status.CRASH
@@ -536,7 +536,7 @@ class TestReducedProcessMixin(object):
             test.gen_rcode = iter([1])
 
             test._run_command()
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.subtests['a'] == status.PASS
             assert test.result.subtests['b'] == status.PASS

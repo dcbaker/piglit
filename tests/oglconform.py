@@ -62,7 +62,7 @@ class OGLCTest(Test):
         return [BIN, '-minFmt', '-v', '4', '-test'] + \
             super(OGLCTest, self).command
 
-    def interpret_result(self):
+    def interpret_result(self, name):
         # Most of what we want to search for is in the last three lines of the
         # the output
         split = self.result.out.rsplit('\n', 4)[1:]
@@ -79,7 +79,7 @@ class OGLCTest(Test):
         else:
             self.result.result = 'fail'
 
-        super(OGLCTest, self).interpret_result()
+        super(OGLCTest, self).interpret_result(name)
 
 
 def _make_profile():

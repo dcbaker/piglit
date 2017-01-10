@@ -92,14 +92,14 @@ class XTSTest(Test):  # pylint: disable=too-few-public-methods
              "XT_TCP": 'No',
              "XT_DISPLAYHOST": ''})
 
-    def run(self):
+    def run(self, path):
         # We only get the RESULTS_PATH after the profile has been set
         # up, so we can't do it in init.
         self.test_results_file = os.path.join(XTSTest.RESULTS_PATH,
                                               self.testdir,
                                               self.testname)
         self.env.update({"TET_RESFILE": self.test_results_file})
-        super(XTSTest, self).run()
+        super(XTSTest, self).run(path)
 
     def _process_log_for_images(self, log):
         """ Parse the image logfile """
@@ -149,8 +149,8 @@ class XTSTest(Test):  # pylint: disable=too-few-public-methods
 
         return images
 
-    def interpret_result(self):
-        super(XTSTest, self).interpret_result()
+    def interpret_result(self, name):
+        super(XTSTest, self).interpret_result(name)
 
         try:
             with open(self.test_results_file, 'r') as rfile:

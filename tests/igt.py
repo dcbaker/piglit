@@ -113,8 +113,8 @@ class IGTTest(Test):
             [os.path.join(IGT_TEST_ROOT, binary)] + arguments)
         self.timeout = 600
 
-    def interpret_result(self):
-        super(IGTTest, self).interpret_result()
+    def interpret_result(self, name):
+        super(IGTTest, self).interpret_result(name)
 
         if self.result.returncode == 0:
             self.result.result = 'pass'

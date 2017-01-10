@@ -36,7 +36,7 @@ __all__ = [
 
 
 class GTest(Test):
-    def interpret_result(self):
+    def interpret_result(self, name):
         # Since gtests can have several subtets, if any of the subtests fail
         # then we need to report fail.
         out = self.result.out
@@ -48,4 +48,4 @@ class GTest(Test):
             #If we get here, then the test probably exited early.
             self.result.result = 'fail'
 
-        super(GTest, self).interpret_result()
+        super(GTest, self).interpret_result(name)

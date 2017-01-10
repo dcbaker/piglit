@@ -64,7 +64,7 @@ def test_bad_returncode():
     """
     test = GleanTest('basic')
     test.result.returncode = 1
-    test.interpret_result()
+    test.interpret_result('foo')
     assert test.result.result == 'fail'
 
 
@@ -104,6 +104,6 @@ def test_crash():
     """test.gleantest.GleanTest.interpret_result: Crashes are set to crash"""
     test = GleanTest('foo')
     test.result.returncode = -5
-    test.interpret_result()
+    test.interpret_result('foo')
 
     assert test.result.result is status.CRASH

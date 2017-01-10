@@ -204,7 +204,7 @@ class DEQPBaseTest(Test):
                     self.result.result = v
                     return
 
-    def interpret_result(self):
+    def interpret_result(self, name):
         if is_crash_returncode(self.result.returncode):
             self.result.result = 'crash'
         elif self.result.returncode != 0:

@@ -168,7 +168,7 @@ class TestDEQPBaseTest(object):
             is crash.
             """
             self.test.result.returncode = -9
-            self.test.interpret_result()
+            self.test.interpret_result('foo')
             assert self.test.result.result is status.CRASH
 
         def test_returncode_fail(self):
@@ -176,7 +176,7 @@ class TestDEQPBaseTest(object):
             is fail.
             """
             self.test.result.returncode = 1
-            self.test.interpret_result()
+            self.test.interpret_result('foo')
             assert self.test.result.result is status.FAIL
 
         def test_fallthrough(self):
@@ -185,7 +185,7 @@ class TestDEQPBaseTest(object):
             """
             self.test.result.returncode = 0
             self.test.result.out = ''
-            self.test.interpret_result()
+            self.test.interpret_result('foo')
             assert self.test.result.result is status.FAIL
 
         def test_windows_returncode_3(self, mocker):
@@ -194,7 +194,7 @@ class TestDEQPBaseTest(object):
             """
             mocker.patch('framework.test.base.sys.platform', 'win32')
             self.test.result.returncode = 3
-            self.test.interpret_result()
+            self.test.interpret_result('foo')
             assert self.test.result.result is status.CRASH
 
     class TestDEQPBaseTestIntepretResultOutput(object):
@@ -244,7 +244,7 @@ class TestDEQPBaseTest(object):
             result is 'fail'.
             """
             self.inst.result.out = self.__gen_stdout('Fail')
-            self.inst.interpret_result()
+            self.inst.interpret_result('foo')
             assert self.inst.result.result is status.FAIL
 
         def test_pass(self):
@@ -252,7 +252,7 @@ class TestDEQPBaseTest(object):
             result is 'Pass'.
             """
             self.inst.result.out = self.__gen_stdout('Pass')
-            self.inst.interpret_result()
+            self.inst.interpret_result('foo')
             assert self.inst.result.result is status.PASS
 
         def test_warn(self):
@@ -260,7 +260,7 @@ class TestDEQPBaseTest(object):
             result the result is 'warn'.
             """
             self.inst.result.out = self.__gen_stdout('QualityWarning')
-            self.inst.interpret_result()
+            self.inst.interpret_result('foo')
             assert self.inst.result.result is status.WARN
 
         def test_error(self):
@@ -268,7 +268,7 @@ class TestDEQPBaseTest(object):
             result the result is 'fail'.
             """
             self.inst.result.out = self.__gen_stdout('InternalError')
-            self.inst.interpret_result()
+            self.inst.interpret_result('foo')
             assert self.inst.result.result is status.FAIL
 
         def test_crash(self):
@@ -276,7 +276,7 @@ class TestDEQPBaseTest(object):
             result the result is 'crash'.
             """
             self.inst.result.out = self.__gen_stdout('Crash')
-            self.inst.interpret_result()
+            self.inst.interpret_result('foo')
             assert self.inst.result.result is status.CRASH
 
         def test_skip(self):
@@ -284,7 +284,7 @@ class TestDEQPBaseTest(object):
             result the result is 'skip'.
             """
             self.inst.result.out = self.__gen_stdout('NotSupported')
-            self.inst.interpret_result()
+            self.inst.interpret_result('foo')
             assert self.inst.result.result is status.SKIP
 
         def test_resourceerror(self):
@@ -292,7 +292,7 @@ class TestDEQPBaseTest(object):
             result the result is 'crash'.
             """
             self.inst.result.out = self.__gen_stdout('ResourceError')
-            self.inst.interpret_result()
+            self.inst.interpret_result('foo')
             assert self.inst.result.result is status.CRASH
 
 

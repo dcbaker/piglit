@@ -51,7 +51,7 @@ class TestPiglitBaseTest(object):
             test = PiglitBaseTest(['foo'])
             test.result.out = 'PIGLIT: {"result": "pass"}\n'
             test.result.returncode = 0
-            test.interpret_result()
+            test.interpret_result('foo')
             assert test.result.result is status.PASS
 
         def test_stdout(self):
@@ -65,7 +65,7 @@ class TestPiglitBaseTest(object):
                 PIGLIT: {"result": "pass"}
                 and stuff""")
             test.result.returncode = 0
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert test.result.result is status.PASS
             assert test.result.out == textwrap.dedent("""\
@@ -81,7 +81,7 @@ class TestPiglitBaseTest(object):
                 PIGLIT: {"result": "pass"}
                 PIGLIT: {"subtest": {"subtest": "pass"}}""")
             test.result.returncode = 0
-            test.interpret_result()
+            test.interpret_result('foo')
             assert test.result.subtests['subtest'] is status.PASS
 
         def test_with_multiple_subtests(self):
@@ -96,7 +96,7 @@ class TestPiglitBaseTest(object):
                 PIGLIT: {"subtest": {"test1": "pass"}}
                 PIGLIT: {"subtest": {"test2": "pass"}}""")
             test.result.returncode = 0
-            test.interpret_result()
+            test.interpret_result('foo')
 
             assert dict(test.result.subtests) == \
                 {'test1': 'pass', 'test2': 'pass'}

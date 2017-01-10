@@ -37,8 +37,8 @@ class Test(_Test):
     This class provides a way to test the Test class.
     """
 
-    def interpret_result(self):
-        pass
+    def interpret_result(self, *args, **kwargs):
+        super(Test, self).interpret_result(*args, **kwargs)
 
     def __repr__(self):
         return "Test({}, run_concurrent={})".format(

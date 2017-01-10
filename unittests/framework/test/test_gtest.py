@@ -33,6 +33,6 @@ def test_crash():
     """test.gtest.GTest.interpret_result: Crashes are set to crash."""
     test = GTest(['foo'])
     test.result.returncode = -5
-    test.interpret_result()
+    test.interpret_result('foo')
 
     assert test.result.result is status.CRASH

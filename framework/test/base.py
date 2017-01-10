@@ -202,7 +202,7 @@ class Test(object):
                 self.result.time.start = time.time()
                 options['dmesg'].update_dmesg()
                 options['monitor'].update_monitoring()
-                self.run()
+                self.run(path)
                 self.result.time.end = time.time()
                 self.result = options['dmesg'].update_result(self.result)
                 options['monitor'].check_monitoring()
@@ -226,7 +226,7 @@ class Test(object):
         return self._command
 
     @abc.abstractmethod
-    def interpret_result(self):
+    def interpret_result(self, name):
         """Convert the raw output of the test into a form piglit understands.
         """
         if is_crash_returncode(self.result.returncode):
@@ -237,7 +237,7 @@ class Test(object):
             else:
                 self.result.result = 'fail'
 
-    def run(self):
+    def run(self, path):
         """
         Run a test.  The return value will be a dictionary with keys
         including 'result', 'info', 'returncode' and 'command'.
@@ -272,7 +272,7 @@ class Test(object):
             self.result.returncode = None
             return
 
-        self.interpret_result()
+        self.interpret_result(path)
 
     def is_skip(self):
         """ Application specific check for skip
@@ -421,7 +421,7 @@ class ValgrindMixin(object):
         else:
             return command
 
-    def interpret_result(self):
+    def interpret_result(self, name):
         """Set the status to the valgrind status.
 
         It is important that the valgrind interpret_results code is run last,
@@ -430,7 +430,7 @@ class ValgrindMixin(object):
         super().interpret_result(), then calls it's own result.
 
         """
-        super(ValgrindMixin, self).interpret_result()
+        super(ValgrindMixin, self).interpret_result(name)
 
         if OPTIONS.valgrind:
             # If the underlying test failed, simply report
