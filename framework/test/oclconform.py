@@ -52,6 +52,8 @@ class OCLConform(Test):
         else:
             self.result.result = 'pass'
 
+        super(OCLConform, self).interpret_result(name)
+
 
 def add_sub_test(profile, test_name, subtest_name, subtest):
     profile.test_list[grouptools.join('oclconform', test_name,

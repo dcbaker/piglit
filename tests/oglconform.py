@@ -31,7 +31,7 @@ import tempfile
 
 from framework import grouptools, exceptions, core
 from framework.profile import TestProfile
-from framework.test.base import Test
+from framework.test.base import Test, BasicInterpretMixin
 
 __all__ = ['profile']
 
@@ -42,7 +42,7 @@ if not os.path.exists(BIN):
         'Cannot find binary {}'.format(BIN))
 
 
-class OGLCTest(Test):
+class OGLCTest(BasicInterpretMixin, Test):
     """OGLCTest: Execute a sub-test of the Intel oglconform test suite.
 
     To use this, create an 'oglconform' symlink in piglit/bin.  Piglit

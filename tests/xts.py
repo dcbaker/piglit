@@ -150,8 +150,6 @@ class XTSTest(Test):  # pylint: disable=too-few-public-methods
         return images
 
     def interpret_result(self, name):
-        super(XTSTest, self).interpret_result(name)
-
         try:
             with open(self.test_results_file, 'r') as rfile:
                 log = rfile.read()
@@ -175,6 +173,10 @@ class XTSTest(Test):  # pylint: disable=too-few-public-methods
                 self.result.result = 'warn'
             else:
                 self.result.result = 'fail'
+        else:
+            self.result.result = 'crash'
+
+        super(XTSTest, self).interpret_result(name)
 
         self.result.images = self._process_log_for_images(log)
 

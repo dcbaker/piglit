@@ -216,6 +216,8 @@ class DEQPBaseTest(Test):
         if self.result.result == 'notrun':
             self.result.result = 'fail'
 
+        super(DEQPBaseTest, self).interpret_result(name)
+
     def _run_command(self, *args, **kwargs):
         """Rerun the command if X11 connection failure happens."""
         for _ in range(5):

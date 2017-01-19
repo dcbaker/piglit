@@ -34,7 +34,8 @@ except ImportError:
     import json
 
 from framework import core, options
-from .base import Test, WindowResizeMixin, ValgrindMixin, TestIsSkip
+from .base import (Test, WindowResizeMixin, ValgrindMixin, TestIsSkip,
+                   BasicInterpretMixin)
 
 
 __all__ = [
@@ -55,7 +56,7 @@ CL_CONCURRENT = (not sys.platform.startswith('linux') or
                  glob.glob('/dev/dri/render*'))
 
 
-class PiglitBaseTest(ValgrindMixin, Test):
+class PiglitBaseTest(ValgrindMixin, BasicInterpretMixin, Test):
     """
     PiglitTest: Run a "native" piglit test executable
 

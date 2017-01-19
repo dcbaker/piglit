@@ -23,6 +23,7 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
+import copy
 import os
 import textwrap
 try:
@@ -270,19 +271,6 @@ class TestTest(object):
 
             assert args == ['a', 'b']
 
-    class TestInterpretResult(object):
-        """Tests for Test.interpret_result."""
-
-        def test_returncode_greater_zero(self):
-            """A test with status > 0 is fail."""
-            test = _Test(['foobar'])
-            test.result.returncode = 1
-            test.result.out = 'this is some\nstdout'
-            test.result.err = 'this is some\nerrors'
-            test.interpret_result('foo')
-
-            assert test.result.result is status.FAIL
-
 
 class TestWindowResizeMixin(object):
     """Tests for the WindowResizeMixin class."""
@@ -336,6 +324,9 @@ class TestValgrindMixin(object):
     class TestRun(object):
         """Tests for the run method."""
 
+        _NO_WARN = copy.copy(PROBLEMS)
+        _NO_WARN.remove(status.WARN)
+
         @classmethod
         def setup_class(cls):
             class _NoRunTest(_Test):
@@ -351,7 +342,7 @@ class TestValgrindMixin(object):
         # pytest-timeout plugin, which is broken. when 'timeout' is passed as a
         # string using six.text_type it tries to grab that value and a flaming
         # pile ensues
-        @pytest.mark.parametrize("starting", PROBLEMS,
+        @pytest.mark.parametrize("starting", _NO_WARN,
                                  ids=lambda x: six.text_type(x).upper())
         def test_problem_status_changes_valgrind_enabled(self, starting, mocker):
             """When running with valgrind mode we're actually testing the test

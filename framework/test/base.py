@@ -39,6 +39,7 @@ import warnings
 import six
 from six.moves import range
 
+from framework import core
 from framework import exceptions
 from framework import status
 from framework.options import OPTIONS
@@ -106,6 +107,8 @@ elif six.PY3:
 
 
 __all__ = [
+    'BasicInterpretMixin',
+    'ReducedProcessMixin',
     'Test',
     'TestIsSkip',
     'TestRunError',
@@ -229,13 +232,7 @@ class Test(object):
     def interpret_result(self, name):
         """Convert the raw output of the test into a form piglit understands.
         """
-        if is_crash_returncode(self.result.returncode):
-            self.result.result = 'crash'
-        elif self.result.returncode != 0:
-            if self.result.result == 'pass':
-                self.result.result = 'warn'
-            else:
-                self.result.result = 'fail'
+        pass
 
     def run(self, path):
         """
@@ -374,6 +371,25 @@ class Test(object):
 
     def __ne__(self, other):
         return not self == other
+
+
+class BasicInterpretMixin(object):
+    """A very simple interpret_result implementation as a Mixin class.
+
+    This provides a very basic returncode based handler.
+    """
+
+    def interpret_result(self, name):
+        """Handle a few basic returncodes."""
+        if is_crash_returncode(self.result.returncode):
+            self.result.result = 'crash'
+        elif self.result.returncode != 0:
+            if self.result.result == 'pass':
+                self.result.result = 'warn'
+            else:
+                self.result.result = 'fail'
+
+        super(BasicInterpretMixin, self).interpret_result(name)
 
 
 class WindowResizeMixin(object):

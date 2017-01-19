@@ -28,14 +28,14 @@ from __future__ import (
 )
 import re
 
-from .base import Test
+from .base import Test, BasicInterpretMixin
 
 __all__ = [
     'GTest',
 ]
 
 
-class GTest(Test):
+class GTest(BasicInterpretMixin, Test):
     def interpret_result(self, name):
         # Since gtests can have several subtets, if any of the subtests fail
         # then we need to report fail.
