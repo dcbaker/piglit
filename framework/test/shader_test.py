@@ -29,12 +29,18 @@ from __future__ import (
 import io
 import os
 import re
+try:
+    import lxml.etree as et
+except ImportError:
+    import xml.etree.cElementTree as et
+
+import six
 
 from framework import exceptions
 from framework import status
 from .base import ReducedProcessMixin, TestIsSkip, REGISTRY
 from .opengl import FastSkipMixin, FastSkip
-from .piglit_test import PiglitBaseTest
+from .piglit_test import PiglitBaseTest, PIGLIT_ROOT
 
 __all__ = [
     'ShaderTest',
@@ -155,11 +161,20 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
 
     """
 
-    def __init__(self, filename):
+    def __init__(self, command, **kwargs):
+        super(ShaderTest, self).__init__(command, **kwargs)
+
+    @PiglitBaseTest.command.getter
+    def command(self):
+        """ Add -auto to the test command """
+        return self._command + ['-auto']
+
+    @classmethod
+    def from_file(cls, filename):
         parser = Parser(filename)
         parser.parse()
 
-        super(ShaderTest, self).__init__(
+        return cls(
             [parser.prog, parser.filename],
             run_concurrent=True,
             gl_required=parser.gl_required,
@@ -168,10 +183,29 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
             glsl_version=parser.glsl_version,
             glsl_es_version=parser.glsl_es_version)
 
-    @PiglitBaseTest.command.getter
-    def command(self):
-        """ Add -auto to the test command """
-        return self._command + ['-auto']
+    @staticmethod
+    def to_xml(filename=None, process_isolation=True, **kwargs):
+        parser = Parser(filename)
+        parser.parse()
+
+        if parser.gl_version:
+            kwargs['gl_version'] = six.text_type(parser.gl_version)
+        if parser.gles_version:
+            kwargs['gles_version'] = six.text_type(parser.gles_version)
+        if parser.glsl_version:
+            kwargs['glsl_version'] = six.text_type(parser.glsl_version)
+        if parser.glsl_es_version:
+            kwargs['glsl_es_version'] = six.text_type(parser.glsl_es_version)
+
+        return ([('process_isolation', 'true' if process_isolation else 'false')],
+                et.Element('ShaderTest',
+                           command=' '.join([
+                               parser.prog,
+                               os.path.relpath(parser.filename, PIGLIT_ROOT),
+                           ]),
+                           run_concurrent='true',
+                           gl_required=' '.join(parser.gl_required),
+                           **kwargs))
 
 
 @REGISTRY.register('MultiShaderTest')
@@ -186,7 +220,8 @@ class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):
     filenames -- a list of absolute paths to shader test files
     """
 
-    def __init__(self, filenames):
+    @classmethod
+    def from_file(cls, filenames):
         assert filenames
         prog = None
         files = []
@@ -236,13 +271,66 @@ class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):
         assert len(subtests) + len(skips) == len(filenames), \
             'not all tests accounted for'
 
-        super(MultiShaderTest, self).__init__(
+        inst = cls(
             [prog] + files,
             subtests=subtests,
             run_concurrent=True)
 
         for name in skips:
-            self.result.subtests[name] = status.SKIP
+            inst.result.subtests[name] = status.SKIP
+
+        return inst
+
+    @staticmethod
+    def to_xml(filenames=None, **kwargs):
+        if 'run_concurrent' in kwargs:
+            kwargs['run_concurrent'] = 'true' if kwargs['run_concurrent'] else 'false'
+        root = et.Element('MultiShaderTest', **kwargs)
+        prog = None
+
+        # Walk each subtest, and either add it to the list of tests to run, or
+        # determine it is skip, and set the result of that test in the subtests
+        # dictionary to skip without adding it ot the liest of tests to run
+        for each in filenames:
+            parser = Parser(each)
+            parser.parse()
+            subtest = os.path.basename(os.path.splitext(each)[0]).lower()
+
+            if prog is not None:
+                # This allows mixing GLES2 and GLES3 shader test files
+                # together. Since GLES2 profiles can be promoted to GLES3, this
+                # is fine.
+                if parser.prog != prog:
+                    # Pylint can't figure out that prog is not None.
+                    if 'gles' in parser.prog and 'gles' in prog:  # pylint: disable=unsupported-membership-test
+                        prog = max(parser.prog, prog)
+                    else:
+                        # The only way we can get here is if one is GLES and
+                        # one is not, since there is only one desktop runner
+                        # thus it will never fail the is parser.prog != prog
+                        # check
+                        raise exceptions.PiglitInternalError(
+                            'GLES and GL shaders in the same command!\n'
+                            'Cannot pick a shader_runner binary!')
+            else:
+                prog = parser.prog
+
+            sub = et.SubElement(root, 'file',
+                                filename=os.path.relpath(each, PIGLIT_ROOT),
+                                subtest=subtest)
+            if parser.gl_required:
+                sub.attrib['gl_required'] = ' '.join(parser.gl_required)
+            if parser.gl_version:
+                sub.attrib['gl_version'] = six.text_type(parser.gl_version)
+            if parser.gles_version:
+                sub.attrib['gles_version'] = six.text_type(parser.gles_version)
+            if parser.glsl_version:
+                sub.attrib['glsl_version'] = six.text_type(parser.glsl_version)
+            if parser.glsl_es_version:
+                sub.attrib['glsl_es_version'] = six.text_type(parser.glsl_es_version)
+
+        root.attrib['prog'] = prog
+        return ([('process_isolation', 'false')], root)
 
     @PiglitBaseTest.command.getter  # pylint: disable=no-member
     def command(self):

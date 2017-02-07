@@ -219,13 +219,13 @@ for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:
             groupname = grouptools.from_path(os.path.relpath(dirpath, basedir))
             if ext == '.shader_test':
                 if PROCESS_ISOLATION:
-                    test = ShaderTest(os.path.join(dirpath, filename))
+                    test = ShaderTest.from_file(os.path.join(dirpath, filename))
                 else:
                     shader_tests[groupname].append(os.path.join(dirpath, filename))
                     continue
             elif ext in ['.vert', '.tesc', '.tese', '.geom', '.frag', '.comp']:
                 try:
-                    test = GLSLParserTest(os.path.join(dirpath, filename))
+                    test = GLSLParserTest.from_file(os.path.join(dirpath, filename))
                 except GLSLParserNoConfigError:
                     # In the event that there is no config assume that it is a
                     # legacy test, and continue
@@ -251,9 +251,9 @@ for group, files in six.iteritems(shader_tests):
     if len(files) == 1:
         group = grouptools.join(
             group, os.path.basename(os.path.splitext(files[0])[0]))
-        profile.test_list[group] = ShaderTest(files[0])
+        profile.test_list[group] = ShaderTest.from_file(files[0])
     else:
-        profile.test_list[group] = MultiShaderTest(files)
+        profile.test_list[group] = MultiShaderTest.from_file(files)
 
 # Collect and add all asmparsertests
 for basedir in [TESTS_DIR, GENERATED_TESTS_DIR]:

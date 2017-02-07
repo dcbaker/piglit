@@ -28,12 +28,17 @@ import os
 import sys
 import re
 import io
+try:
+    import lxml.etree as et
+except ImportError:
+    import xml.etree.cElementTree as et
+
 import six
 
 from framework import exceptions
 from .base import TestIsSkip, REGISTRY
 from .opengl import FastSkipMixin
-from .piglit_test import PiglitBaseTest, TEST_BIN_DIR
+from .piglit_test import PiglitBaseTest, TEST_BIN_DIR, PIGLIT_ROOT
 
 __all__ = [
     'GLSLParserTest',
@@ -272,19 +277,38 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
     filepath -- the path to a glsl_parser_test which must end in .vert,
                 .tesc, .tese, .geom or .frag
     """
-
-    def __init__(self, filepath):
-        parsed = Parser(filepath)
-        super(GLSLParserTest, self).__init__(
-            parsed.command,
-            run_concurrent=True,
-            gl_required=parsed.gl_required,
-            glsl_version=parsed.glsl_version,
-            glsl_es_version=parsed.glsl_es_version)
-
     def is_skip(self):
         if os.path.basename(self.command[0]) == 'None':
             raise TestIsSkip('Test is for desktop OpenGL, '
                              'but only an OpenGL ES binary has been built')
 
         super(GLSLParserTest, self).is_skip()
+
+    @staticmethod
+    def to_xml(filepath=None, **kwargs):
+        parsed = Parser(filepath)
+        parsed.command[1] = os.path.relpath(parsed.command[1], PIGLIT_ROOT)
+
+
+        if parsed.gl_required:
+            kwargs['gl_required'] = ' '.join(parsed.gl_required)
+        if parsed.glsl_version:
+            kwargs['glsl_version'] = six.text_type(parsed.glsl_version)
+        if parsed.glsl_es_version:
+            kwargs['glsl_es_version'] = six.text_type(parsed.glsl_es_version)
+
+        return ([], et.Element(
+            'GLSLParserTest',
+            command=' '.join(parsed.command),
+            run_concurrent='true',
+            **kwargs))
+
+    @classmethod
+    def from_file(cls, filepath):
+        parsed = Parser(filepath)
+        return cls(
+            parsed.command,
+            run_concurrent=True,
+            gl_required=parsed.gl_required,
+            glsl_version=parsed.glsl_version,
+            glsl_es_version=parsed.glsl_es_version)

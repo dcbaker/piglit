@@ -27,6 +27,11 @@ from __future__ import (
 )
 import os
 
+try:
+    import lxml.etree as et
+except ImportError:
+    import xml.etree.cElementTree as et
+
 from framework import options
 from .base import Test, TestIsSkip, REGISTRY
 from .piglit_test import TEST_BIN_DIR
@@ -72,3 +77,7 @@ class GleanTest(Test):
                 'but the platform is "{}"'.format(
                     options.OPTIONS.env['PIGLIT_PLATFORM']))
         super(GleanTest, self).is_skip()
+
+    @staticmethod
+    def to_xml(**kwargs):
+        return ([], et.Element('GleanTest', **kwargs))

@@ -29,6 +29,10 @@ import glob
 import os
 import sys
 try:
+    import lxml.etree as et
+except ImportError:
+    import xml.etree.cElementTree as et
+try:
     import simplejson as json
 except ImportError:
     import json
@@ -158,6 +162,21 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
         else:
             return super(PiglitGLTest, self).command + ['-auto', '-fbo']
 
+    @staticmethod
+    def to_xml(command, require_platforms=None, exclude_platforms=None,
+               **kwargs):
+        if 'run_concurrent' in kwargs:
+            kwargs['run_concurrent'] = 'true' if kwargs['run_concurrent'] else 'false'
+
+        elem = et.Element('PiglitGLTest', command=' '.join(command), **kwargs)
+
+        if require_platforms:
+            elem.attrib['require_platforms'] = ' '.join(require_platforms)
+        if exclude_platforms:
+            elem.attrib['exclude_platforms'] = ' '.join(exclude_platforms)
+
+        return ([], elem)
+
 
 @REGISTRY.register('ASMParserTest')
 class ASMParserTest(PiglitBaseTest):
@@ -165,6 +184,13 @@ class ASMParserTest(PiglitBaseTest):
 
     def __init__(self, type_, script):
         super(ASMParserTest, self).__init__(['asmparsertest', type_, script])
+
+    @staticmethod
+    def to_xml(script=None, **kwargs):
+        assert script is not None
+
+        script = os.path.relpath(script, PIGLIT_ROOT)
+        return ([], et.Element('ASMParserTest', script=script, **kwargs))
 
 
 class PiglitCLTest(PiglitBaseTest):  # pylint: disable=too-few-public-methods
