@@ -415,6 +415,20 @@ class Test(object):
         """
         raise NotImplementedError
 
+    @classmethod
+    def from_xml(cls, element):
+        """Create a Test instance from XML.
+
+        This is the most basic impementation possible, it simply takes the
+        various key/value pairs in the XML element and passes them to the
+        constructor. For many Test derived classes this is sufficient. In some
+        more complicated cases it will not be, and those classes are free to
+        implement their own from_xml method.
+        """
+        if 'command' in element.attrib:
+            element.attrib['command'] = element.attrib['command'].split()
+        return cls(**element.attrib)
+
 
 class WindowResizeMixin(object):
     """ Mixin class that deals with spurious window resizes

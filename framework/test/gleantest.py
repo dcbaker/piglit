@@ -81,3 +81,7 @@ class GleanTest(Test):
     @staticmethod
     def to_xml(**kwargs):
         return ([], et.Element('GleanTest', **kwargs))
+
+    @classmethod
+    def from_xml(cls, elem):
+        return cls(elem.attrib.pop('command'), **elem.attrib)

@@ -281,6 +281,37 @@ class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):
 
         return inst
 
+    @classmethod
+    def from_xml(cls, element):
+        files = []
+        subtests = []
+        skips = []
+
+        for each in element:
+            skipper = FastSkip(
+                gl_required=set(each.attrib.get('gl_required', '').split()),
+                gl_version=float(each.attrib.get('gl_version', '0')) or None,
+                glsl_version=float(each.attrib.get('glsl_version', '0')) or None,
+                gles_version=float(each.attrib.get('gles_version', '0')) or None,
+                glsl_es_version=float(each.attrib.get('glsl_es_version', '0')) or None)
+            try:
+                skipper.test()
+            except TestIsSkip:
+                skips.append(each.attrib['subtest'])
+                continue
+            files.append(each.attrib['filename'])
+            subtests.append(each.attrib['subtest'])
+
+        inst = cls(
+            command=[element.attrib['prog']] + files,
+            subtests=subtests,
+            run_concurrent=True)
+
+        for name in skips:
+            inst.result.subtests[name] = status.SKIP
+
+        return inst
+
     @staticmethod
     def to_xml(filenames=None, **kwargs):
         if 'run_concurrent' in kwargs:

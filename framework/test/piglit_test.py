@@ -177,6 +177,15 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
 
         return ([], elem)
 
+    @classmethod
+    def from_xml(cls, element):
+        if 'require_platforms' in element.attrib:
+            element.attrib['require_platforms'] = element.attrib['require_platforms'].split()
+        if 'exclude_platforms' in element.attrib:
+            element.attrib['exclude_platforms'] = element.attrib['exclude_platforms'].split()
+
+        return super(PiglitGLTest, cls).from_xml(element)
+
 
 @REGISTRY.register('ASMParserTest')
 class ASMParserTest(PiglitBaseTest):

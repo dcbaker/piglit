@@ -462,6 +462,25 @@ class FastSkipMixin(object):
 
         super(FastSkipMixin, self).is_skip()
 
+    @classmethod
+    def from_xml(cls, element):
+        try:
+            element.attrib['gl_required'] = set(element.attrib['gl_required'].split())
+        except KeyError:
+            pass
+
+        for each in ['gl_version', 'gles_version', 'glsl_version',
+                     'glsl_es_version']:
+            try:
+                element.attrib[each] = float(element.attrib[each])
+            except ValueError:
+                element.attrib[each] = None
+            except KeyError:
+                pass
+
+        return super(FastSkipMixin, cls).from_xml(element)
+
+
 
 class FastSkipDisabled(object):
     """A no-op version of FastSkip."""
