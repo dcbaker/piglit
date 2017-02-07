@@ -119,6 +119,27 @@ __all__ = [
 _SUPPRESS_TIMEOUT = bool(os.environ.get('PIGLIT_NO_TIMEOUT', False))
 
 
+class _TestRegistry(object):
+    """A class that registers test classes for reconstruction from XML."""
+
+    __registry = {}
+
+    def __getitem__(self, name):
+        return self.__registry[name]
+
+    def register(self, name):
+        """Register a name/type."""
+
+        def inner(class_):
+            self.__registry[name] = class_
+            return class_
+
+        return inner
+
+
+REGISTRY = _TestRegistry()
+
+
 class TestIsSkip(exceptions.PiglitException):
     """Exception raised in is_skip() if the test is a skip."""
     def __init__(self, reason):
@@ -374,6 +395,25 @@ class Test(object):
 
     def __ne__(self, other):
         return not self == other
+
+    @staticmethod
+    def to_xml(*args, **kwargs):
+        """Converts the arguments into an XML snippet.
+
+        A subclass is not required to implement this method, only classes that
+        need/want to be XML serialized should.
+
+        The signature of this method in subclasses should match the signature
+        of the constructor.
+
+        The return type of this function should be
+        tuple(list(tuple(str, bool), xml.etree.Element). The first element of
+        the tuple is a list of tuples that are options required for that test
+        to run, these will be grouped in the final XML. the string is the
+        option name, and the boolean is the state of that option. The last
+        element of the root tuple should be an xml.etree.Element-like object.
+        """
+        raise NotImplementedError
 
 
 class WindowResizeMixin(object):

@@ -28,7 +28,7 @@ from __future__ import (
 import os
 
 from framework import options
-from .base import Test, TestIsSkip
+from .base import Test, TestIsSkip, REGISTRY
 from .piglit_test import TEST_BIN_DIR
 
 __all__ = [
@@ -37,6 +37,7 @@ __all__ = [
 
 
 # GleanTest: Execute a sub-test of Glean
+@REGISTRY.register('GleanTest')
 class GleanTest(Test):
     """ Execute a glean subtest
 

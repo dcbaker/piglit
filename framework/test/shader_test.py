@@ -32,7 +32,7 @@ import re
 
 from framework import exceptions
 from framework import status
-from .base import ReducedProcessMixin, TestIsSkip
+from .base import ReducedProcessMixin, TestIsSkip, REGISTRY
 from .opengl import FastSkipMixin, FastSkip
 from .piglit_test import PiglitBaseTest
 
@@ -146,6 +146,7 @@ class Parser(object):
         return self._glsl_es_version if self.__sl_op not in ['<', '<='] else None
 
 
+@REGISTRY.register('ShaderParserTest')
 class ShaderTest(FastSkipMixin, PiglitBaseTest):
     """ Parse a shader test file and return a PiglitTest instance
 
@@ -173,6 +174,7 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
         return self._command + ['-auto']
 
 
+@REGISTRY.register('MultiShaderTest')
 class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):
     """A Shader class that can run more than one test at a time.
 

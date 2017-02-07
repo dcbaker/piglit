@@ -34,7 +34,7 @@ except ImportError:
     import json
 
 from framework import core, options
-from .base import Test, WindowResizeMixin, ValgrindMixin, TestIsSkip
+from .base import Test, WindowResizeMixin, ValgrindMixin, TestIsSkip, REGISTRY
 
 
 __all__ = [
@@ -85,6 +85,7 @@ class PiglitBaseTest(ValgrindMixin, Test):
         super(PiglitBaseTest, self).interpret_result()
 
 
+@REGISTRY.register('PiglitGLTest')
 class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
     """ OpenGL specific Piglit test class
 
@@ -158,6 +159,7 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
             return super(PiglitGLTest, self).command + ['-auto', '-fbo']
 
 
+@REGISTRY.register('ASMParserTest')
 class ASMParserTest(PiglitBaseTest):
     """Test type specifically for asmparser tests."""
 

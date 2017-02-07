@@ -31,7 +31,7 @@ import io
 import six
 
 from framework import exceptions
-from .base import TestIsSkip
+from .base import TestIsSkip, REGISTRY
 from .opengl import FastSkipMixin
 from .piglit_test import PiglitBaseTest, TEST_BIN_DIR
 
@@ -264,6 +264,7 @@ class Parser(object):
         return keys
 
 
+@REGISTRY.register('GLSLParserTest')
 class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
     """A Test derived class specifically for glslparser.
 
