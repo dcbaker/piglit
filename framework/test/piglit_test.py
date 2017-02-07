@@ -38,6 +38,7 @@ from .base import Test, WindowResizeMixin, ValgrindMixin, TestIsSkip
 
 
 __all__ = [
+    'ASMParserTest',
     'PiglitCLTest',
     'PiglitGLTest',
     'PiglitBaseTest',
@@ -155,6 +156,13 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
             return super(PiglitGLTest, self).command + ['-auto']
         else:
             return super(PiglitGLTest, self).command + ['-auto', '-fbo']
+
+
+class ASMParserTest(PiglitBaseTest):
+    """Test type specifically for asmparser tests."""
+
+    def __init__(self, type_, script):
+        super(ASMParserTest, self).__init__(['asmparsertest', type_, script])
 
 
 class PiglitCLTest(PiglitBaseTest):  # pylint: disable=too-few-public-methods
