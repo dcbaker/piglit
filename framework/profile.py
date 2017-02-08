@@ -39,6 +39,10 @@ import multiprocessing
 import multiprocessing.dummy
 import os
 import re
+try:
+    import lxml.etree as et
+except ImportError:
+    import xml.etree.cElementTree as et
 
 import six
 
@@ -46,7 +50,7 @@ from framework import grouptools, exceptions
 from framework.dmesg import get_dmesg
 from framework.log import LogManager
 from framework.monitoring import Monitoring
-from framework.test.base import Test
+from framework.test.base import Test, REGISTRY
 
 __all__ = [
     'RegexFilter',
@@ -55,6 +59,156 @@ __all__ = [
     'load_test_profile',
     'run',
 ]
+
+
+class XMLBuilder(object):
+    """Exposes an API identical to TestDict, but builds an XML File."""
+
+    def __init__(self):
+        self.__allow_reassignment = 0
+        self.__container = {}
+        self.__filters = []
+
+    def __setitem__(self, key, value):
+        self.__container[key] = value
+
+    def __getitem__(self, key):
+        return self.__container[key]
+
+    def __delitem__(self, key):
+        del self.__container[key]
+
+    def __len__(self):
+        return len(self.__container)
+
+    def __iter__(self):
+        return iter(self.__container)
+
+    @contextlib.contextmanager
+    def group_manager(self, test_class, group, options='default', **default_args):
+        """A context manager to make working with flat groups simple.
+
+        This provides a simple way to replace add_plain_test,
+        add_concurrent_test, etc. Basic usage would be to use the with
+        statement to yield and adder instance, and then add tests.
+
+        This does not provide for a couple of cases.
+        1) When you need to alter the test after initialization. If you need to
+           set instance.env, for example, you will need to do so manually. It
+           is recommended to not use this function for that case, but to
+           manually assign the test and set env together, for code clearness.
+        2) When you need to use a function that modifies the TestProfile.
+
+        Arguments:
+        test_class -- a Test derived class that. Instances of this class will
+                      be added to the profile.
+        group      -- a string or unicode that will be used as the key for the
+                      test in profile.
+
+        Keyword Arguments:
+        **         -- any additional keyword arguments will be considered
+                      default arguments to all tests added by the adder. They
+                      will always be overwritten by **kwargs passed to the
+                      adder function
+
+        >>> from framework.test import PiglitGLTest
+        >>> p = TestProfile()
+        >>> with p.group_manager(PiglitGLTest, 'a') as g:
+        ...     g(['test'])
+        ...     g(['power', 'test'], 'powertest')
+        """
+        assert isinstance(group, six.string_types), type(group)
+
+        def adder(command=None, name=None, **kwargs):
+            """Helper function that actually adds the tests.
+
+            Arguments:
+            command -- command to be passed to the test_class constructor.
+                       This must be appropriate for the underlying class
+
+            Keyword Arguments:
+            name   -- If this is a a truthy value that value will be used as
+                      the key for the test. If name is falsy then args will be
+                      ' '.join'd and used as name. Default: None
+            kwargs -- Any additional args will be passed directly to the test
+                      constructor as keyword args.
+            """
+            # If there is no name, then either
+            # a) join the arguments list together to make the name
+            # b) use the argument string as the name
+            # The former is used by the Piglit{G,C}LTest classes, the latter by
+            # GleanTest
+            if not name:
+                if isinstance(command, list):
+                    name = ' '.join(command)
+                else:
+                    assert isinstance(command, six.string_types)
+                    name = command
+
+            assert isinstance(name, six.string_types)
+            lgroup = grouptools.join(group, name)
+
+            args = dict(itertools.chain(six.iteritems(default_args),
+                                        six.iteritems(kwargs)))
+            if command:
+                args['command'] = command
+
+            self[lgroup] = test_class.to_xml(test_name=lgroup, **args)
+
+        yield adder
+
+    @property
+    @contextlib.contextmanager
+    def allow_reassignment(self):
+        """Context manager that allows keys to be reassigned.
+
+        Normally reassignment happens in error, but sometimes one actually
+        wants to do reassignment, say to add extra options in a reduced
+        profile. This method allows reassignment, but only within its context,
+        making it an explicit choice to do so.
+
+        It is safe to nest this contextmanager.
+
+        This is not thread safe, or even co-routine safe.
+        """
+        self.__allow_reassignment += 1
+        yield
+        self.__allow_reassignment -= 1
+
+    def write_xml(self, filename):
+        root = et.Element('profile')
+
+        filters = et.SubElement(root, 'filters')
+        for mode, key, filter_, match in self.__filters:
+            et.SubElement(filters, 'filter', mode=mode, key=key,
+                          filter=filter_, match=match)
+
+        grouped = itertools.groupby(
+            sorted(six.itervalues(self.__container), key=lambda x: x[0]),
+            lambda x: x[0])
+        for group, members in grouped:
+            testgroup = et.SubElement(root, 'testgroup')
+            options = et.SubElement(testgroup, 'options')
+            if group:
+                for name, value in group:
+                    et.SubElement(options, 'option', name=name, value=value)
+
+            tests = et.SubElement(testgroup, 'tests')
+            testcount = itertools.count(start=-1)
+            for _, member in members:
+                tests.append(member)
+                next(testcount)
+            tests.attrib['count'] = str(next(testcount))
+
+        tree = et.ElementTree(root)
+
+        try:
+            tree.write(filename, encoding='utf-8', pretty_print=True)
+        except TypeError:
+            tree.write(filename, encoding='utf-8')
+
+    def add_filter(self, mode, key, filter_):
+        self.__filters.append((mode, key, filter_))
 
 
 class RegexFilter(object):
