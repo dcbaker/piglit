@@ -51,6 +51,10 @@ from framework.dmesg import get_dmesg
 from framework.log import LogManager
 from framework.monitoring import Monitoring
 from framework.test.base import Test, REGISTRY
+from framework.test.gleantest import GleanTest
+from framework.test.glsl_parser_test import GLSLParserTest
+from framework.test.piglit_test import PiglitGLTest, ASMParserTest
+from framework.test.shader_test import ShaderTest, MultiShaderTest
 
 __all__ = [
     'RegexFilter',
@@ -209,6 +213,91 @@ class XMLBuilder(object):
 
     def add_filter(self, mode, key, filter_):
         self.__filters.append((mode, key, filter_))
+
+
+class XMLProfile(object):
+    # TODO: forced_test_list
+    # TODO: filters
+
+    def __init__(self, filename, options=None):
+        # First, open the file, figure out which groups we're going to run,
+        # count the tests, and set the testcount attribute
+        self.testcount = self.__get_test_count(filename, options or {})
+        self.__filename = filename
+        self.__options = options or {}
+        self.forced_test_list = []
+        self.filters = []
+        self.options = {
+            'dmesg': get_dmesg(False),
+            'monitor': Monitoring(False),
+        }
+
+    def setup(self):
+        pass
+
+    def teardown(self):
+        pass
+
+    @staticmethod
+    def __get_test_count(filename, options):
+        runnext = True
+        count = 0
+        with open(filename, 'r') as f:
+            context = iter(et.iterparse(f, events=('start', )))
+            _, root = next(context)
+            for _, elem in context:
+                if  elem.tag == 'testgroup':
+                    runnext = True
+                elif runnext:
+                    if elem.tag == 'option':
+                        name = elem.attrib.get('name')
+                        if name is not None:
+                            runnext = options[name] == elem.attrib.get('value')
+                    elif elem.tag == 'tests':
+                        count += int(elem.attrib['count'])
+                root.clear()
+        return count
+
+    def __iter__(self):
+        def gen():
+            with open(self.__filename, 'r') as f:
+                rungroup = False
+
+                context = iter(et.iterparse(f, events=('start', 'end')))
+                _, root = next(context)
+                for event, elem in context:
+                    if event == 'start' and elem.tag == 'testgroup':
+                        rungroup = True
+                    elif event == 'start' and elem.tag == 'option':
+                        name = elem.attrib.get('name')
+                        if name is not None:
+                            rungroup = self.__options[name] == elem.attrib.get('value')
+                    elif rungroup:
+                        if event == 'start' and elem.tag == 'PiglitGLTest':
+                            name = elem.attrib.pop('test_name')
+                            yield name, PiglitGLTest.from_xml(elem)
+                        elif event == 'start' and elem.tag == 'GLSLParserTest':
+                            name = elem.attrib.pop('test_name')
+                            yield name, GLSLParserTest.from_xml(elem)
+                        elif event == 'start' and elem.tag == 'ASMParserTest':
+                            name = elem.attrib.pop('test_name')
+                            yield name, ASMParserTest.from_xml(elem)
+                        elif event == 'start' and elem.tag == 'ShaderTest':
+                            name = elem.attrib.pop('test_name')
+                            yield name, ShaderTest.from_xml(elem)
+                        elif event == 'start' and elem.tag == 'GleanTest':
+                            name = elem.attrib.pop('test_name')
+                            yield name, GleanTest.from_xml(elem)
+                        elif event == 'end' and elem.tag == 'MultiShaderTest':
+                            name = elem.attrib.pop('test_name')
+                            yield name, MultiShaderTest.from_xml(elem)
+                    root.clear()
+            raise StopIteration
+
+        return iter(gen())
+
+    def itertests(self):
+        return iter(self)
 
 
 class RegexFilter(object):
