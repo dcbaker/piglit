@@ -322,6 +322,10 @@ class TestProfile(object):
             if all(f(k, v) for f in self.filters):
                 yield k, v
 
+    @property
+    def testcount(self):
+        return sum(1 for _ in self.itertests())
+
 
 def load_test_profile(filename):
     """Load a python module and return it's profile attribute.
@@ -384,8 +388,7 @@ def run(profiles, logger, backend, concurrency):
     # The logger needs to know how many tests are running. Because of filters
     # there's no way to do that without making a concrete list out of the
     # filters profiles.
-    profiles = [(p, list(p.itertests())) for p in profiles]
-    log = LogManager(logger, sum(len(l) for _, l in profiles))
+    log = LogManager(logger, sum(p.testcount for p in profiles))
 
     def test(name, test, profile, this_pool=None):
         """Function to call test.execute from map"""
@@ -395,34 +398,34 @@ def run(profiles, logger, backend, concurrency):
         if profile.options['monitor'].abort_needed:
             this_pool.terminate()
 
-    def run_threads(pool, profile, test_list, filterby=None):
+    def run_threads(pool, profile, filterby=None):
         """ Open a pool, close it, and join it """
         if filterby:
             # Although filterby could be attached to TestProfile as a filter,
             # it would have to be removed when run_threads exits, requiring
             # more code, and adding side-effects
-            test_list = (x for x in test_list if filterby(x))
+            test_list = (x for x in profile.itertests() if filterby(x))
+        else:
+            test_list = profile.itertests()
 
         pool.imap(lambda pair: test(pair[0], pair[1], profile, pool),
                   test_list, chunksize)
 
-    def run_profile(profile, test_list):
+    def run_profile(profile):
         """Run an individual profile."""
         profile.setup()
         if concurrency == "all":
-            run_threads(multi, profile, test_list)
+            run_threads(multi, profile)
         elif concurrency == "none":
-            run_threads(single, profile, test_list)
+            run_threads(single, profile)
         else:
             assert concurrency == "some"
             # Filter and return only thread safe tests to the threaded pool
-            run_threads(multi, profile, test_list,
-                        lambda x: x[1].run_concurrent)
+            run_threads(multi, profile, lambda x: x[1].run_concurrent)
 
             # Filter and return the non thread safe tests to the single
             # pool
-            run_threads(single, profile, test_list,
-                        lambda x: not x[1].run_concurrent)
+            run_threads(single, profile, lambda x: not x[1].run_concurrent)
         profile.teardown()
 
     # Multiprocessing.dummy is a wrapper around Threading that provides a
@@ -434,7 +437,7 @@ def run(profiles, logger, backend, concurrency):
 
     try:
         for p in profiles:
-            run_profile(*p)
+            run_profile(p)
 
         for pool in [single, multi]:
             pool.close()
@@ -442,6 +445,6 @@ def run(profiles, logger, backend, concurrency):
     finally:
         log.get().summary()
 
-    for p, _ in profiles:
+    for p in profiles:
         if p.options['monitor'].abort_needed:
             raise exceptions.PiglitAbort(p.options['monitor'].error_message)
