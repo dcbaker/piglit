@@ -807,18 +807,16 @@ with builder.group_manager(
       'swapbuffersmsc-return swap_interval 1')
     g(['glx-oml-sync-control-waitformsc'], 'waitformsc')
 
-oml_sync_control_nonzeros = [
-    mode + [kind, period]
-    for mode in [[], ['-fullscreen'], ['-waitformsc']]
-    for kind in ['-divisor', '-msc-delta']
-    for period in ['1', '2']
-]
-for args in oml_sync_control_nonzeros:
-    group = grouptools.join('glx', 'GLX_ARB_sync_control',
-                            ' '.join(['timing'] + args))
-    builder[group] = PiglitGLTest.to_xml(
-        ['glx-oml-sync-control-timing'] + args,
-        require_platforms=['glx', 'mixed_glx_egl'], run_concurrent=False)
+    oml_sync_control_nonzeros = [
+        mode + [kind, period]
+        for mode in [[], ['-fullscreen'], ['-waitformsc']]
+        for kind in ['-divisor', '-msc-delta']
+        for period in ['1', '2']
+    ]
+    for args in oml_sync_control_nonzeros:
+        g(['glx-oml-sync-control-timing'] + args,
+          ' '.join(['timing'] + args),
+          run_concurrent=False)
 
 with builder.group_manager(
         PiglitGLTest,
@@ -1428,10 +1426,11 @@ for stage in ['vs', 'gs', 'fs']:
     # does not add '140', the two tests are equivalent.
     if stage is not 'gs':
         for sampler in textureSize_samplers_130:
-            builder[grouptools.join(
+            name = grouptools.join(
                 'spec', 'glsl-{}'.format(version), 'execution', 'textureSize',
-                '{}-textureSize-{}'.format(stage, sampler))] = PiglitGLTest.to_xml(
-                    ['textureSize', stage, sampler])
+                '{}-textureSize-{}'.format(stage, sampler))
+            builder[name] = PiglitGLTest.to_xml(['textureSize', stage, sampler],
+                                                test_name=name)
 
     # texelFetch():
     for sampler in ['sampler1D', 'sampler2D', 'sampler3D', 'sampler1DArray',
@@ -1439,32 +1438,36 @@ for stage in ['vs', 'gs', 'fs']:
                     'isampler1DArray', 'isampler2DArray', 'usampler1D',
                     'usampler2D', 'usampler3D', 'usampler1DArray',
                     'usampler2DArray']:
-        builder[grouptools.join(
+        name = grouptools.join(
             'spec', 'glsl-{}'.format(version), 'execution', 'texelFetch',
-            '{}-texelFetch-{}'.format(stage, sampler))] = PiglitGLTest.to_xml(
-                ['texelFetch', stage, sampler])
-        builder[grouptools.join(
+            '{}-texelFetch-{}'.format(stage, sampler))
+        builder[name] = PiglitGLTest.to_xml(['texelFetch', stage, sampler],
+                                            test_name=name)
+        name = grouptools.join(
             'spec', 'glsl-{}'.format(version), 'execution', 'texelFetchOffset',
-            '{}-texelFetch-{}'.format(stage, sampler))] = PiglitGLTest.to_xml(
-                ['texelFetch', 'offset', stage, sampler])
+            '{}-texelFetch-{}'.format(stage, sampler))
+        builder[name] = PiglitGLTest.to_xml(
+            ['texelFetch', 'offset', stage, sampler], test_name=name)
 
     # texelFetch() with EXT_texture_swizzle mode "b0r1":
     for type in ['i', 'u', '']:
-        builder[grouptools.join(
+        name = grouptools.join(
             'spec', 'glsl-{}'.format(version), 'execution', 'texelFetch',
-            '{}-texelFetch-{}sampler2Darray-swizzle'.format(stage, type))] = \
-            PiglitGLTest.to_xml(
-                ['texelFetch', stage, '{}sampler2DArray'.format(type), 'b0r1'])
+            '{}-texelFetch-{}sampler2Darray-swizzle'.format(stage, type))
+        builder[name] = PiglitGLTest.to_xml(
+            ['texelFetch', stage, '{}sampler2DArray'.format(type), 'b0r1'],
+            test_name=name)
 
     for type in ('i', 'u', ''):
         for sampler in ('sampler2DMS', 'sampler2DMSArray'):
             for sample_count in MSAA_SAMPLE_COUNTS:
                 stype = '{}{}'.format(type, sampler)
-                builder[grouptools.join(
+                name = grouptools.join(
                     'spec', 'arb_shader_texture_image_samples',
                     'textureSamples', '{}-{}-{}'.format(stage, stype, sample_count))
-                ] = PiglitGLTest.to_xml([
-                    'textureSamples', stage, stype, sample_count])
+                builder[name] = PiglitGLTest.to_xml(
+                    ['textureSamples', stage, stype, sample_count],
+                    test_name=name)
 
 with builder.group_manager(
         PiglitGLTest,
@@ -1611,20 +1614,25 @@ for stage in ['vs', 'gs', 'fs']:
         version = '1.40'
     # textureSize():
     for sampler in textureSize_samplers_140:
-        builder[grouptools.join(
+        name = grouptools.join(
             'spec', 'glsl-{}'.format(version), 'execution', 'textureSize',
-            '{}-textureSize-{}'.format(stage, sampler))] = PiglitGLTest.to_xml(
-                ['textureSize', '140', stage, sampler])
+            '{}-textureSize-{}'.format(stage, sampler))
+        builder[name] = PiglitGLTest.to_xml(
+            ['textureSize', '140', stage, sampler], test_name=name)
     # texelFetch():
     for sampler in ['sampler2DRect', 'usampler2DRect', 'isampler2DRect']:
-        builder[grouptools.join(
+        name = grouptools.join(
             'spec', 'glsl-{}'.format(version), 'execution', 'texelFetch',
-            '{}-texelFetch-{}'.format(stage, sampler))] = PiglitGLTest.to_xml(
-                ['texelFetch', '140', stage, sampler])
-        builder[grouptools.join(
+            '{}-texelFetch-{}'.format(stage, sampler))
+        builder[name] = PiglitGLTest.to_xml(
+            ['texelFetch', '140', stage, sampler], test_name=name)
+
+        name = grouptools.join(
             'spec', 'glsl-{}'.format(version), 'execution', 'texelFetchOffset',
-            '{}-{}'.format(stage, sampler))] = PiglitGLTest.to_xml(
-                ['texelFetch', 'offset', '140', stage, sampler])
+            '{}-{}'.format(stage, sampler))
+        builder[name] = PiglitGLTest.to_xml(
+            ['texelFetch', 'offset', '140', stage, sampler],
+            test_name=name)
 
 with builder.group_manager(
         PiglitGLTest,
