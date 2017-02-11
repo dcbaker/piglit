@@ -57,7 +57,6 @@ class _Options(object):  # pylint: disable=too-many-instance-attributes
         self.valgrind = False
         self.sync = False
         self.deqp_mustpass = False
-        self.process_isolation = True
 
         # env is used to set some base environment variables that are not going
         # to change across runs, without sending them to os.environ which is

@@ -521,7 +521,7 @@ class TestProfile(object):
     handled by the run function in this module, which is able to process and
     run multiple TestProfile objects at once.
     """
-    def __init__(self):
+    def __init__(self, options=None):
         self.test_list = TestDict()
         self.forced_test_list = []
         self.filters = []
@@ -570,7 +570,7 @@ class TestProfile(object):
         return sum(1 for _ in self.itertests())
 
 
-def load_test_profile(filename):
+def load_test_profile(filename, *args):
     """Load a python module and return it's profile attribute.
 
     All of the python test files provide a profile attribute which is a
@@ -591,6 +591,14 @@ def load_test_profile(filename):
     Arguments:
     filename -- the name of a python module to get a 'profile' from
     """
+    xml = os.path.join(
+        'tests', '{}.profile.xml'.format(os.path.splitext(filename)[0]))
+
+    try:
+        return XMLProfile(xml, *args)
+    except OSError:
+        pass
+
     try:
         mod = importlib.import_module('tests.{0}'.format(
             os.path.splitext(os.path.basename(filename))[0]))

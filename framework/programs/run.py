@@ -289,7 +289,6 @@ def run(input_):
     options.OPTIONS.valgrind = args.valgrind
     options.OPTIONS.sync = args.sync
     options.OPTIONS.deqp_mustpass = args.deqp_mustpass
-    options.OPTIONS.process_isolation = args.process_isolation
 
     # Set the platform to pass to waffle
     options.OPTIONS.env['PIGLIT_PLATFORM'] = args.platform
@@ -328,7 +327,9 @@ def run(input_):
     backend.initialize(_create_metadata(
         args, args.name or path.basename(args.results_path), forced_test_list))
 
-    profiles = [profile.load_test_profile(p) for p in args.test_profile]
+    opts = {'process_isolation': 'true' if args.process_isolation else 'false'}
+
+    profiles = [profile.load_test_profile(p, opts) for p in args.test_profile]
     for p in profiles:
         p.results_dir = args.results_path
 

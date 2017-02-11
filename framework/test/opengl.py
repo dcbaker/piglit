@@ -481,7 +481,6 @@ class FastSkipMixin(object):
         return super(FastSkipMixin, cls).from_xml(element)
 
 
-
 class FastSkipDisabled(object):
     """A no-op version of FastSkip."""
 
