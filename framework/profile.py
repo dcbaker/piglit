@@ -179,11 +179,7 @@ class TestDict(collections.MutableMapping):
         statement to yield and adder instance, and then add tests.
 
         This does not provide for a couple of cases.
-        1) When you need to alter the test after initialization. If you need to
-           set instance.env, for example, you will need to do so manually. It
-           is recommended to not use this function for that case, but to
-           manually assign the test and set env together, for code clearness.
-        2) When you need to use a function that modifies the TestProfile.
+        1) When you need to use a function that modifies the TestProfile.
 
         Arguments:
         test_class -- a Test derived class that. Instances of this class will
@@ -205,7 +201,7 @@ class TestDict(collections.MutableMapping):
         """
         assert isinstance(group, six.string_types), type(group)
 
-        def adder(args, name=None, **kwargs):
+        def adder(args, name=None, env=None, **kwargs):
             """Helper function that actually adds the tests.
 
             Arguments:
@@ -213,6 +209,8 @@ class TestDict(collections.MutableMapping):
                       This must be appropriate for the underlying class
 
             Keyword Arguments:
+            env    -- A dict-like object of environment variables and their
+                      values.
             name   -- If this is a a truthy value that value will be used as
                       the key for the test. If name is falsy then args will be
                       ' '.join'd and used as name. Default: None
@@ -238,6 +236,8 @@ class TestDict(collections.MutableMapping):
                 args,
                 **dict(itertools.chain(six.iteritems(default_args),
                                        six.iteritems(kwargs))))
+            if env is not None:
+                self[lgroup].env.update(env)
 
         yield adder
 

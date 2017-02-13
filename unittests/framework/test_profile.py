@@ -266,6 +266,12 @@ class TestTestDict(object):
 
             assert grouptools.join('foo', 'abc') in inst
 
+        def test_env(self, inst):
+            with inst.group_manager(GleanTest, 'foo') as g:
+                g('abc', env={'foo': 'bar'})
+
+            assert inst[grouptools.join('foo', 'abc')].env == {'foo': 'bar'}
+
 
 class TestRegexFilter(object):
     """Tests for the RegexFilter class."""
