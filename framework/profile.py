@@ -97,10 +97,7 @@ class XMLBuilder(object):
         statement to yield and adder instance, and then add tests.
 
         This does not provide for a couple of cases.
-        1) When you need to alter the test after initialization. If you need to
-           set instance.env, for example, you will need to do so manually. It
-           is recommended to not use this function for that case, but to
-           manually assign the test and set env together, for code clearness.
+        1) When you need to alter the test after initialization.
         2) When you need to use a function that modifies the TestProfile.
 
         Arguments:
@@ -123,7 +120,7 @@ class XMLBuilder(object):
         """
         assert isinstance(group, six.string_types), type(group)
 
-        def adder(command=None, name=None, **kwargs):
+        def adder(command=None, name=None, env=None, **kwargs):
             """Helper function that actually adds the tests.
 
             Arguments:
@@ -157,7 +154,7 @@ class XMLBuilder(object):
             if command:
                 args['command'] = command
 
-            self[lgroup] = test_class.to_xml(test_name=lgroup, **args)
+            self[lgroup] = test_class.to_xml(test_name=lgroup, env=env, **args)
 
         yield adder
 

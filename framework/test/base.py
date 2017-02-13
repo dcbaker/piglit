@@ -404,7 +404,8 @@ class Test(object):
         need/want to be XML serialized should.
 
         The signature of this method in subclasses should match the signature
-        of the constructor.
+        of the constructor, with the exception that "env" is reserved for
+        passing environment variables.
 
         The return type of this function should be
         tuple(list(tuple(str, bool), xml.etree.Element). The first element of
