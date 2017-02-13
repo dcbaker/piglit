@@ -428,7 +428,13 @@ class Test(object):
         """
         if 'command' in element.attrib:
             element.attrib['command'] = element.attrib['command'].split()
-        return cls(**element.attrib)
+
+        inst = cls(**element.attrib)
+
+        for e in element:
+            inst.env[e.attrib['key']] = e.attrib['value']
+
+        return inst
 
 
 class WindowResizeMixin(object):
