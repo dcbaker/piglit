@@ -505,10 +505,9 @@ glean_vp_tests = ['ABS test',
 for pairs in [(['glsl1'], glean_glsl_tests),
               (['fragProg1'], glean_fp_tests),
               (['vertProg1'], glean_vp_tests)]:
-    for prefix, name in itertools.product(*pairs):
-        groupname = grouptools.join('glean', '{0}-{1}'.format(prefix, name))
-        profile.test_list[groupname] = GleanTest(prefix)
-        profile.test_list[groupname].env['PIGLIT_TEST'] = name
+    with profile.test_list.group_manager(GleanTest, 'glean') as g:
+        for prefix, name in itertools.product(*pairs):
+            g(prefix, '{0}-{1}'.format(prefix, name), env={'PIGLIT_TEST': name})
 
 with profile.test_list.group_manager(PiglitGLTest, 'security') as g:
     g(['initialized-texmemory'], run_concurrent=False)
@@ -723,14 +722,10 @@ with profile.test_list.group_manager(
     g(['glx-query-drawable', '--bad-drawable'],
       'glx-query-drawable-GLXBadDrawable', run_concurrent=False)
     g(['glx-string-sanity'], 'extension string sanity')
+    g(['glx-buffer-age'], 'glx-buffer-age vblank_mode=0', run_concurrent=False,
+      env={'vblank_mode': '0'})
     add_msaa_visual_plain_tests(g, ['glx-copy-sub-buffer'],
                                 run_concurrent=False)
-profile.test_list[grouptools.join('glx', 'glx-buffer-age vblank_mode=0')] = \
-    PiglitGLTest(['glx-buffer-age'],
-                 require_platforms=['glx', 'mixed_glx_egl'],
-                 run_concurrent=False)
-profile.test_list[grouptools.join(
-    'glx', 'glx-buffer-age vblank_mode=0')].env['vblank_mode'] = '0'
 
 with profile.test_list.group_manager(
         PiglitGLTest,
