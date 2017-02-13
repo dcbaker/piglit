@@ -26,11 +26,12 @@ from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
 import os
-
 try:
     import lxml.etree as et
 except ImportError:
     import xml.etree.cElementTree as et
+
+import six
 
 from framework import options
 from .base import Test, TestIsSkip, REGISTRY
@@ -79,8 +80,14 @@ class GleanTest(Test):
         super(GleanTest, self).is_skip()
 
     @staticmethod
-    def to_xml(**kwargs):
-        return ([], et.Element('GleanTest', **kwargs))
+    def to_xml(env=None, **kwargs):
+        elem = et.Element('GleanTest', **kwargs)
+
+        if env:
+            for k, v in six.iteritems(env):
+                et.SubElement(elem, 'env', key=k, value=v)
+
+        return ([], elem)
 
     @classmethod
     def from_xml(cls, elem):

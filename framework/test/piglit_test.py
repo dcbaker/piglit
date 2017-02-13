@@ -37,6 +37,8 @@ try:
 except ImportError:
     import json
 
+import six
+
 from framework import core, options
 from .base import Test, WindowResizeMixin, ValgrindMixin, TestIsSkip, REGISTRY
 
@@ -164,9 +166,11 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
 
     @staticmethod
     def to_xml(command, require_platforms=None, exclude_platforms=None,
-               **kwargs):
+               env=None, **kwargs):
         if 'run_concurrent' in kwargs:
             kwargs['run_concurrent'] = 'true' if kwargs['run_concurrent'] else 'false'
+
+        env = kwargs.pop('env', {})
 
         elem = et.Element('PiglitGLTest', command=' '.join(command), **kwargs)
 
@@ -174,6 +178,9 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
             elem.attrib['require_platforms'] = ' '.join(require_platforms)
         if exclude_platforms:
             elem.attrib['exclude_platforms'] = ' '.join(exclude_platforms)
+
+        for k, v in six.iteritems(env):
+            et.SubElement(elem, 'env', key=k, value=v)
 
         return ([], elem)
 
@@ -195,7 +202,7 @@ class ASMParserTest(PiglitBaseTest):
         super(ASMParserTest, self).__init__(['asmparsertest', type_, script])
 
     @staticmethod
-    def to_xml(script=None, **kwargs):
+    def to_xml(script=None, env=None, **kwargs):
         assert script is not None
 
         script = os.path.relpath(script, PIGLIT_ROOT)

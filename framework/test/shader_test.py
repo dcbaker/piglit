@@ -184,7 +184,7 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
             glsl_es_version=parser.glsl_es_version)
 
     @staticmethod
-    def to_xml(filename=None, process_isolation=True, **kwargs):
+    def to_xml(filename=None, process_isolation=True, env=None, **kwargs):
         parser = Parser(filename)
         parser.parse()
 
@@ -313,7 +313,7 @@ class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):
         return inst
 
     @staticmethod
-    def to_xml(filenames=None, **kwargs):
+    def to_xml(filenames=None, env=None, **kwargs):
         if 'run_concurrent' in kwargs:
             kwargs['run_concurrent'] = 'true' if kwargs['run_concurrent'] else 'false'
         root = et.Element('MultiShaderTest', **kwargs)

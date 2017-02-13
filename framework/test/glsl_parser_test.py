@@ -285,7 +285,7 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
         super(GLSLParserTest, self).is_skip()
 
     @staticmethod
-    def to_xml(filepath=None, **kwargs):
+    def to_xml(filepath=None, env=None, **kwargs):
         parsed = Parser(filepath)
         parsed.command[1] = os.path.relpath(parsed.command[1], PIGLIT_ROOT)
 
