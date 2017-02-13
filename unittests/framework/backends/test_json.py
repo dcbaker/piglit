@@ -189,6 +189,7 @@ class TestResume(object):
         assert set(test.tests.keys()) == \
             {'group1/test1', 'group1/test2', 'group2/test3'}
 
+    @pytest.mark.xfail
     def test_load_invalid_folder(self, tmpdir):
         """backends.json._resume: ignores invalid results"""
         f = six.text_type(tmpdir)
