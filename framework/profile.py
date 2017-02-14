@@ -154,7 +154,7 @@ class XMLBuilder(object):
             if command:
                 args['command'] = command
 
-            self[lgroup] = test_class.to_xml(test_name=lgroup, env=env, **args)
+            self[lgroup] = test_class.to_xml(test_name=lgroup, **args)
 
         yield adder
 
@@ -195,7 +195,7 @@ class XMLBuilder(object):
                     et.SubElement(options, 'option', name=name, value=value)
 
             tests = et.SubElement(testgroup, 'tests')
-            testcount = itertools.count(start=-1)
+            testcount = itertools.count()
             for _, member in members:
                 tests.append(member)
                 next(testcount)
@@ -269,23 +269,23 @@ class XMLProfile(object):
                         name = elem.attrib.get('name')
                         if name is not None:
                             rungroup = self.__options[name] == elem.attrib.get('value')
-                    elif rungroup:
-                        if event == 'start' and elem.tag == 'PiglitGLTest':
+                    elif rungroup and event =='end':
+                        if elem.tag == 'PiglitGLTest':
                             name = elem.attrib.pop('test_name')
                             yield name, PiglitGLTest.from_xml(elem)
-                        elif event == 'start' and elem.tag == 'GLSLParserTest':
+                        elif elem.tag == 'GLSLParserTest':
                             name = elem.attrib.pop('test_name')
                             yield name, GLSLParserTest.from_xml(elem)
-                        elif event == 'start' and elem.tag == 'ASMParserTest':
+                        elif elem.tag == 'ASMParserTest':
                             name = elem.attrib.pop('test_name')
                             yield name, ASMParserTest.from_xml(elem)
-                        elif event == 'start' and elem.tag == 'ShaderTest':
+                        elif elem.tag == 'ShaderTest':
                             name = elem.attrib.pop('test_name')
                             yield name, ShaderTest.from_xml(elem)
-                        elif event == 'start' and elem.tag == 'GleanTest':
+                        elif elem.tag == 'GleanTest':
                             name = elem.attrib.pop('test_name')
                             yield name, GleanTest.from_xml(elem)
-                        elif event == 'end' and elem.tag == 'MultiShaderTest':
+                        elif elem.tag == 'MultiShaderTest':
                             name = elem.attrib.pop('test_name')
                             yield name, MultiShaderTest.from_xml(elem)
                     root.clear()
