@@ -70,7 +70,7 @@ class XMLBuilder(object):
 
     def __init__(self):
         self.__allow_reassignment = 0
-        self.__container = {}
+        self.__container = collections.OrderedDict()
         self.__filters = []
 
     def __setitem__(self, key, value):
