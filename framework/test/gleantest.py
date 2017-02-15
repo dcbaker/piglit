@@ -81,7 +81,9 @@ class GleanTest(Test):
 
     @staticmethod
     def to_xml(env=None, **kwargs):
-        elem = et.Element('GleanTest', **kwargs)
+        test_name = kwargs.pop('test_name').lower()
+
+        elem = et.Element('GleanTest', test_name=test_name, **kwargs)
 
         if env:
             for k, v in six.iteritems(env):

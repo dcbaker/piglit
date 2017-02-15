@@ -188,6 +188,8 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
         parser = Parser(filename)
         parser.parse()
 
+        test_name = kwargs.pop('test_name').lower()
+
         if parser.gl_version:
             kwargs['gl_version'] = six.text_type(parser.gl_version)
         if parser.gles_version:
@@ -205,6 +207,7 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
                            ]),
                            run_concurrent='true',
                            gl_required=' '.join(parser.gl_required),
+                           test_name=test_name,
                            **kwargs))
 
 
@@ -316,7 +319,8 @@ class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):
     def to_xml(filenames=None, env=None, **kwargs):
         if 'run_concurrent' in kwargs:
             kwargs['run_concurrent'] = 'true' if kwargs['run_concurrent'] else 'false'
-        root = et.Element('MultiShaderTest', **kwargs)
+        test_name = kwargs.pop('test_name').lower()
+        root = et.Element('MultiShaderTest', test_name=test_name, **kwargs)
         prog = None
 
         # Walk each subtest, and either add it to the list of tests to run, or

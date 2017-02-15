@@ -288,7 +288,7 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
     def to_xml(filepath=None, env=None, **kwargs):
         parsed = Parser(filepath)
         parsed.command[1] = os.path.relpath(parsed.command[1], PIGLIT_ROOT)
-
+        test_name = kwargs.pop('test_name').lower()
 
         if parsed.gl_required:
             kwargs['gl_required'] = ' '.join(parsed.gl_required)
@@ -301,6 +301,7 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
             'GLSLParserTest',
             command=' '.join(parsed.command),
             run_concurrent='true',
+            test_name=test_name,
             **kwargs))
 
     @classmethod

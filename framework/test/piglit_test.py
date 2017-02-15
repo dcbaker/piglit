@@ -170,9 +170,11 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
         if 'run_concurrent' in kwargs:
             kwargs['run_concurrent'] = 'true' if kwargs['run_concurrent'] else 'false'
 
+        test_name = kwargs.pop('test_name').lower()
         env = kwargs.pop('env', {})
 
-        elem = et.Element('PiglitGLTest', command=' '.join(command), **kwargs)
+        elem = et.Element('PiglitGLTest', command=' '.join(command),
+                          test_name=test_name, **kwargs)
 
         if require_platforms:
             elem.attrib['require_platforms'] = ' '.join(require_platforms)
@@ -204,9 +206,11 @@ class ASMParserTest(PiglitBaseTest):
     @staticmethod
     def to_xml(script=None, env=None, **kwargs):
         assert script is not None
+        test_name = kwargs.pop('test_name').lower()
 
         script = os.path.relpath(script, PIGLIT_ROOT)
-        return ([], et.Element('ASMParserTest', script=script, **kwargs))
+        return ([], et.Element('ASMParserTest', script=script,
+                               test_name=test_name, **kwargs))
 
 
 class PiglitCLTest(PiglitBaseTest):  # pylint: disable=too-few-public-methods
