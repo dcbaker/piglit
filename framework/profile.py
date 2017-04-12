@@ -389,6 +389,13 @@ def run(profiles, logger, backend, concurrency):
     profiles = [(p, list(p.itertests())) for p in profiles]
     log = LogManager(logger, sum(len(l) for _, l in profiles))
 
+    # check that after the filters are run there are actually tests to run
+    for p, l in profiles:
+        if not l:
+            raise exceptions.PiglitUserError(
+                'After running filters there are no tests in '
+                'profile "{}"'.format(p.name))
+
     def test(name, test, profile, this_pool=None):
         """Function to call test.execute from map"""
         with backend.write_test(name) as w:
