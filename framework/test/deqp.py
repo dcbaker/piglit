@@ -79,9 +79,9 @@ def select_source(bin_, filename, mustpass, extra_args):
             gen_caselist_txt(bin_, filename, extra_args))
 
 
-def make_profile(test_list, test_class):
+def make_profile(name, test_list, test_class):
     """Create a TestProfile instance."""
-    profile = TestProfile()
+    profile = TestProfile(name)
     for testname in test_list:
         # deqp uses '.' as the testgroup separator.
         piglit_name = testname.replace('.', grouptools.SEPARATOR)

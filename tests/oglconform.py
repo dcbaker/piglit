@@ -84,7 +84,7 @@ class OGLCTest(Test):
 
 def _make_profile():
     """Create and populate a TestProfile instance."""
-    profile_ = TestProfile()
+    profile_ = TestProfile('OpenGL: OGL Conform')
 
     with tempfile.NamedTemporaryFile() as f:
         with open(os.devnull, "w") as d:

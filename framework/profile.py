@@ -278,7 +278,8 @@ class TestProfile(object):
     handled by the run function in this module, which is able to process and
     run multiple TestProfile objects at once.
     """
-    def __init__(self):
+    def __init__(self, name):
+        self.name = name
         self.test_list = TestDict()
         self.forced_test_list = []
         self.filters = []
@@ -293,7 +294,7 @@ class TestProfile(object):
     def teardown(self):
         """Method to od post-run teardown."""
 
-    def copy(self):
+    def copy(self, name):
         """Create a copy of the TestProfile.
 
         This method creates a copy with references to the original instance
@@ -301,6 +302,7 @@ class TestProfile(object):
         profiles, without modifying the original.
         """
         new = copy.copy(self)
+        new.name = name
         new.test_list = copy.copy(self.test_list)
         new.forced_test_list = copy.copy(self.forced_test_list)
         new.filters = copy.copy(self.filters)

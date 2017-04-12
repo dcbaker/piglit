@@ -9,6 +9,6 @@ from tests.all import profile as _profile
 
 __all__ = ['profile']
 
-profile = _profile.copy()  # pylint: disable=invalid-name
+profile = _profile.copy('OpenGL: Shader')  # pylint: disable=invalid-name
 
 profile.filters.append(lambda _, t: isinstance(t, (ShaderTest, MultiShaderTest)))

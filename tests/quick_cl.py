@@ -31,7 +31,7 @@ from __future__ import (
 from tests.cl import profile as _profile
 from framework.test import add_opencv_tests, add_oclconform_tests
 
-profile = _profile.copy()  # pylint: disable=invalid-name
+profile = _profile.copy('OpenCL: Native + External')  # pylint: disable=invalid-name
 
 add_opencv_tests(profile)
 add_oclconform_tests(profile)

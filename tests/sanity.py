@@ -12,7 +12,7 @@ from framework.test import PiglitGLTest
 
 __all__ = ['profile']
 
-profile = TestProfile()
+profile = TestProfile('OpenGL: Sanity')
 
 with profile.test_list.group_manager(
         PiglitGLTest,

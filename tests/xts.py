@@ -260,7 +260,7 @@ def _populate_profile_rendercheck(profile):
 def _populate_profile():
     """ Populate the profile attribute """
     # Add all tests to the profile
-    profile = XTSProfile()  # pylint: disable=redefined-outer-name
+    profile = XTSProfile('X.org: X')  # pylint: disable=redefined-outer-name
     _populate_profile_xts(profile)
     _populate_profile_rendercheck(profile)
     return profile

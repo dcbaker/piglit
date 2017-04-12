@@ -206,7 +206,7 @@ def power_set(s):
 
 ######
 # Collecting all tests
-profile = TestProfile()  # pylint: disable=invalid-name
+profile = TestProfile('OpenGL: All')  # pylint: disable=invalid-name
 
 shader_tests = collections.defaultdict(list)
 

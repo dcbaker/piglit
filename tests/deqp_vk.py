@@ -72,6 +72,7 @@ class DEQPVKTest(deqp.DEQPBaseTest):
 
 
 profile = deqp.make_profile(  # pylint: disable=invalid-name
+    'Vulkan: CTS',
     deqp.iter_deqp_test_cases(
         deqp.gen_caselist_txt(_DEQP_VK_BIN, 'dEQP-VK-cases.txt',
                               _EXTRA_ARGS)),

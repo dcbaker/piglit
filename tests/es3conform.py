@@ -1,4 +1,4 @@
-#
+j
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
 # files (the "Software"), to deal in the Software without
@@ -45,7 +45,7 @@ if not path.exists(path.join(TEST_BIN_DIR, 'GTF3')):
     raise exceptions.PiglitFatalError(
         'Missing GTF3 symlink. Unable to run es3conform tests.')
 
-profile = TestProfile()
+    profile = TestProfile('OpenGL: GTF3')
 
 # Chase the piglit/bin/GTF symlink to find where the tests really live.
 gtfroot = path.dirname(path.realpath(path.join(TEST_BIN_DIR, 'GTF3')))

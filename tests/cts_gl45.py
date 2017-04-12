@@ -61,6 +61,7 @@ class DEQPCTSTest(deqp.DEQPBaseTest):
             [x for x in _EXTRA_ARGS if not x.startswith('--deqp-case')]
 
 profile = deqp.make_profile(  # pylint: disable=invalid-name
+    'OpenGL: GL4.5 CTS',
     itertools.chain(
         deqp.iter_deqp_test_cases(
             deqp.gen_caselist_txt(_CTS_BIN, 'GL45-CTS-cases.txt', _EXTRA_ARGS)),

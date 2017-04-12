@@ -12,7 +12,7 @@ from tests.gpu import profile as _profile
 
 __all__ = ['profile']
 
-profile = _profile.copy()  # pylint: disable=invalid-name
+profile = _profile.copy('OpenGL: LLVMPipe specific tests')  # pylint: disable=invalid-name
 
 
 def remove(key):

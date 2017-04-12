@@ -93,6 +93,7 @@ class DEQPGLES3Test(deqp.DEQPBaseTest):
 
 
 profile = deqp.make_profile(  # pylint: disable=invalid-name
+    'OpenGL: DEQP GLES3',
     deqp.select_source(_DEQP_GLES3_BIN, 'dEQP-GLES3-cases.txt', _DEQP_MUSTPASS,
                        _EXTRA_ARGS),
     DEQPGLES3Test)

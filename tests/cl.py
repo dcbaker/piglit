@@ -20,7 +20,7 @@ from .py_modules.constants import TESTS_DIR, GENERATED_TESTS_DIR
 
 __all__ = ['profile']
 
-profile = TestProfile()
+profile = TestProfile('OpenCL: Piglit')
 
 # Custom
 with profile.test_list.group_manager(PiglitCLTest, 'custom') as g:

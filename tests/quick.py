@@ -39,7 +39,7 @@ class FilterVsIn(object):
         return True
 
 
-profile = _profile.copy()  # pylint: disable=invalid-name
+profile = _profile.copy('OpenGL: Piglit Quick')  # pylint: disable=invalid-name
 
 GleanTest.GLOBAL_PARAMS += ["--quick"]
 

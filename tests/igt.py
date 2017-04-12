@@ -101,7 +101,7 @@ class IGTTestProfile(TestProfile):
                 raise exceptions.PiglitFatalError(str(e))
 
 
-profile = IGTTestProfile()  # pylint: disable=invalid-name
+profile = IGTTestProfile('Linux: DRM subsystem')  # pylint: disable=invalid-name
 
 
 class IGTTest(Test):

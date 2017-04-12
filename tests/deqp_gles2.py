@@ -54,6 +54,7 @@ class DEQPGLES2Test(deqp.DEQPBaseTest):
 
 
 profile = deqp.make_profile(  # pylint: disable=invalid-name
+    'OpenGL: DEQP-GLES2',
     deqp.select_source(_DEQP_GLES2_BIN, 'dEQP-GLES2-cases.txt', _DEQP_MUSTPASS,
                        _EXTRA_ARGS),
     DEQPGLES2Test)

@@ -18,7 +18,7 @@ from framework.test import GLSLParserTest
 
 __all__ = ['profile']
 
-profile = _profile.copy()  # pylint: disable=invalid-name
+profile = _profile.copy('OpenGL: CPU tests')  # pylint: disable=invalid-name
 
 
 def filter_gpu(name, test):

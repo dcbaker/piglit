@@ -53,6 +53,7 @@ class DEQPGLES31Test(deqp.DEQPBaseTest):
 
 
 profile = deqp.make_profile(  # pylint: disable=invalid-name
+    'OpenGL: DEQP-GLES31',
     deqp.select_source(_DEQP_GLES31_BIN, 'dEQP-GLES31-cases.txt',
                        _DEQP_MUSTPASS, _EXTRA_ARGS),
     DEQPGLES31Test)

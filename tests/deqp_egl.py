@@ -48,6 +48,7 @@ class DEQPEGLTest(deqp.DEQPBaseTest):
 
 
 profile = deqp.make_profile(  # pylint: disable=invalid-name
+    'OpenGL: EGL CTS',
     deqp.iter_deqp_test_cases(
         deqp.gen_caselist_txt(_EGL_BIN, 'dEQP-EGL-cases.txt',
                               _EXTRA_ARGS)),

@@ -11,7 +11,7 @@ from framework.test import GLSLParserTest
 
 __all__ = ['profile']
 
-profile = _profile.copy()  # pylint: disable=invalid-name
+profile = _profile.copy('OpenGL: GPU only tests')  # pylint: disable=invalid-name
 
 # Remove all parser tests, as they are compiler test
 profile.filters.append(lambda p, t: not isinstance(t, GLSLParserTest))

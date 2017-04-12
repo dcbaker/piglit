@@ -67,6 +67,7 @@ class DEQPCTSTest(deqp.DEQPBaseTest):
 
 # Add all of the suites by default, users can use filters to remove them.
 profile = deqp.make_profile(  # pylint: disable=invalid-name
+    'OpenGL: CTS',
     itertools.chain(
         deqp.iter_deqp_test_cases(
             deqp.gen_caselist_txt(_CTS_BIN, 'GL30-CTS-cases.txt', _EXTRA_ARGS)),
