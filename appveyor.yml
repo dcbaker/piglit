@@ -43,33 +43,75 @@ cache:
 os: Visual Studio 2015
 
 environment:
-  PYTHON_HOME: C:\Python36
   matrix:
     - MINGW_HOME: C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32
+      PYTHON_HOME: C:\Python36
       FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
       FREEGLUT_LIB: lib\libfreeglut.a
       TEST_TYPE: native
+
     - MINGW_HOME: C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64
+      PYTHON_HOME: C:\Python36
       FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
       FREEGLUT_LIB: lib\x64\libfreeglut.a
       TEST_TYPE: native
+
   # - MSVC_ARCH: x86
+  #   PYTHON_HOME: C:\Python36
   #   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
   #   FREEGLUT_LIB: lib\freeglut.lib
   #   TEST_TYPE: native
+
   # - MSVC_ARCH: x86_amd64
+  #   PYTHON_HOME: C:\Python36
   #   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
   #   FREEGLUT_LIB: lib\x64\freeglut.lib
   #   TEST_TYPE: native
+
+    - TOXENV: 'py27-{noaccel,accel-win,streams}'
+      TOXPYTHON: C:\Python27\python.exe
+      PYTHON_HOME: C:\Python27
+      PYTHON_VERSION: '2.7'
+      PYTHON_ARCH: '32'
+      TEST_TYPE: python
+
+    - TOXENV: 'py33-{noaccel,accel-win,streams}'
+      TOXPYTHON: C:\Python33\python.exe
+      PYTHON_HOME: C:\Python33
+      PYTHON_VERSION: '3.3'
+      PYTHON_ARCH: '32'
+      TEST_TYPE: python
+
+    - TOXENV: 'py34-{noaccel,accel-win,streams}'
+      TOXPYTHON: C:\Python34\python.exe
+      PYTHON_HOME: C:\Python34
+      PYTHON_VERSION: '3.4'
+      PYTHON_ARCH: '32'
+      TEST_TYPE: python
+
+    - TOXENV: 'py35-{noaccel,accel-win,streams}'
+      TOXPYTHON: C:\Python35\python.exe
+      PYTHON_HOME: C:\Python35
+      PYTHON_VERSION: '3.5'
+      PYTHON_ARCH: '32'
+      TEST_TYPE: python
+
+    - TOXENV: 'py36-{noaccel,accel-win,streams}'
+      TOXPYTHON: C:\Python36\python.exe
+      PYTHON_HOME: C:\Python36
+      PYTHON_VERSION: '3.6'
+      PYTHON_ARCH: '32'
+      TEST_TYPE: python
 
 matrix:
   fast_finish: true
 
 install:
   - ps: |
+      $ENV:Path="$ENV:PYTHON_HOME;$ENV:PYTHON_HOME\Scripts;$ENV:Path"
+
       if ("$ENV:TEST_TYPE" -eq "native") {
         # Setup Python 3
-        $ENV:Path="$ENV:PYTHON_HOME;$ENV:PYTHON_HOME\Scripts;$ENV:Path"
         Write-Host $(pip --version)
         pip install -r python-requirements/minimum.txt
         pip install -r python-requirements/python3-extra.txt
@@ -105,6 +147,11 @@ install:
         # Get glext.h
         mkdir "glext\GL"
         Invoke-WebRequest https://www.khronos.org/registry/OpenGL/api/GL/glext.h -OutFile glext\GL\glext.h
+      } elseif ("$ENV:TEST_TYPE" -eq "python") {
+        python --version
+        pip --version
+        pip install tox
+        tox --version
       }
 
 build_script:
@@ -112,6 +159,12 @@ build_script:
       if ("$ENV:TEST_TYPE" -eq "native") {
         cmake . -Bbuild -GNinja "-DGLUT_INCLUDE_DIR=$PWD\freeglut\include" "-DGLUT_glut_LIBRARY=$PWD\freeglut\$ENV:FREEGLUT_LIB" "-DGLEXT_INCLUDE_DIR=$PWD\glext"
         ninja -C build
+      }
+
+test_script:
+  - ps: |
+      if ("$ENV:TEST_TYPE" -eq "python") {
+        tox
       }
 
 
