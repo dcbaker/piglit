@@ -1,0 +1,9 @@
+mock >= 1.0.1
+psutil
+pytest < 3.0.2
+pytest-mock
+pytest-pythonpath
+pytest-raises
+pytest-warnings
+pytest-timeout
+jsonschema

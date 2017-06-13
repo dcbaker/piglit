@@ -1,0 +1,3 @@
+lxml
+simplejson
+jsonstreams >= 0.4.1
