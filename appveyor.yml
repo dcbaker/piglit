@@ -22,7 +22,8 @@ version: '{build}'
 
 branches:
   except:
-  - /^travis.*$/
+    - /^travis.*$/
+
 
 # Don't download the full Mesa history to speed up cloning.  However the clone
 # depth must not be too small, otherwise builds might fail when lots of patches
@@ -34,8 +35,8 @@ branches:
 clone_depth: 100
 
 cache:
-- freeglut-MinGW-3.0.0-1.mp.zip
-- freeglut-MinGW-3.0.0-2.mp.zip
+  - freeglut-MinGW-3.0.0-1.mp.zip
+  - freeglut-MinGW-3.0.0-2.mp.zip
 
 # https://www.appveyor.com/docs/build-environment/#build-worker-images
 os: Visual Studio 2015
@@ -43,51 +44,51 @@ os: Visual Studio 2015
 environment:
   PYTHON_HOME: C:\Python36
   matrix:
-  - MINGW_HOME: C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32
-    FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
-    FREEGLUT_LIB: lib\libfreeglut.a
-  - MINGW_HOME: C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64
-    FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
-    FREEGLUT_LIB: lib\x64\libfreeglut.a
-# - MSVC_ARCH: x86
-#   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
-#   FREEGLUT_LIB: lib\freeglut.lib
-# - MSVC_ARCH: x86_amd64
-#   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
-#   FREEGLUT_LIB: lib\x64\freeglut.lib
+    - MINGW_HOME: C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32
+      FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
+      FREEGLUT_LIB: lib\libfreeglut.a
+    - MINGW_HOME: C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64
+      FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
+      FREEGLUT_LIB: lib\x64\libfreeglut.a
+  # - MSVC_ARCH: x86
+  #   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
+  #   FREEGLUT_LIB: lib\freeglut.lib
+  # - MSVC_ARCH: x86_amd64
+  #   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
+  #   FREEGLUT_LIB: lib\x64\freeglut.lib
 
 matrix:
   fast_finish: true
 
 install:
-# Setup Python 3
-- set Path=%PYTHON_HOME%;%PYTHON_HOME%\Scripts;%Path%
-- pip --version
-# Install Six
-- pip install six
-# Install Mako
-- pip install Mako==1.0.6
-# Install Numpy
-- pip install numpy==1.12.1
-# Check CMake
-- cmake --version
-# Install Ninja
-- cinst -y ninja
-- ninja --version
-# Setup MinGW
-- if not "%MINGW_HOME%"=="" set Path=%MINGW_HOME%\bin;%Path%
-# Setup MSVC
-- if not "%MSVC_ARCH%"=="" call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" %MSVC_ARCH%
-# Install FreeGlut
-- if not exist "%FREEGLUT_ARCHIVE%" appveyor DownloadFile "http://files.transmissionzero.co.uk/software/development/GLUT/%FREEGLUT_ARCHIVE%"
-- 7z x -y "%FREEGLUT_ARCHIVE%" > nul
-# Get glext.h
-- mkdir glext\GL
-- appveyor DownloadFile https://www.khronos.org/registry/OpenGL/api/GL/glext.h -FileName glext\GL\glext.h
+  # Setup Python 3
+  - set Path=%PYTHON_HOME%;%PYTHON_HOME%\Scripts;%Path%
+  - pip --version
+  # Install Six
+  - pip install six
+  # Install Mako
+  - pip install Mako==1.0.6
+  # Install Numpy
+  - pip install numpy==1.12.1
+  # Check CMake
+  - cmake --version
+  # Install Ninja
+  - cinst -y ninja
+  - ninja --version
+  # Setup MinGW
+  - if not "%MINGW_HOME%"=="" set Path=%MINGW_HOME%\bin;%Path%
+  # Setup MSVC
+  - if not "%MSVC_ARCH%"=="" call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" %MSVC_ARCH%
+  # Install FreeGlut
+  - if not exist "%FREEGLUT_ARCHIVE%" appveyor DownloadFile "http://files.transmissionzero.co.uk/software/development/GLUT/%FREEGLUT_ARCHIVE%"
+  - 7z x -y "%FREEGLUT_ARCHIVE%" > nul
+  # Get glext.h
+  - mkdir glext\GL
+  - appveyor DownloadFile https://www.khronos.org/registry/OpenGL/api/GL/glext.h -FileName glext\GL\glext.h
 
 build_script:
-- cmake . -Bbuild -G "Ninja" -DGLUT_INCLUDE_DIR=%CD%\freeglut\include -DGLUT_glut_LIBRARY=%CD%\freeglut\%FREEGLUT_LIB% -DGLEXT_INCLUDE_DIR=%CD%\glext
-- ninja -C build
+  - cmake . -Bbuild -G "Ninja" -DGLUT_INCLUDE_DIR=%CD%\freeglut\include -DGLUT_glut_LIBRARY=%CD%\freeglut\%FREEGLUT_LIB% -DGLEXT_INCLUDE_DIR=%CD%\glext
+  - ninja -C build
 
 
 # It's possible to setup notification here, as described in
