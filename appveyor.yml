@@ -64,12 +64,9 @@ install:
   # Setup Python 3
   - set Path=%PYTHON_HOME%;%PYTHON_HOME%\Scripts;%Path%
   - pip --version
-  # Install Six
-  - pip install six
-  # Install Mako
-  - pip install Mako==1.0.6
-  # Install Numpy
-  - pip install numpy==1.12.1
+  # Install minimum python requirements
+  - pip install -r python-requirements/minimum.txt
+  - pip install -r python-requirements/python3-extra.txt
   # Check CMake
   - cmake --version
   # Install Ninja
