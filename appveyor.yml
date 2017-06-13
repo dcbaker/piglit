@@ -37,6 +37,7 @@ clone_depth: 100
 cache:
   - freeglut-MinGW-3.0.0-1.mp.zip
   - freeglut-MinGW-3.0.0-2.mp.zip
+  - '%LOCALAPPDATA%\pip\Cache'
 
 # https://www.appveyor.com/docs/build-environment/#build-worker-images
 os: Visual Studio 2015
