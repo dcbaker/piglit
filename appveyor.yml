@@ -47,45 +47,71 @@ environment:
     - MINGW_HOME: C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32
       FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
       FREEGLUT_LIB: lib\libfreeglut.a
+      TEST_TYPE: native
     - MINGW_HOME: C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64
       FREEGLUT_ARCHIVE: freeglut-MinGW-3.0.0-1.mp.zip
       FREEGLUT_LIB: lib\x64\libfreeglut.a
+      TEST_TYPE: native
   # - MSVC_ARCH: x86
   #   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
   #   FREEGLUT_LIB: lib\freeglut.lib
+  #   TEST_TYPE: native
   # - MSVC_ARCH: x86_amd64
   #   FREEGLUT_ARCHIVE: freeglut-MSVC-3.0.0-2.mp.zip
   #   FREEGLUT_LIB: lib\x64\freeglut.lib
+  #   TEST_TYPE: native
 
 matrix:
   fast_finish: true
 
 install:
-  # Setup Python 3
-  - set Path=%PYTHON_HOME%;%PYTHON_HOME%\Scripts;%Path%
-  - pip --version
-  # Install minimum python requirements
-  - pip install -r python-requirements/minimum.txt
-  - pip install -r python-requirements/python3-extra.txt
-  # Check CMake
-  - cmake --version
-  # Install Ninja
-  - cinst -y ninja
-  - ninja --version
-  # Setup MinGW
-  - if not "%MINGW_HOME%"=="" set Path=%MINGW_HOME%\bin;%Path%
-  # Setup MSVC
-  - if not "%MSVC_ARCH%"=="" call "%VS140COMNTOOLS%\..\..\VC\vcvarsall.bat" %MSVC_ARCH%
-  # Install FreeGlut
-  - if not exist "%FREEGLUT_ARCHIVE%" appveyor DownloadFile "http://files.transmissionzero.co.uk/software/development/GLUT/%FREEGLUT_ARCHIVE%"
-  - 7z x -y "%FREEGLUT_ARCHIVE%" > nul
-  # Get glext.h
-  - mkdir glext\GL
-  - appveyor DownloadFile https://www.khronos.org/registry/OpenGL/api/GL/glext.h -FileName glext\GL\glext.h
+  - ps: |
+      if ("$ENV:TEST_TYPE" -eq "native") {
+        # Setup Python 3
+        $ENV:Path="$ENV:PYTHON_HOME;$ENV:PYTHON_HOME\Scripts;$ENV:Path"
+        Write-Host $(pip --version)
+        pip install -r python-requirements/minimum.txt
+        pip install -r python-requirements/python3-extra.txt
+
+        # Check CMake
+        Write-Host $(cmake --version)
+
+        # Install Ninja
+        cinst -y ninja
+        Write-Host $(ninja --version)
+
+        # Setup MinGW
+        if ("$ENV:MINGW_HOME" -ne "") {
+          $ENV:Path = "$ENV:MINGW_HOME\bin;$ENV:Path"
+        }
+
+        # Setup MSVC
+        if ("$ENV:MSVC_ARCH" -ne "") {
+          cmd \c "$ENV:VS140COMNTOOLS\..\..\VC\vcvarsall.bat" $ENV:MSVC_ARCH |
+          foreach {
+            if ($_ -match "=") {
+              $v = $_.split("="); set-item -force -path "ENV:\$($v[0])"  -value "$($v[1])"
+            }
+          }
+        }
+
+        # Install FreeGlut
+        if (-Not (Test-Path "$ENV:FREEGLUT_ARCHIVE")) {
+          Invoke-WebRequest "http://files.transmissionzero.co.uk/software/development/GLUT/$ENV:FREEGLUT_ARCHIVE" -OutFile "$ENV:FREEGLUT_ARCHIVE"
+        }
+        7z x -y "$ENV:FREEGLUT_ARCHIVE" > $null
+
+        # Get glext.h
+        mkdir "glext\GL"
+        Invoke-WebRequest https://www.khronos.org/registry/OpenGL/api/GL/glext.h -OutFile glext\GL\glext.h
+      }
 
 build_script:
-  - cmake . -Bbuild -G "Ninja" -DGLUT_INCLUDE_DIR=%CD%\freeglut\include -DGLUT_glut_LIBRARY=%CD%\freeglut\%FREEGLUT_LIB% -DGLEXT_INCLUDE_DIR=%CD%\glext
-  - ninja -C build
+  - ps: |
+      if ("$ENV:TEST_TYPE" -eq "native") {
+        cmake . -Bbuild -GNinja "-DGLUT_INCLUDE_DIR=$PWD\freeglut\include" "-DGLUT_glut_LIBRARY=$PWD\freeglut\$ENV:FREEGLUT_LIB" "-DGLEXT_INCLUDE_DIR=$PWD\glext"
+        ninja -C build
+      }
 
 
 # It's possible to setup notification here, as described in
