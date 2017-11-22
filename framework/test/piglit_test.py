@@ -99,6 +99,9 @@ class PiglitGLTest(WindowResizeMixin, PiglitBaseTest):
     options are mutually exclusive.
 
     """
+
+    timeout = 120
+
     def __init__(self, command, require_platforms=None, exclude_platforms=None,
                  **kwargs):
         # TODO: There is a design flaw in python2, keyword args can be

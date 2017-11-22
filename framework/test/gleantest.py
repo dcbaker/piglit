@@ -44,6 +44,7 @@ class GleanTest(Test):
     glean tests.
 
     """
+    timeout = 120
     GLOBAL_PARAMS = []
     _EXECUTABLE = os.path.join(TEST_BIN_DIR, "glean")
 

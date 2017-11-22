@@ -272,6 +272,8 @@ class GLSLParserTest(FastSkipMixin, PiglitBaseTest):
                 .tesc, .tese, .geom or .frag
     """
 
+    timeout = 30
+
     def __init__(self, filepath):
         parsed = Parser(filepath)
         super(GLSLParserTest, self).__init__(

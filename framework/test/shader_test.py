@@ -154,6 +154,8 @@ class ShaderTest(FastSkipMixin, PiglitBaseTest):
 
     """
 
+    timeout = 30
+
     def __init__(self, filename):
         if bool(os.environ.get('PIGLIT_NO_FAST_SKIP', False)):
             # No need to parse the shader test file if we've disabled
@@ -195,6 +197,8 @@ class MultiShaderTest(ReducedProcessMixin, PiglitBaseTest):
     Arguments:
     filenames -- a list of absolute paths to shader test files
     """
+
+    timeout = 120
 
     def __init__(self, filenames):
         assert filenames
