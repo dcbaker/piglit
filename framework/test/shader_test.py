@@ -100,8 +100,8 @@ class Parser(object):
                         self.api = 'gles2'
                     elif m.group('profile') == 'COMPAT':
                         self.api = 'compat'
-                    else:
-                        self.api = 'core'
+                    # Do no set core here, we'll do that after we know that the
+                    # shader language version is >= 3.1
                     continue
 
             if not self.shader_version:
@@ -112,6 +112,8 @@ class Parser(object):
                     self.shader_version = float(m.group('ver'))
                     if m.group('es'):
                         self.api = 'gles2'
+                    elif self.shader_version < 3.1:
+                        self.api = 'compat'
                     elif not self.api:
                         self.api = 'core'
                     continue
