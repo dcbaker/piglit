@@ -112,13 +112,14 @@ class Parser(object):
                     self.shader_version = float(m.group('ver'))
                     if m.group('es'):
                         self.api = 'gles2'
-                    elif self.shader_version < 3.1:
-                        self.api = 'compat'
-                    elif not self.api:
-                        self.api = 'core'
                     continue
 
             if line.startswith('['):
+                if not self.api:
+                    if self.shader_version < 1.4 or 'GL_ARB_compatibility' in self.extensions:
+                        self.api = 'compat'
+                    else:
+                        self.api = 'core'
                 break
 
         # Select the correct binary to run the test, but be as conservative as
