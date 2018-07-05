@@ -54,7 +54,7 @@ class Parser(object):
         self.filename = filename
         self.extensions = set()
         self.api_version = None
-        self.shader_version = None
+        self.shader_version = 0.0
         self.api = None
         self.prog = None
         self.__op = None
